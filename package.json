@@ -1,0 +1,19 @@
+{
+    "name": "asistente-ia-juvenil",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "dev": "concurrently \"npm run server --prefix backend\" \"npm run dev --prefix frontend\"",
+        "dev:backend": "npm run server --prefix backend",
+        "dev:frontend": "npm run dev --prefix frontend",
+        "install:all": "npm install --prefix backend && npm install --prefix frontend",
+        "pm2:start": "pm2 start ecosystem.config.js --update-env",
+        "pm2:reload": "pm2 reload ecosystem.config.js --update-env",
+        "pm2:stop": "pm2 stop ecosystem.config.js",
+        "deploy": "bash scripts/deploy.sh"
+    },
+    "devDependencies": {
+        "concurrently": "^8.2.2",
+        "pm2": "^5.4.2"
+    }
+}

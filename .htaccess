@@ -1,0 +1,17 @@
+RewriteEngine On
+
+# Evita proxyear recursos del propio panel o rutas especiales
+RewriteCond %{REQUEST_URI} ^/(error_docs|plesk-stat|.well-known) [NC]
+RewriteRule ^ - [L]
+
+# Proxy específico para la API del backend Express
+RewriteCond %{REQUEST_URI} ^/api [NC]
+RewriteRule ^api$ http://127.0.0.1:3001/api [P,L,QSA]
+RewriteRule ^api/(.*)$ http://127.0.0.1:3001/api/$1 [P,L,QSA]
+
+# Atiende la raíz y los accesos implícitos a index.html directamente en la app
+RewriteRule ^$ http://127.0.0.1:3000/ [P,L]
+RewriteRule ^index\.html$ http://127.0.0.1:3000/ [P,L]
+
+# Proxy inverso hacia la app Next.js que escucha en el puerto 3000
+RewriteRule ^(.*)$ http://127.0.0.1:3000/$1 [P,L,QSA]

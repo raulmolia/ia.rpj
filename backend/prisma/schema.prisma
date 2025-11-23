@@ -1,0 +1,324 @@
+// Esquema de Prisma para MariaDB
+// Base de datos: rpjia
+// Funcionalidad: Usuarios, autenticación, sesiones
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+// Modelo de usuarios
+model Usuario {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  nombre          String
+  apellidos       String?
+  nombreUsuario   String?  @unique
+  avatarUrl       String?
+  telefono        String?
+  fechaNacimiento DateTime?
+  genero          Genero?
+  rol             Rol      @default(USUARIO)
+  
+  // Autenticación
+  emailVerificado DateTime?
+  passwordHash    String?
+  debeCambiarPassword Boolean @default(false)
+  
+  // Información de la organización/grupo
+  organizacion    String?
+  cargo           String?
+  experiencia     Int?     // años de experiencia
+  
+  // Configuración del usuario
+  temaPreferido   String   @default("light")
+  idioma          String   @default("es")
+  notificaciones  Boolean  @default(true)
+  
+  // Metadatos
+  fechaCreacion   DateTime @default(now())
+  fechaActualizacion DateTime @updatedAt
+  activo          Boolean  @default(true)
+  
+  // Relaciones
+  sesiones        Sesion[]
+  actividades     Actividad[]
+  configuraciones ConfiguracionUsuario[]
+  favoritos       ActividadFavorita[]
+  documentos      Documento[]
+  conversaciones  Conversacion[]
+  fuentesWeb      FuenteWeb[]
+  
+  @@map("usuarios")
+}
+
+// Enum para roles del sistema
+enum Rol {
+  SUPERADMIN
+  ADMINISTRADOR
+  DOCUMENTADOR
+  DOCUMENTADOR_JUNIOR
+  USUARIO
+}
+
+// Enum para género
+enum Genero {
+  MASCULINO
+  FEMENINO
+  OTRO
+  PREFIERO_NO_DECIR
+}
+
+// Modelo de sesiones de usuario
+model Sesion {
+  id            String   @id @default(cuid())
+  usuarioId     String
+  token         String   @unique
+  tipoDispositivo String?
+  navegador     String?
+  ip            String?
+  ubicacion     String?
+  activa        Boolean  @default(true)
+  fechaCreacion DateTime @default(now())
+  fechaExpiracion DateTime
+  ultimoAcceso  DateTime @default(now())
+  
+  // Relaciones
+  usuario       Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  
+  @@map("sesiones")
+}
+
+// Modelo para actividades generadas
+model Actividad {
+  id              String   @id @default(cuid())
+  usuarioId       String
+  titulo          String
+  descripcion     String
+  contenido       String   // JSON con la actividad completa
+  
+  // Clasificación
+  tipoActividad   TipoActividad
+  edadMinima      Int
+  edadMaxima      Int
+  duracionMinutos Int
+  numeroParticipantes Int
+  
+  // Categorías y tags
+  categoria       String
+  subcategoria    String?
+  tags            String? // Tags separados por comas
+  dificultad      Dificultad
+  
+  // Metadatos de generación IA
+  promptOriginal  String
+  modeloIA        String
+  parametrosIA    String   // JSON con parámetros usados
+  versionIA       String?
+  
+  // Estado y métricas
+  estado          EstadoActividad @default(BORRADOR)
+  calificacion    Float?   // 1-5 estrellas
+  vecesUsada      Int      @default(0)
+  fechaCreacion   DateTime @default(now())
+  fechaActualizacion DateTime @updatedAt
+  
+  // Relaciones
+  usuario         Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  favoritos       ActividadFavorita[]
+  
+  @@map("actividades")
+}
+
+// Enums para actividades
+enum TipoActividad {
+  DINAMICA
+  JUEGO
+  REFLEXION
+  ORACION
+  TALLER
+  DEBATE
+  COMPETICION
+  CREATIVA
+  DEPORTIVA
+  MUSICAL
+}
+
+enum Dificultad {
+  MUY_FACIL
+  FACIL
+  INTERMEDIO
+  DIFICIL
+  MUY_DIFICIL
+}
+
+enum EstadoActividad {
+  BORRADOR
+  PUBLICADA
+  ARCHIVADA
+  ELIMINADA
+}
+
+// Modelo para favoritos
+model ActividadFavorita {
+  id           String    @id @default(cuid())
+  usuarioId    String
+  actividadId  String
+  fechaCreacion DateTime @default(now())
+  
+  // Relaciones
+  usuario      Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  actividad    Actividad @relation(fields: [actividadId], references: [id], onDelete: Cascade)
+  
+  @@unique([usuarioId, actividadId])
+  @@map("actividades_favoritas")
+}
+
+// Modelo para configuraciones personalizadas
+model ConfiguracionUsuario {
+  id            String   @id @default(cuid())
+  usuarioId     String
+  clave         String   // ej: "edad_preferida", "tipo_actividad_preferida"
+  valor         String   // valor serializado (JSON si es complejo)
+  tipo          String   // "string", "number", "boolean", "json"
+  fechaCreacion DateTime @default(now())
+  fechaActualizacion DateTime @updatedAt
+  
+  // Relaciones
+  usuario       Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  
+  @@unique([usuarioId, clave])
+  @@map("configuraciones_usuario")
+}
+
+// Modelo para el repositorio documental
+model Documento {
+  id                   String                 @id @default(cuid())
+  usuarioId            String?
+  titulo               String
+  nombreOriginal       String
+  rutaArchivo          String
+  tamanoBytes          Int
+  tipoMime             String
+  etiquetas            Json
+  descripcionGenerada  String?
+  estadoProcesamiento  EstadoProcesamiento    @default(PENDIENTE)
+  mensajeError         String?
+  fechaProcesamiento   DateTime?
+  contenidoExtraido    String?                @db.LongText
+  vectorDocumentoId    String?
+  coleccionVectorial   String?
+  fechaCreacion        DateTime               @default(now())
+  fechaActualizacion   DateTime               @updatedAt
+
+  // Relaciones
+  usuario              Usuario?               @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  @@map("documentos")
+  @@index([fechaCreacion], name: "idx_documentos_fecha")
+  @@index([estadoProcesamiento], name: "idx_documentos_estado")
+}
+
+// Fuentes web para búsqueda y scraping
+model FuenteWeb {
+  id                   String                 @id @default(cuid())
+  usuarioId            String?
+  url                  String
+  dominio              String
+  titulo               String?
+  descripcion          String?
+  etiquetas            Json
+  tipoFuente           TipoFuenteWeb          @default(PAGINA)
+  estadoProcesamiento  EstadoProcesamiento    @default(PENDIENTE)
+  mensajeError         String?
+  fechaProcesamiento   DateTime?
+  contenidoExtraido    String?                @db.LongText
+  vectorDocumentoId    String?
+  coleccionVectorial   String?
+  activa               Boolean                @default(true)
+  fechaCreacion        DateTime               @default(now())
+  fechaActualizacion   DateTime               @updatedAt
+  fechaUltimaActualizacion DateTime?          // Para el sistema de actualización automática cada 24h
+
+  // Relaciones
+  usuario              Usuario?               @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  @@map("fuentes_web")
+  @@index([dominio], name: "idx_fuentes_web_dominio")
+  @@index([estadoProcesamiento], name: "idx_fuentes_web_estado")
+  @@index([activa], name: "idx_fuentes_web_activa")
+}
+
+// Conversaciones del chat IA
+model Conversacion {
+  id                 String              @id @default(cuid())
+  usuarioId          String?
+  titulo             String?
+  descripcion        String?
+  intencionPrincipal String?
+  fechaCreacion      DateTime            @default(now())
+  fechaActualizacion DateTime            @updatedAt
+
+  usuario            Usuario?            @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  mensajes           MensajeConversacion[]
+
+  @@map("conversaciones")
+  @@index([usuarioId], name: "idx_conversaciones_usuario")
+}
+
+model MensajeConversacion {
+  id             String         @id @default(cuid())
+  conversacionId String
+  rol            RolMensaje
+  contenido      String         @db.LongText
+  intencion      String?
+  tokensEntrada  Int?
+  tokensSalida   Int?
+  duracionMs     Int?
+  metadatos      Json?
+  fechaCreacion  DateTime       @default(now())
+
+  conversacion   Conversacion   @relation(fields: [conversacionId], references: [id], onDelete: Cascade)
+
+  @@map("mensajes_conversacion")
+  @@index([conversacionId], name: "idx_mensajes_conversacion_conversacionId")
+}
+
+// Enum de estado de procesamiento documental
+enum EstadoProcesamiento {
+  PENDIENTE
+  PROCESANDO
+  COMPLETADO
+  ERROR
+}
+
+// Enum de etiquetas documentales
+enum EtiquetaDocumento {
+  PROGRAMACIONES
+  DINAMICAS
+  CELEBRACIONES
+  ORACIONES
+  CONSULTA
+  PASTORAL_GENERICO
+  REVISTAS
+  CONTENIDO_MIXTO
+  OTROS
+}
+
+enum RolMensaje {
+  USUARIO
+  ASISTENTE
+  SISTEMA
+}
+
+// Enum de tipo de fuente web
+enum TipoFuenteWeb {
+  PAGINA      // URL específica
+  DOMINIO     // Dominio completo para scraping
+  SITEMAP     // URL de sitemap XML
+}

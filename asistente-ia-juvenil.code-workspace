@@ -1,0 +1,153 @@
+{
+    "folders": [
+        {
+            "name": "Asistente IA Juvenil",
+            "path": "."
+        }
+    ],
+    "settings": {
+        "typescript.preferences.quoteStyle": "single",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.fixAll.eslint": "explicit"
+        },
+        "files.associations": {
+            "*.prisma": "prisma"
+        },
+        "prisma.showPrismaDataPlatformNotification": false,
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.cwd": "/var/www/vhosts/practical-chatelet.217-154-99-32.plesk.page/httpdocs",
+        "git.autofetch": true,
+        "git.enableSmartCommit": true,
+        "emmet.includeLanguages": {
+            "typescript": "typescriptreact",
+            "javascript": "javascriptreact"
+        },
+        "tailwindCSS.includeLanguages": {
+            "typescript": "typescript",
+            "typescriptreact": "typescriptreact"
+        },
+        "tailwindCSS.experimental.classRegex": [
+            [
+                "cva\\(([^)]*)\\)",
+                "[\"'`]([^\"'`]*).*?[\"'`]"
+            ],
+            [
+                "cx\\(([^)]*)\\)",
+                "(?:'|\"|`)([^']*)(?:'|\"|`)"
+            ]
+        ]
+    },
+    "extensions": {
+        "recommendations": [
+            "ms-vscode-remote.remote-ssh",
+            "ms-vscode-remote.remote-ssh-edit",
+            "bradlc.vscode-tailwindcss",
+            "esbenp.prettier-vscode",
+            "ms-vscode.vscode-typescript-next",
+            "prisma.prisma",
+            "ms-vscode.vscode-json",
+            "ms-vscode-remote.remote-containers",
+            "github.copilot",
+            "github.copilot-chat",
+            "ms-python.python",
+            "ms-vscode.powershell",
+            "formulahendry.auto-rename-tag",
+            "christian-kohler.path-intellisense",
+            "ms-vscode.vscode-eslint",
+            "dbaeumer.vscode-eslint",
+            "ms-vscode-remote.vscode-remote-extensionpack",
+            "cweijan.vscode-postgresql-client2"
+        ]
+    },
+    "tasks": {
+        "version": "2.0.0",
+        "tasks": [
+            {
+                "label": "Instalar dependencias",
+                "type": "shell",
+                "command": "npm install",
+                "group": "build",
+                "presentation": {
+                    "reveal": "always",
+                    "panel": "new"
+                }
+            },
+            {
+                "label": "Ejecutar frontend (Next.js)",
+                "type": "shell",
+                "command": "npm run dev",
+                "group": "build",
+                "presentation": {
+                    "reveal": "always",
+                    "panel": "new"
+                },
+                "options": {
+                    "cwd": "${workspaceFolder}/frontend"
+                }
+            },
+            {
+                "label": "Ejecutar backend (Node.js)",
+                "type": "shell",
+                "command": "npm run server",
+                "group": "build",
+                "presentation": {
+                    "reveal": "always",
+                    "panel": "new"
+                },
+                "options": {
+                    "cwd": "${workspaceFolder}/backend"
+                }
+            },
+            {
+                "label": "Prisma: Generar cliente",
+                "type": "shell",
+                "command": "npx prisma generate",
+                "group": "build",
+                "presentation": {
+                    "reveal": "always",
+                    "panel": "new"
+                },
+                "options": {
+                    "cwd": "${workspaceFolder}/backend"
+                }
+            },
+            {
+                "label": "Prisma: Migrar base de datos",
+                "type": "shell",
+                "command": "npx prisma migrate dev",
+                "group": "build",
+                "presentation": {
+                    "reveal": "always",
+                    "panel": "new"
+                },
+                "options": {
+                    "cwd": "${workspaceFolder}/backend"
+                }
+            },
+            {
+                "label": "Prisma: Studio",
+                "type": "shell",
+                "command": "npx prisma studio",
+                "group": "build",
+                "presentation": {
+                    "reveal": "always",
+                    "panel": "new"
+                },
+                "options": {
+                    "cwd": "${workspaceFolder}/backend"
+                }
+            },
+            {
+                "label": "Sincronizar con GitHub",
+                "type": "shell",
+                "command": "git add . && git commit -m 'Actualización automática' && git push",
+                "group": "build",
+                "presentation": {
+                    "reveal": "always",
+                    "panel": "new"
+                }
+            }
+        ]
+    }
+}
