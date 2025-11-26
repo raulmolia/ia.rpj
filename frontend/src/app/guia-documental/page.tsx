@@ -1,14 +1,21 @@
 "use client"
 
 import Link from "next/link"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, BookOpenCheck, Loader2, Info as InfoIcon } from "lucide-react"
+import { ArrowLeft, BookOpenCheck, Loader2, Info as InfoIcon, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ThemeToggleButton } from "@/components/theme-toggle"
 import { useAuth } from "@/hooks/use-auth"
 import { buildApiUrl } from "@/lib/utils"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 
 type Document = {
     id: string
@@ -58,8 +65,24 @@ export default function GuiaDocumentalPage() {
     const [loading, setLoading] = useState(false)
     const [activeView, setActiveView] = useState<"info" | "repository">("info")
     const [error, setError] = useState<string | null>(null)
+    
+    // Paginación
+    const [currentPage, setCurrentPage] = useState(1)
+    const [itemsPerPage, setItemsPerPage] = useState(25)
 
     const hasAccess = isAuthenticated && user && ["SUPERADMIN", "ADMINISTRADOR", "DOCUMENTADOR", "DOCUMENTADOR_JUNIOR"].includes(user.rol || "")
+
+    // Cálculos de paginación
+    const totalPages = useMemo(() => Math.ceil(documents.length / itemsPerPage), [documents.length, itemsPerPage])
+    const paginatedDocuments = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage
+        return documents.slice(startIndex, startIndex + itemsPerPage)
+    }, [documents, currentPage, itemsPerPage])
+
+    // Reset página al cambiar items por página
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [itemsPerPage])
 
     const loadDocuments = useCallback(async () => {
         if (!token) {
@@ -233,7 +256,7 @@ export default function GuiaDocumentalPage() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-border/60 text-sm">
-                                        {documents.map((doc) => (
+                                        {paginatedDocuments.map((doc) => (
                                             <tr key={doc.id} className="align-top">
                                                 <td className="px-4 py-4">
                                                     <div className="font-medium text-foreground">{doc.titulo}</div>
@@ -262,6 +285,76 @@ export default function GuiaDocumentalPage() {
                                         ))}
                                     </tbody>
                                 </table>
+                                
+                                {/* Controles de paginación */}
+                                <div className="flex items-center justify-between border-t border-border/60 px-4 py-4 mt-4">
+                                    {/* Selector de items por página */}
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm text-muted-foreground">Mostrar</span>
+                                        <Select
+                                            value={itemsPerPage.toString()}
+                                            onValueChange={(value) => setItemsPerPage(Number(value))}
+                                        >
+                                            <SelectTrigger className="w-[80px] h-8">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="25">25</SelectItem>
+                                                <SelectItem value="50">50</SelectItem>
+                                                <SelectItem value="100">100</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <span className="text-sm text-muted-foreground">
+                                            de {documents.length} documentos
+                                        </span>
+                                    </div>
+                                    
+                                    {/* Navegación de páginas */}
+                                    <div className="flex items-center gap-1">
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            onClick={() => setCurrentPage(1)}
+                                            disabled={currentPage === 1}
+                                        >
+                                            <ChevronsLeft className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                            disabled={currentPage === 1}
+                                        >
+                                            <ChevronLeft className="h-4 w-4" />
+                                        </Button>
+                                        
+                                        <span className="px-3 text-sm text-muted-foreground">
+                                            Página {currentPage} de {totalPages}
+                                        </span>
+                                        
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                            disabled={currentPage === totalPages}
+                                        >
+                                            <ChevronRight className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            onClick={() => setCurrentPage(totalPages)}
+                                            disabled={currentPage === totalPages}
+                                        >
+                                            <ChevronsRight className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                                
                                 <p className="text-sm text-muted-foreground mt-4">
                                     Los documentos mostrados están almacenados en la base vectorial y son utilizados por el asistente 
                                     para proporcionar respuestas contextualizadas.

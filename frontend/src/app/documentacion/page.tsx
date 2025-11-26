@@ -133,6 +133,10 @@ export default function DocumentacionPage() {
     const [editingDescription, setEditingDescription] = useState("")
     const [deletingDocId, setDeletingDocId] = useState<string | null>(null)
     const [updatingDoc, setUpdatingDoc] = useState(false)
+    
+    // Estados de paginación para documentos
+    const [docItemsPerPage, setDocItemsPerPage] = useState<number>(25)
+    const [docCurrentPage, setDocCurrentPage] = useState<number>(1)
 
     const canAccess = useMemo(
         () => Boolean(isAuthenticated && user && ALLOWED_ROLES.has(user.rol ?? "")),
@@ -365,6 +369,19 @@ export default function DocumentacionPage() {
         return sorted
     }, [documents, searchTerm, filterTags, sortOrder])
 
+    // Paginación de documentos
+    const docTotalPages = Math.ceil(filteredAndSortedDocuments.length / docItemsPerPage)
+    const paginatedDocuments = useMemo(() => {
+        const startIndex = (docCurrentPage - 1) * docItemsPerPage
+        return filteredAndSortedDocuments.slice(startIndex, startIndex + docItemsPerPage)
+    }, [filteredAndSortedDocuments, docCurrentPage, docItemsPerPage])
+
+    // Resetear página al cambiar filtros o búsqueda
+    const handleSearchChange = (value: string) => {
+        setSearchTerm(value)
+        setDocCurrentPage(1)
+    }
+
     // Manejar toggle de etiqueta en filtro
     const handleFilterTagToggle = (tagId: string) => {
         setFilterTags((prev) => {
@@ -373,6 +390,7 @@ export default function DocumentacionPage() {
             }
             return [...prev, tagId]
         })
+        setDocCurrentPage(1) // Resetear a primera página al cambiar filtros
     }
 
     // Iniciar edición de documento
@@ -926,7 +944,7 @@ export default function DocumentacionPage() {
                             <Input
                                 placeholder="Buscar documentos..."
                                 value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onChange={(e) => handleSearchChange(e.target.value)}
                                 className="pl-9"
                             />
                         </div>
@@ -1011,7 +1029,7 @@ export default function DocumentacionPage() {
                                     </tr>
                                 )}
 
-                                {filteredAndSortedDocuments.map((documento) => {
+                                {paginatedDocuments.map((documento) => {
                                     const estado = STATUS_BADGE_MAP[documento.estadoProcesamiento] || STATUS_BADGE_MAP.PENDIENTE
                                     const isEditing = editingDocId === documento.id
                                     const isDeleting = deletingDocId === documento.id
@@ -1190,6 +1208,72 @@ export default function DocumentacionPage() {
                             </tbody>
                         </table>
                     </div>
+
+                    {/* Paginación */}
+                    {filteredAndSortedDocuments.length > 0 && (
+                        <div className="mt-4 flex flex-col items-center justify-between gap-4 sm:flex-row">
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm text-muted-foreground">Mostrar</span>
+                                <Select
+                                    value={docItemsPerPage.toString()}
+                                    onValueChange={(value) => {
+                                        setDocItemsPerPage(Number(value))
+                                        setDocCurrentPage(1)
+                                    }}
+                                >
+                                    <SelectTrigger className="w-[80px]">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="25">25</SelectItem>
+                                        <SelectItem value="50">50</SelectItem>
+                                        <SelectItem value="100">100</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <span className="text-sm text-muted-foreground">
+                                    de {filteredAndSortedDocuments.length} documentos
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setDocCurrentPage(1)}
+                                    disabled={docCurrentPage === 1}
+                                >
+                                    Primera
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setDocCurrentPage((prev) => Math.max(1, prev - 1))}
+                                    disabled={docCurrentPage === 1}
+                                >
+                                    Anterior
+                                </Button>
+                                <span className="text-sm text-muted-foreground px-2">
+                                    Página {docCurrentPage} de {docTotalPages || 1}
+                                </span>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setDocCurrentPage((prev) => Math.min(docTotalPages, prev + 1))}
+                                    disabled={docCurrentPage >= docTotalPages}
+                                >
+                                    Siguiente
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setDocCurrentPage(docTotalPages)}
+                                    disabled={docCurrentPage >= docTotalPages}
+                                >
+                                    Última
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="mt-6 flex justify-end lg:hidden">
                         <Button variant="ghost" onClick={() => setActiveView("upload")}>Subir un nuevo documento</Button>
                     </div>

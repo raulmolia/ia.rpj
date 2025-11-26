@@ -18,6 +18,13 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import { buildApiUrl } from "@/lib/utils"
 
 type TagOption = {
@@ -119,6 +126,10 @@ export function WebSourcesTable({ token, tagOptions, canEditDelete }: WebSources
     const [deletingId, setDeletingId] = useState<string | null>(null)
     const [updating, setUpdating] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    
+    // Estados de paginación
+    const [itemsPerPage, setItemsPerPage] = useState<number>(25)
+    const [currentPage, setCurrentPage] = useState<number>(1)
 
     // Cargar fuentes automáticamente al montar el componente
     useEffect(() => {
@@ -231,6 +242,12 @@ export function WebSourcesTable({ token, tagOptions, canEditDelete }: WebSources
         setFilterTags((prev) =>
             prev.includes(tagId) ? prev.filter((t) => t !== tagId) : [...prev, tagId]
         )
+        setCurrentPage(1) // Resetear página al cambiar filtros
+    }
+
+    const handleSearchChange = (value: string) => {
+        setSearchTerm(value)
+        setCurrentPage(1) // Resetear página al buscar
     }
 
     const toggleEditTag = (tagId: string) => {
@@ -266,6 +283,13 @@ export function WebSourcesTable({ token, tagOptions, canEditDelete }: WebSources
 
         return filtered
     }, [sources, searchTerm, filterTags, sortOrder])
+
+    // Paginación
+    const totalPages = Math.ceil(filteredSources.length / itemsPerPage)
+    const paginatedSources = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage
+        return filteredSources.slice(startIndex, startIndex + itemsPerPage)
+    }, [filteredSources, currentPage, itemsPerPage])
 
     return (
         <div className="space-y-6">
@@ -303,7 +327,7 @@ export function WebSourcesTable({ token, tagOptions, canEditDelete }: WebSources
                         <Input
                             placeholder="Buscar por título, URL o descripción..."
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onChange={(e) => handleSearchChange(e.target.value)}
                             className="h-10 pl-10"
                         />
                     </div>
@@ -407,7 +431,7 @@ export function WebSourcesTable({ token, tagOptions, canEditDelete }: WebSources
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                                {filteredSources.map((source) => {
+                                {paginatedSources.map((source) => {
                                     const isEditing = editingId === source.id
                                     const StatusIcon = STATUS_BADGE_MAP[source.estadoProcesamiento]?.icon || Clock
 
@@ -600,6 +624,71 @@ export function WebSourcesTable({ token, tagOptions, canEditDelete }: WebSources
                     </div>
                 )}
             </div>
+
+            {/* Paginación */}
+            {filteredSources.length > 0 && (
+                <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm text-slate-600 dark:text-slate-400">Mostrar</span>
+                        <Select
+                            value={itemsPerPage.toString()}
+                            onValueChange={(value) => {
+                                setItemsPerPage(Number(value))
+                                setCurrentPage(1)
+                            }}
+                        >
+                            <SelectTrigger className="w-[80px]">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="25">25</SelectItem>
+                                <SelectItem value="50">50</SelectItem>
+                                <SelectItem value="100">100</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <span className="text-sm text-slate-600 dark:text-slate-400">
+                            de {filteredSources.length} fuentes
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(1)}
+                            disabled={currentPage === 1}
+                        >
+                            Primera
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                        >
+                            Anterior
+                        </Button>
+                        <span className="text-sm text-slate-600 dark:text-slate-400 px-2">
+                            Página {currentPage} de {totalPages || 1}
+                        </span>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage >= totalPages}
+                        >
+                            Siguiente
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(totalPages)}
+                            disabled={currentPage >= totalPages}
+                        >
+                            Última
+                        </Button>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
