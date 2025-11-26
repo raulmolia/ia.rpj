@@ -123,7 +123,7 @@ Responde SOLO con el saludo, sin comillas ni explicaciones.`;
         return greeting.trim();
     } catch (error) {
         console.error('Error generando saludo inicial:', error);
-        return `Hola ${userName}, ¿en qué puedo ayudarte?`;
+        return `Hola ${userName}, ¿qué necesitas para tu tarea pastoral?`;
     }
 }
 

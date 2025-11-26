@@ -202,6 +202,13 @@ export default function ChatHomePage() {
                 tags: ["DINAMICAS"],
             },
             {
+                label: "Oraciones",
+                icon: BookOpen,
+                template: "Necesito una oración breve para iniciar una reunión de jóvenes de 13 años.",
+                intent: "ORACION",
+                tags: ["ORACIONES"],
+            },
+            {
                 label: "Celebraciones",
                 icon: PartyPopper,
                 template: "Diseña una celebración juvenil para el inicio del año pastoral.",
@@ -216,14 +223,7 @@ export default function ChatHomePage() {
                 tags: ["PROGRAMACIONES"],
             },
             {
-                label: "Oraciones",
-                icon: BookOpen,
-                template: "Necesito una oración breve para iniciar una reunión de jóvenes de 13 años.",
-                intent: "ORACION",
-                tags: ["ORACIONES"],
-            },
-            {
-                label: "Otros",
+                label: "Consulta",
                 icon: FileText,
                 template: "Ayúdame con un recurso creativo para motivar a un grupo juvenil.",
                 intent: "OTROS",
@@ -1300,10 +1300,10 @@ export default function ChatHomePage() {
                                     const Icon = item.icon
                                     const categoryColors: Record<string, string> = {
                                         "Dinámicas y Actividades": "border-emerald-500 bg-emerald-100 text-emerald-800 dark:border-emerald-500 dark:bg-emerald-950/60 dark:text-emerald-300",
+                                        "Oraciones": "border-violet-500 bg-violet-100 text-violet-800 dark:border-violet-500 dark:bg-violet-950/60 dark:text-violet-300",
                                         "Celebraciones": "border-pink-500 bg-pink-100 text-pink-800 dark:border-pink-500 dark:bg-pink-950/60 dark:text-pink-300",
                                         "Programaciones": "border-blue-500 bg-blue-100 text-blue-800 dark:border-blue-500 dark:bg-blue-950/60 dark:text-blue-300",
-                                        "Oraciones": "border-violet-500 bg-violet-100 text-violet-800 dark:border-violet-500 dark:bg-violet-950/60 dark:text-violet-300",
-                                        "Otros": "border-slate-500 bg-slate-100 text-slate-800 dark:border-slate-500 dark:bg-slate-950/60 dark:text-slate-300",
+                                        "Consulta": "border-slate-500 bg-slate-100 text-slate-800 dark:border-slate-500 dark:bg-slate-950/60 dark:text-slate-300",
                                     }
                                     const colorClass = categoryColors[item.label] || "border-gray-500 bg-gray-100 text-gray-800 dark:border-gray-500 dark:bg-gray-950/60 dark:text-gray-300"
                                     return (
@@ -1350,7 +1350,7 @@ export default function ChatHomePage() {
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 {/* Botón clip para archivos */}
-                                <TooltipProvider>
+                                <TooltipProvider delayDuration={700}>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <Button
@@ -1372,78 +1372,56 @@ export default function ChatHomePage() {
                                 </TooltipProvider>
                                 
                                 {/* Botón llave inglesa para herramientas */}
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <div>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-8 w-8 shrink-0 rounded-full"
-                                                            aria-label="Herramientas"
-                                                        >
-                                                            <Wrench className="h-4 w-4" aria-hidden="true" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="start" className="w-56">
-                                                        <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                                                            No hay herramientas disponibles
-                                                        </div>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </div>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top">
-                                            <p>Herramientas</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 shrink-0 rounded-full"
+                                            aria-label="Herramientas"
+                                        >
+                                            <Wrench className="h-4 w-4" aria-hidden="true" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start" className="w-56">
+                                        <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                                            No hay herramientas disponibles
+                                        </div>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                                 
                                 {/* Selector de etiquetas - solo cuando hay mensajes */}
                                 {hasMessages && (
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <div>
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button
-                                                                type="button"
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-8 w-8 shrink-0 rounded-full"
-                                                                aria-label="Seleccionar categorías"
-                                                            >
-                                                                <Tag className="h-4 w-4" aria-hidden="true" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="start" className="w-56">
-                                                            {quickPrompts.map((item) => {
-                                                                const Icon = item.icon
-                                                                const isSelected = selectedQuickPrompts.includes(item.label)
-                                                                return (
-                                                                    <DropdownMenuItem
-                                                                        key={item.label}
-                                                                        className={cn(isSelected && "bg-primary/10 text-primary")}
-                                                                        onSelect={() => handleQuickPromptToggle(item)}
-                                                                    >
-                                                                        <Icon className="mr-2 h-4 w-4 text-primary" aria-hidden="true" />
-                                                                        {item.label}
-                                                                    </DropdownMenuItem>
-                                                                )
-                                                            })}
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </div>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top">
-                                                <p>Selecciona categorías para filtrar los documentos</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 shrink-0 rounded-full"
+                                                aria-label="Seleccionar categorías"
+                                            >
+                                                <Tag className="h-4 w-4" aria-hidden="true" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="start" className="w-56">
+                                            {quickPrompts.map((item) => {
+                                                const Icon = item.icon
+                                                const isSelected = selectedQuickPrompts.includes(item.label)
+                                                return (
+                                                    <DropdownMenuItem
+                                                        key={item.label}
+                                                        className={cn(isSelected && "bg-primary/10 text-primary")}
+                                                        onSelect={() => handleQuickPromptToggle(item)}
+                                                    >
+                                                        <Icon className="mr-2 h-4 w-4 text-primary" aria-hidden="true" />
+                                                        {item.label}
+                                                    </DropdownMenuItem>
+                                                )
+                                            })}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 )}
                             </div>
                             
@@ -1530,6 +1508,10 @@ export default function ChatHomePage() {
                                         base: "border-emerald-500/30 bg-transparent text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30",
                                         selected: "border-emerald-500 bg-emerald-100 text-emerald-800 dark:border-emerald-500 dark:bg-emerald-950/60 dark:text-emerald-300"
                                     },
+                                    "Oraciones": {
+                                        base: "border-violet-500/30 bg-transparent text-violet-700 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30",
+                                        selected: "border-violet-500 bg-violet-100 text-violet-800 dark:border-violet-500 dark:bg-violet-950/60 dark:text-violet-300"
+                                    },
                                     "Celebraciones": {
                                         base: "border-pink-500/30 bg-transparent text-pink-700 dark:text-pink-400 hover:bg-pink-50 dark:hover:bg-pink-950/30",
                                         selected: "border-pink-500 bg-pink-100 text-pink-800 dark:border-pink-500 dark:bg-pink-950/60 dark:text-pink-300"
@@ -1538,11 +1520,7 @@ export default function ChatHomePage() {
                                         base: "border-blue-500/30 bg-transparent text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30",
                                         selected: "border-blue-500 bg-blue-100 text-blue-800 dark:border-blue-500 dark:bg-blue-950/60 dark:text-blue-300"
                                     },
-                                    "Oraciones": {
-                                        base: "border-violet-500/30 bg-transparent text-violet-700 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30",
-                                        selected: "border-violet-500 bg-violet-100 text-violet-800 dark:border-violet-500 dark:bg-violet-950/60 dark:text-violet-300"
-                                    },
-                                    "Otros": {
+                                    "Consulta": {
                                         base: "border-slate-500/30 bg-transparent text-slate-700 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-950/30",
                                         selected: "border-slate-500 bg-slate-100 text-slate-800 dark:border-slate-500 dark:bg-slate-950/60 dark:text-slate-300"
                                     },
@@ -1617,7 +1595,7 @@ export default function ChatHomePage() {
                 {/* Botones de acción - mismo padding y espaciado */}
                 {isSidebarCollapsed ? (
                     <div className="flex flex-col gap-3 px-2">
-                        {/* Nuevo chat - colapsado */}
+                        {/* Nueva conversación - colapsado */}
                         <TooltipProvider>
                             <Tooltip delayDuration={0}>
                                 <TooltipTrigger asChild>
@@ -1631,12 +1609,12 @@ export default function ChatHomePage() {
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent side="right">
-                                    <p>Nuevo chat</p>
+                                    <p>Nueva conversación</p>
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
 
-                        {/* Buscar chats - colapsado */}
+                        {/* Buscar conversaciones - colapsado */}
                         <TooltipProvider>
                             <Tooltip delayDuration={0}>
                                 <TooltipTrigger asChild>
@@ -1650,7 +1628,7 @@ export default function ChatHomePage() {
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent side="right">
-                                    <p>Buscar chats</p>
+                                    <p>Buscar conversaciones</p>
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
@@ -1667,35 +1645,38 @@ export default function ChatHomePage() {
                         </Button>
                     </div>
                 ) : (
-                    <div className="space-y-2">
-                        {/* Nuevo chat - expandido */}
+                    <div className="space-y-1">
+                        {/* Nueva conversación - expandido */}
                         <button
                             type="button"
                             onClick={handleCreateNewChat}
-                            className="flex w-full items-center gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+                            className="flex w-full items-center gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
                         >
                             <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                            <span>Nuevo chat</span>
+                            <span>Nueva conversación</span>
                         </button>
 
-                        {/* Buscar chats - expandido */}
+                        {/* Buscar conversaciones - expandido */}
                         <button
                             type="button"
                             onClick={() => setIsSearchDialogOpen(true)}
-                            className="flex w-full items-center gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+                            className="flex w-full items-center gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
                         >
                             <Search className="h-3.5 w-3.5" aria-hidden="true" />
-                            <span>Buscar chats</span>
+                            <span>Buscar conversaciones</span>
                         </button>
 
-                        {/* Título Chats */}
+                        {/* Separador */}
+                        <div className="mx-4 my-2 border-t border-border/40" />
+
+                        {/* Título Conversaciones */}
                         <button
                             onClick={() => setIsChatsListCollapsed(!isChatsListCollapsed)}
-                            className="flex w-full items-center justify-between px-4 py-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+                            className="flex w-full items-center justify-between px-4 py-2.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
                         >
                             <div className="flex items-center gap-2">
                                 <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
-                                <span>Chats</span>
+                                <span>Conversaciones</span>
                             </div>
                             {isChatsListCollapsed ? (
                                 <ChevronRight className="h-4 w-4" />
@@ -1715,7 +1696,7 @@ export default function ChatHomePage() {
                             <div className="space-y-1 px-2 pb-4">
                                 {sidebarChats.length === 0 && (
                                         <div className="rounded-xl border border-dashed border-border/60 bg-background/60 px-3 py-8 text-center text-xs text-muted-foreground">
-                                            No hay chats todavía. Crea un nuevo chat para empezar.
+                                            No hay conversaciones todavía. Crea una nueva conversación para empezar.
                                         </div>
                                     )}
 
@@ -1815,7 +1796,7 @@ export default function ChatHomePage() {
                                             </DropdownMenuItem>
                                             <DropdownMenuItem onSelect={() => setIsArchivedDialogOpen(true)}>
                                                 <Archive className="mr-2 h-4 w-4" />
-                                                Chats archivados
+                                                Conversaciones archivadas
                                             </DropdownMenuItem>
                                             <DropdownMenuItem onSelect={() => setIsSettingsDialogOpen(true)}>
                                                 <Settings className="mr-2 h-4 w-4" />
@@ -1887,7 +1868,7 @@ export default function ChatHomePage() {
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => setIsArchivedDialogOpen(true)}>
                                         <Archive className="mr-2 h-4 w-4" />
-                                        Chats archivados
+                                        Conversaciones archivadas
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => setIsSettingsDialogOpen(true)}>
                                         <Settings className="mr-2 h-4 w-4" />
@@ -1964,10 +1945,10 @@ export default function ChatHomePage() {
                     {!hasMessages ? (
                         <div className="flex flex-1 flex-col items-center justify-center gap-6 px-8" style={{ paddingBottom: "15%" }}>
                             <div className="flex flex-col items-center gap-6 text-center">
-                                <p className="text-3xl font-semibold text-foreground max-w-2xl leading-relaxed">
+                                <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-foreground max-w-2xl leading-relaxed whitespace-nowrap">
                                     {activeChat?.messages[0]?.role === "asistente" && activeChat?.messages[0]?.content 
                                         ? activeChat.messages[0].content 
-                                        : "¿En qué puedo ayudarte?"}
+                                        : "¿Qué necesitas para tu tarea pastoral?"}
                                 </p>
                             </div>
                             {renderPromptComposer("center")}
@@ -2158,12 +2139,12 @@ export default function ChatHomePage() {
             <Dialog open={isArchivedDialogOpen} onOpenChange={setIsArchivedDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Chats archivados</DialogTitle>
-                        <DialogDescription>Los chats archivados se ocultan del panel lateral. Desarchívalos para recuperarlos cuando los necesites.</DialogDescription>
+                        <DialogTitle>Conversaciones archivadas</DialogTitle>
+                        <DialogDescription>Las conversaciones archivadas se ocultan del panel lateral. Desarchívalas para recuperarlas cuando las necesites.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-3">
                         {archivedChats.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">No hay chats archivados por ahora.</p>
+                            <p className="text-sm text-muted-foreground">No hay conversaciones archivadas por ahora.</p>
                         ) : (
                             archivedChats.map((chat) => (
                                 <div key={chat.id} className="rounded-lg border border-border/60 bg-muted/20 px-3 py-3 text-sm">

@@ -196,7 +196,7 @@ async function ensureConversation({ conversationId, userId, intent, userName }) 
     // Crear mensaje inicial estático del asistente
     if (userName) {
         try {
-            const greeting = `Hola ${userName}, ¿en qué puedo ayudarte?`;
+            const greeting = `Hola ${userName}, ¿qué necesitas para tu tarea pastoral?`;
             
             // Crear mensaje inicial del asistente
             await prisma.mensajeConversacion.create({
