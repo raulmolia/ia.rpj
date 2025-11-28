@@ -16,6 +16,7 @@ import {
     ChevronsRight,
     LogOut,
     ListTodo,
+    Mail,
     MessageSquare,
     MoreHorizontal,
     Send,
@@ -1915,22 +1916,31 @@ export default function ChatHomePage() {
 
             <main className="flex flex-1 flex-col overflow-hidden">
                 <header className="flex items-center justify-between border-b border-border/60 bg-background/95 px-8 py-4">
-                    <div className="flex items-center gap-8">
+                    <nav className="flex items-center">
                         <Link 
                             href="/acerca-de"
-                            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all"
                         >
                             <Info className="h-4 w-4" />
                             Acerca de la IA RPJ
                         </Link>
+                        <div className="h-5 w-px bg-border/60 mx-2" />
                         <Link 
                             href="/guia-documental"
-                            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all"
                         >
                             <BookOpenCheck className="h-4 w-4" />
                             Guía documental
                         </Link>
-                    </div>
+                        <div className="h-5 w-px bg-border/60 mx-2" />
+                        <Link 
+                            href="/contacto"
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all"
+                        >
+                            <Mail className="h-4 w-4" />
+                            Contacto
+                        </Link>
+                    </nav>
                     <div className="flex items-center gap-3">
                         {shareFeedback && (
                             <p className="text-xs text-primary/80" role="status">

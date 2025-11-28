@@ -18,7 +18,7 @@ export default function AcercaDePage() {
         fetch("/acercade.md")
             .then((res) => res.text())
             .then((text) => {
-                // Quitar el "# Acerca de..." del inicio
+                // Quitar el "# Acerca de la IA RPJ" del inicio
                 const cleanedText = text.replace(/^#\s*Acerca de[^\n]*\n\n/, "")
                 setContent(cleanedText)
                 setLoading(false)

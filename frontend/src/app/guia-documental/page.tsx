@@ -184,7 +184,8 @@ export default function GuiaDocumentalPage() {
                             <p className="text-muted-foreground leading-relaxed">
                                 El repositorio documental es una base de conocimiento vectorial que contiene documentación relevante 
                                 para la pastoral juvenil. Estos documentos se han procesado y almacenado en forma de vectores semánticos 
-                                que el asistente utiliza para enriquecer sus respuestas con contenido específico de la organización.
+                                que el asistente utiliza para enriquecer sus respuestas con contenido específico que han aportado las 
+                                instituciones que participan en RPJ.
                             </p>
                             <p className="text-muted-foreground leading-relaxed mt-4">
                                 Los documentos están indexados en la base vectorial y no se pueden descargar ni abrir directamente desde 
@@ -198,28 +199,25 @@ export default function GuiaDocumentalPage() {
                                 Los documentos están organizados mediante etiquetas temáticas:
                             </p>
                             <ul className="space-y-2 text-muted-foreground">
-                                <li><strong>Programaciones:</strong> Planificaciones de actividades, campamentos, encuentros</li>
-                                <li><strong>Dinámicas:</strong> Juegos, actividades grupales, icebreakers</li>
-                                <li><strong>Celebraciones:</strong> Liturgias, eucaristías, celebraciones especiales</li>
-                                <li><strong>Oraciones:</strong> Reflexiones, momentos de oración, textos espirituales</li>
-                                <li><strong>Consulta:</strong> Material de referencia general</li>
-                                <li><strong>Pastoral Genérico:</strong> Contenido pastoral sin categoría específica</li>
-                                <li><strong>Revistas:</strong> Publicaciones periódicas, boletines</li>
-                                <li><strong>Contenido Mixto:</strong> Documentos con varios tipos de contenido</li>
+                                <li><strong>Programaciones:</strong> Planificaciones de actividades por temas, edad y objetivos.</li>
+                                <li><strong>Dinámicas:</strong> Juegos y actividades grupales para trabajar un tema.</li>
+                                <li><strong>Celebraciones:</strong> Eucaristías y celebraciones de la Palabra</li>
+                                <li><strong>Oraciones:</strong> Textos, meditaciones y dinámicas de espiritualidad.</li>
+                                <li><strong>Consulta:</strong> Material de reflexión de referencia sobre temas de pastoral juvenil.</li>
+                                <li><strong>Pastoral Genérico:</strong> Contenido pastoral sin categoría específica.</li>
+                                <li><strong>Revistas:</strong> Publicaciones periódicas, boletines y artículos</li>
+                                <li><strong>Contenido Mixto:</strong> Documentos con varios tipos de contenido.</li>
                                 <li><strong>Otros:</strong> Cualquier otro tipo de documento</li>
                             </ul>
                         </section>
 
                         <section className="mb-12">
-                            <h2 className="text-2xl font-semibold mb-4">Cómo usa la IA los documentos</h2>
+                            <h2 className="text-2xl font-semibold mb-4">Cómo usa la IA RPJ los documentos</h2>
                             <p className="text-muted-foreground leading-relaxed">
-                                Cuando realizas una consulta en el chat, el asistente busca automáticamente en los documentos 
+                                Cuando realizas una consulta, el asistente busca automáticamente en los documentos 
                                 relevantes según la intención detectada (dinámicas, oraciones, programaciones, etc.). Los fragmentos 
                                 más pertinentes se incluyen como contexto para generar respuestas más precisas y personalizadas a tu 
-                                organización.
-                            </p>
-                            <p className="text-muted-foreground leading-relaxed mt-4">
-                                La búsqueda se realiza mediante similitud vectorial, lo que permite encontrar contenido relevante 
+                                organización. La búsqueda se realiza mediante similitud vectorial, lo que permite encontrar contenido relevante 
                                 incluso cuando no coinciden exactamente las palabras utilizadas en tu pregunta.
                             </p>
                         </section>
