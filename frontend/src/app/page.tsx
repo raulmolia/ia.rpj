@@ -1446,7 +1446,7 @@ export default function ChatHomePage() {
                                                             : "bg-muted text-muted-foreground hover:bg-muted/80 border-border"
                                                     )}
                                                 >
-                                                    Thinking
+                                                    Deep think
                                                 </Badge>
                                             </button>
                                         </TooltipTrigger>
@@ -1595,7 +1595,7 @@ export default function ChatHomePage() {
 
                 {/* Botones de acción - mismo padding y espaciado */}
                 {isSidebarCollapsed ? (
-                    <div className="flex flex-col gap-3 px-2">
+                    <div className="flex flex-col gap-2 px-2">
                         {/* Nueva conversación - colapsado */}
                         <TooltipProvider>
                             <Tooltip delayDuration={0}>
@@ -1604,7 +1604,7 @@ export default function ChatHomePage() {
                                         variant="ghost"
                                         size="icon"
                                         onClick={handleCreateNewChat}
-                                        className="h-11 w-11 rounded-full hover:bg-primary/10"
+                                        className="h-10 w-10 rounded-xl hover:bg-muted text-foreground"
                                     >
                                         <Plus className="h-5 w-5" />
                                     </Button>
@@ -1623,7 +1623,7 @@ export default function ChatHomePage() {
                                         variant="ghost"
                                         size="icon"
                                         onClick={() => setIsSearchDialogOpen(true)}
-                                        className="h-11 w-11 rounded-full hover:bg-primary/10"
+                                        className="h-10 w-10 rounded-xl hover:bg-muted text-foreground"
                                     >
                                         <Search className="h-5 w-5" />
                                     </Button>
@@ -1634,26 +1634,48 @@ export default function ChatHomePage() {
                             </Tooltip>
                         </TooltipProvider>
 
+                        {/* Conversaciones - colapsado */}
+                        <TooltipProvider>
+                            <Tooltip delayDuration={0}>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => setIsSidebarCollapsed(false)}
+                                        className="h-10 w-10 rounded-xl hover:bg-muted text-foreground"
+                                    >
+                                        <MessageSquare className="h-5 w-5" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="right">
+                                    <p>Conversaciones</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+
+                        {/* Espaciador flexible */}
+                        <div className="flex-1" />
+
                         {/* Botón expandir */}
                         <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => setIsSidebarCollapsed(false)}
-                            className="h-9 w-9 mx-auto"
+                            className="h-9 w-9 mx-auto mb-2 text-foreground"
                             aria-label="Mostrar menú"
                         >
                             <ChevronsRight className="h-4 w-4" />
                         </Button>
                     </div>
                 ) : (
-                    <div className="space-y-1">
+                    <div className="space-y-1 px-2">
                         {/* Nueva conversación - expandido */}
                         <button
                             type="button"
                             onClick={handleCreateNewChat}
-                            className="flex w-full items-center gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+                            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
                         >
-                            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                            <Plus className="h-5 w-5" aria-hidden="true" />
                             <span>Nueva conversación</span>
                         </button>
 
@@ -1661,22 +1683,24 @@ export default function ChatHomePage() {
                         <button
                             type="button"
                             onClick={() => setIsSearchDialogOpen(true)}
-                            className="flex w-full items-center gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+                            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
                         >
-                            <Search className="h-3.5 w-3.5" aria-hidden="true" />
+                            <Search className="h-5 w-5" aria-hidden="true" />
                             <span>Buscar conversaciones</span>
                         </button>
 
-                        {/* Separador */}
-                        <div className="mx-4 my-2 border-t border-border/40" />
+                        {/* Separador con más espacio */}
+                        <div className="py-2">
+                            <div className="border-t border-border/40" />
+                        </div>
 
                         {/* Título Conversaciones */}
                         <button
                             onClick={() => setIsChatsListCollapsed(!isChatsListCollapsed)}
-                            className="flex w-full items-center justify-between px-4 py-2.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+                            className="flex w-full items-center justify-between rounded-xl px-3 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
                         >
-                            <div className="flex items-center gap-2">
-                                <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
+                            <div className="flex items-center gap-3">
+                                <MessageSquare className="h-5 w-5" aria-hidden="true" />
                                 <span>Conversaciones</span>
                             </div>
                             {isChatsListCollapsed ? (
@@ -1992,16 +2016,17 @@ export default function ChatHomePage() {
                                         )}
                                     >
                                         {message.role === "asistente" && (
-                                            <div className="absolute right-2 top-2">
+                                            <div className="flex justify-end mb-2 pb-2 border-b border-border/40">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="h-7 w-7 p-0 hover:bg-muted"
-                                                        >
-                                                            <Download className="h-4 w-4" />
-                                                        </Button>
+                                                        <button type="button" className="focus:outline-none">
+                                                            <Badge
+                                                                className="cursor-pointer bg-muted text-muted-foreground hover:bg-muted/80 border-border flex items-center gap-1"
+                                                            >
+                                                                <Download className="h-3 w-3" />
+                                                                Descargar
+                                                            </Badge>
+                                                        </button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
                                                         <DropdownMenuItem
