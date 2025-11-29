@@ -1,6 +1,31 @@
 // Configuración de prompts e intenciones para el asistente conversacional
 // Cada intención define un prompt de sistema base y parámetros específicos
 
+// Nombres de idiomas para los prompts
+export const LANGUAGE_NAMES = {
+    es: 'español',
+    en: 'inglés (English)',
+    fr: 'francés (Français)',
+    it: 'italiano (Italiano)',
+    pt: 'portugués (Português)',
+    hu: 'húngaro (Magyar)',
+    pl: 'polaco (Polski)',
+    ca: 'catalán (Català)',
+    gl: 'gallego (Galego)',
+    eu: 'euskera (Euskara)',
+};
+
+// Función para generar la instrucción de idioma
+export function getLanguageInstruction(userLanguage = 'es') {
+    const langName = LANGUAGE_NAMES[userLanguage] || LANGUAGE_NAMES.es;
+    
+    if (userLanguage === 'es') {
+        return `\n\n**IDIOMA DE RESPUESTA:** Responde siempre en español, con un tono cercano y profesional. Si el usuario escribe en otro idioma, responde igualmente en español salvo que te pida explícitamente responder en otro idioma.`;
+    }
+    
+    return `\n\n**IDIOMA DE RESPUESTA:** El usuario ha configurado su idioma como ${langName}. Responde SIEMPRE en ${langName}, independientemente del idioma en que escriba el usuario, salvo que el usuario te pida explícitamente responder en otro idioma. Mantén un tono cercano y profesional.`;
+}
+
 // Definición de etiquetas de documentos para clasificación en la base vectorial
 export const DOCUMENT_TAGS = {
     PROGRAMACIONES: {

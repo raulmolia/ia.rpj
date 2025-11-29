@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { ThemeToggleButton } from "@/components/theme-toggle"
 import { useAuth } from "@/hooks/use-auth"
 import { buildApiUrl } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 import {
     Select,
     SelectContent,
@@ -38,18 +39,6 @@ const TAG_COLOR_MAP: Record<string, string> = {
     OTROS: "border-gray-200 bg-gray-100 text-gray-800",
 }
 
-const TAG_LABELS: Record<string, string> = {
-    PROGRAMACIONES: "Programaciones",
-    DINAMICAS: "Dinámicas",
-    CELEBRACIONES: "Celebraciones",
-    ORACIONES: "Oraciones",
-    CONSULTA: "Consulta",
-    PASTORAL_GENERICO: "Pastoral Genérico",
-    REVISTAS: "Revistas",
-    CONTENIDO_MIXTO: "Contenido Mixto",
-    OTROS: "Otros",
-}
-
 function formatSize(bytes: number) {
     if (!Number.isFinite(bytes) || bytes <= 0) return "—"
     const units = ["B", "KB", "MB", "GB"]
@@ -61,6 +50,8 @@ function formatSize(bytes: number) {
 export default function GuiaDocumentalPage() {
     const router = useRouter()
     const { token, isAuthenticated, user, status } = useAuth()
+    const t = useTranslations("guide")
+    const tc = useTranslations("categories")
     const [documents, setDocuments] = useState<Document[]>([])
     const [loading, setLoading] = useState(false)
     const [activeView, setActiveView] = useState<"info" | "repository">("info")
@@ -86,7 +77,7 @@ export default function GuiaDocumentalPage() {
 
     const loadDocuments = useCallback(async () => {
         if (!token) {
-            setError("Debes iniciar sesión para ver el repositorio")
+            setError(t("loginRequired"))
             return
         }
         
@@ -103,17 +94,17 @@ export default function GuiaDocumentalPage() {
                 const data = await response.json()
                 setDocuments(data.documentos || [])
             } else if (response.status === 403) {
-                setError("No tienes permisos para ver el repositorio documental")
+                setError(t("noPermission"))
             } else {
-                setError("Error al cargar los documentos")
+                setError(t("loadError"))
             }
         } catch (error) {
             console.error("Error cargando documentos:", error)
-            setError("Error de conexión al cargar los documentos")
+            setError(t("connectionError"))
         } finally {
             setLoading(false)
         }
-    }, [token])
+    }, [token, t])
 
     useEffect(() => {
         if (activeView === "repository" && documents.length === 0 && !error && token) {
@@ -128,7 +119,7 @@ export default function GuiaDocumentalPage() {
                     <Link href="/">
                         <Button variant="ghost" size="sm" className="gap-2">
                             <ArrowLeft className="h-4 w-4" />
-                            Volver al chat
+                            {t("backToChat")}
                         </Button>
                     </Link>
                     <ThemeToggleButton />
@@ -141,9 +132,9 @@ export default function GuiaDocumentalPage() {
                         <InfoIcon className="h-8 w-8 text-foreground" />
                     </div>
                     <div>
-                        <h1 className="text-4xl font-bold tracking-tight">Guía Documental</h1>
+                        <h1 className="text-4xl font-bold tracking-tight">{t("title")}</h1>
                         <p className="mt-1 text-lg text-muted-foreground">
-                            Consulta el repositorio de conocimiento del asistente
+                            {t("subtitle")}
                         </p>
                     </div>
                 </div>
@@ -155,7 +146,7 @@ export default function GuiaDocumentalPage() {
                         className="gap-2"
                     >
                         <InfoIcon className="h-4 w-4" />
-                        Información
+                        {t("infoTab")}
                     </Button>
                     <Button
                         onClick={() => setActiveView("repository")}
@@ -166,12 +157,12 @@ export default function GuiaDocumentalPage() {
                         {loading ? (
                             <>
                                 <Loader2 className="h-4 w-4 animate-spin" />
-                                Cargando...
+                                {t("loading")}
                             </>
                         ) : (
                             <>
                                 <BookOpenCheck className="h-4 w-4" />
-                                Repositorio
+                                {t("repositoryTab")}
                             </>
                         )}
                     </Button>
@@ -180,45 +171,37 @@ export default function GuiaDocumentalPage() {
                 {activeView === "info" && (
                     <div className="prose prose-slate dark:prose-invert max-w-none">
                         <section className="mb-12">
-                            <h2 className="text-2xl font-semibold mb-4">¿Qué es el repositorio documental?</h2>
+                            <h2 className="text-2xl font-semibold mb-4">{t("whatIsRepository")}</h2>
                             <p className="text-muted-foreground leading-relaxed">
-                                El repositorio documental es una base de conocimiento vectorial que contiene documentación relevante 
-                                para la pastoral juvenil. Estos documentos se han procesado y almacenado en forma de vectores semánticos 
-                                que el asistente utiliza para enriquecer sus respuestas con contenido específico que han aportado las 
-                                instituciones que participan en RPJ.
+                                {t("whatIsRepositoryDesc1")}
                             </p>
                             <p className="text-muted-foreground leading-relaxed mt-4">
-                                Los documentos están indexados en la base vectorial y no se pueden descargar ni abrir directamente desde 
-                                esta interfaz, pero puedes consultar qué contenido está disponible y cómo está categorizado.
+                                {t("whatIsRepositoryDesc2")}
                             </p>
                         </section>
 
                         <section className="mb-12">
-                            <h2 className="text-2xl font-semibold mb-4">Etiquetas de clasificación</h2>
+                            <h2 className="text-2xl font-semibold mb-4">{t("tagsTitle")}</h2>
                             <p className="text-muted-foreground leading-relaxed mb-4">
-                                Los documentos están organizados mediante etiquetas temáticas:
+                                {t("tagsDesc")}
                             </p>
                             <ul className="space-y-2 text-muted-foreground">
-                                <li><strong>Programaciones:</strong> Planificaciones de actividades por temas, edad y objetivos.</li>
-                                <li><strong>Dinámicas:</strong> Juegos y actividades grupales para trabajar un tema.</li>
-                                <li><strong>Celebraciones:</strong> Eucaristías y celebraciones de la Palabra</li>
-                                <li><strong>Oraciones:</strong> Textos, meditaciones y dinámicas de espiritualidad.</li>
-                                <li><strong>Consulta:</strong> Material de reflexión de referencia sobre temas de pastoral juvenil.</li>
-                                <li><strong>Pastoral Genérico:</strong> Contenido pastoral sin categoría específica.</li>
-                                <li><strong>Revistas:</strong> Publicaciones periódicas, boletines y artículos</li>
-                                <li><strong>Contenido Mixto:</strong> Documentos con varios tipos de contenido.</li>
-                                <li><strong>Otros:</strong> Cualquier otro tipo de documento</li>
+                                <li><strong>{t("tagProgramaciones")}</strong> {t("tagProgramacionesDesc")}</li>
+                                <li><strong>{t("tagDinamicas")}</strong> {t("tagDinamicasDesc")}</li>
+                                <li><strong>{t("tagCelebraciones")}</strong> {t("tagCelebracionesDesc")}</li>
+                                <li><strong>{t("tagOraciones")}</strong> {t("tagOracionesDesc")}</li>
+                                <li><strong>{t("tagConsulta")}</strong> {t("tagConsultaDesc")}</li>
+                                <li><strong>{t("tagPastoralGenerico")}</strong> {t("tagPastoralGenericoDesc")}</li>
+                                <li><strong>{t("tagRevistas")}</strong> {t("tagRevistasDesc")}</li>
+                                <li><strong>{t("tagContenidoMixto")}</strong> {t("tagContenidoMixtoDesc")}</li>
+                                <li><strong>{t("tagOtros")}</strong> {t("tagOtrosDesc")}</li>
                             </ul>
                         </section>
 
                         <section className="mb-12">
-                            <h2 className="text-2xl font-semibold mb-4">Cómo usa la IA RPJ los documentos</h2>
+                            <h2 className="text-2xl font-semibold mb-4">{t("howAIUsesTitle")}</h2>
                             <p className="text-muted-foreground leading-relaxed">
-                                Cuando realizas una consulta, el asistente busca automáticamente en los documentos 
-                                relevantes según la intención detectada (dinámicas, oraciones, programaciones, etc.). Los fragmentos 
-                                más pertinentes se incluyen como contexto para generar respuestas más precisas y personalizadas a tu 
-                                organización. La búsqueda se realiza mediante similitud vectorial, lo que permite encontrar contenido relevante 
-                                incluso cuando no coinciden exactamente las palabras utilizadas en tu pregunta.
+                                {t("howAIUsesDesc")}
                             </p>
                         </section>
                     </div>
@@ -235,22 +218,22 @@ export default function GuiaDocumentalPage() {
                                 <p className="text-amber-800 dark:text-amber-200">{error}</p>
                                 {!isAuthenticated && (
                                     <Link href="/auth/login" className="mt-4 inline-block">
-                                        <Button size="sm">Iniciar sesión</Button>
+                                        <Button size="sm">{t("loginButton")}</Button>
                                     </Link>
                                 )}
                             </div>
                         ) : documents.length === 0 ? (
                             <div className="py-12 text-center text-muted-foreground">
-                                No hay documentos disponibles en el repositorio
+                                {t("noDocuments")}
                             </div>
                         ) : (
                             <>
                                 <table className="min-w-full divide-y divide-border/80 text-sm">
                                     <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                                         <tr>
-                                            <th className="px-4 py-3 text-left font-medium">Título</th>
-                                            <th className="px-4 py-3 text-left font-medium">Descripción generada</th>
-                                            <th className="px-4 py-3 text-left font-medium">Etiquetas</th>
+                                            <th className="px-4 py-3 text-left font-medium">{t("tableTitle")}</th>
+                                            <th className="px-4 py-3 text-left font-medium">{t("tableDescription")}</th>
+                                            <th className="px-4 py-3 text-left font-medium">{t("tableTags")}</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-border/60 text-sm">
@@ -264,7 +247,7 @@ export default function GuiaDocumentalPage() {
                                                 </td>
                                                 <td className="px-4 py-4">
                                                     <p className="text-sm text-muted-foreground">
-                                                        {doc.descripcionGenerada || "Sin descripción"}
+                                                        {doc.descripcionGenerada || t("noDescription")}
                                                     </p>
                                                 </td>
                                                 <td className="px-4 py-4">
@@ -274,7 +257,7 @@ export default function GuiaDocumentalPage() {
                                                                 key={`${doc.id}-${tag}`}
                                                                 className={TAG_COLOR_MAP[tag] || TAG_COLOR_MAP.OTROS}
                                                             >
-                                                                {TAG_LABELS[tag] || tag}
+                                                                {tc(tag.toLowerCase()) || tag}
                                                             </Badge>
                                                         ))}
                                                     </div>
@@ -288,7 +271,7 @@ export default function GuiaDocumentalPage() {
                                 <div className="flex items-center justify-between border-t border-border/60 px-4 py-4 mt-4">
                                     {/* Selector de items por página */}
                                     <div className="flex items-center gap-2">
-                                        <span className="text-sm text-muted-foreground">Mostrar</span>
+                                        <span className="text-sm text-muted-foreground">{t("show")}</span>
                                         <Select
                                             value={itemsPerPage.toString()}
                                             onValueChange={(value) => setItemsPerPage(Number(value))}
@@ -303,7 +286,7 @@ export default function GuiaDocumentalPage() {
                                             </SelectContent>
                                         </Select>
                                         <span className="text-sm text-muted-foreground">
-                                            de {documents.length} documentos
+                                            {t("ofDocuments", { count: documents.length })}
                                         </span>
                                     </div>
                                     
@@ -329,7 +312,7 @@ export default function GuiaDocumentalPage() {
                                         </Button>
                                         
                                         <span className="px-3 text-sm text-muted-foreground">
-                                            Página {currentPage} de {totalPages}
+                                            {t("page", { current: currentPage, total: totalPages })}
                                         </span>
                                         
                                         <Button
@@ -354,8 +337,7 @@ export default function GuiaDocumentalPage() {
                                 </div>
                                 
                                 <p className="text-sm text-muted-foreground mt-4">
-                                    Los documentos mostrados están almacenados en la base vectorial y son utilizados por el asistente 
-                                    para proporcionar respuestas contextualizadas.
+                                    {t("repositoryNote")}
                                 </p>
                             </>
                         )}

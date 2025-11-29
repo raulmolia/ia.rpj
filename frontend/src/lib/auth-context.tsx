@@ -18,6 +18,7 @@ type AuthUser = {
     telefono?: string | null
     cargo?: string | null
     experiencia?: number | null
+    idioma?: string | null
 }
 
 type LoginPayload = {
@@ -38,6 +39,7 @@ type UpdateProfilePayload = {
     cargo?: string | null
     experiencia?: number | null
     avatarUrl?: string | null
+    idioma?: string | null
 }
 
 type UpdateProfileResult = {

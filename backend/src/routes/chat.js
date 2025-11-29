@@ -8,6 +8,7 @@ import {
     detectIntentFromText,
     resolveIntent,
     DEFAULT_INTENT,
+    getLanguageInstruction,
 } from '../config/chatPrompts.js';
 
 const { PrismaClient } = prismaPackage;
@@ -553,8 +554,12 @@ router.post('/', authenticate, async (req, res) => {
             contextPrompt = attachmentsHeader + attachmentsContext + (contextPrompt ? '\n\n' + contextPrompt : '');
         }
 
+        // Obtener idioma del usuario y generar instrucción de idioma
+        const userLanguage = req.user?.idioma || 'es';
+        const languageInstruction = getLanguageInstruction(userLanguage);
+
         const llmMessages = [
-            { role: 'system', content: detectedIntent.systemPrompt },
+            { role: 'system', content: detectedIntent.systemPrompt + languageInstruction },
         ];
 
         if (contextPrompt) {

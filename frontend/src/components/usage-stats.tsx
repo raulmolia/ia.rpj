@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { BarChart3, MessageSquare, Calendar, Info } from "lucide-react"
 import { buildApiUrl } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 import {
     Tooltip,
     TooltipContent,
@@ -47,6 +48,7 @@ interface UsageStatsProps {
 export function UsageStats({ token }: UsageStatsProps) {
     const [stats, setStats] = useState<UsageStats | null>(null)
     const [loading, setLoading] = useState(true)
+    const t = useTranslations("usageStats")
 
     useEffect(() => {
         if (!token) return
@@ -103,18 +105,18 @@ export function UsageStats({ token }: UsageStatsProps) {
         <div className="border-t border-border/50 px-4 py-3 space-y-3">
             <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                 <BarChart3 className="h-3.5 w-3.5" />
-                <span>Límites de uso</span>
+                <span>{t("title")}</span>
                 <TooltipProvider>
                     <Tooltip delayDuration={200}>
                         <TooltipTrigger asChild>
                             <Info className="h-3.5 w-3.5 cursor-help text-muted-foreground/60 hover:text-muted-foreground transition-colors" />
                         </TooltipTrigger>
                         <TooltipContent side="right" className="max-w-xs text-xs">
-                            <p className="font-medium mb-1.5">Límites para usuarios:</p>
+                            <p className="font-medium mb-1.5">{t("limitsInfo")}:</p>
                             <ul className="space-y-1 text-muted-foreground">
-                                <li>• <strong>7 chats</strong> almacenados simultáneamente (incluyendo archivados)</li>
-                                <li>• <strong>5 iteraciones</strong> (mensajes al modelo de IA) por chat</li>
-                                <li>• <strong>3 chats nuevos</strong> diarios</li>
+                                <li>• <strong>{t("maxChatsInfo")}</strong></li>
+                                <li>• <strong>{t("maxIterationsInfo")}</strong></li>
+                                <li>• <strong>{t("maxDailyChatsInfo")}</strong></li>
                             </ul>
                         </TooltipContent>
                     </Tooltip>
@@ -127,7 +129,7 @@ export function UsageStats({ token }: UsageStatsProps) {
                     <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-1.5 text-muted-foreground">
                             <MessageSquare className="h-3 w-3" />
-                            <span>Chats totales</span>
+                            <span>{t("totalChats")}</span>
                         </div>
                         <span className="font-medium text-foreground">
                             {stats.stats.conversations.current}/{stats.stats.conversations.max}
@@ -156,7 +158,7 @@ export function UsageStats({ token }: UsageStatsProps) {
                     <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-1.5 text-muted-foreground">
                             <Calendar className="h-3 w-3" />
-                            <span>Chats diarios</span>
+                            <span>{t("dailyChats")}</span>
                         </div>
                         <span className="font-medium text-foreground">
                             {stats.stats.dailyChats?.current || 0}/{stats.stats.dailyChats?.max || 3}
@@ -185,7 +187,7 @@ export function UsageStats({ token }: UsageStatsProps) {
                     <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-1.5 text-muted-foreground">
                             <BarChart3 className="h-3 w-3" />
-                            <span>Iteraciones diarias</span>
+                            <span>{t("dailyIterations")}</span>
                         </div>
                         <span className="font-medium text-foreground">
                             {stats.stats.dailyInteractions.current}/{stats.stats.dailyInteractions.max}
@@ -211,7 +213,7 @@ export function UsageStats({ token }: UsageStatsProps) {
             {/* Mensajes por chat */}
             {stats.limits.maxMessagesPerConversation !== null && (
                 <div className="flex items-center justify-between text-xs pt-2 border-t border-border/30">
-                    <span className="text-muted-foreground">Máx. mensajes por chat</span>
+                    <span className="text-muted-foreground">{t("maxMessagesPerChat")}</span>
                     <span className="font-medium text-foreground">{stats.limits.maxMessagesPerConversation}</span>
                 </div>
             )}

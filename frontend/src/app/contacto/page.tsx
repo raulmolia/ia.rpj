@@ -5,9 +5,11 @@ import Image from "next/image"
 import { ArrowLeft, Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggleButton } from "@/components/theme-toggle"
+import { useTranslations } from "next-intl"
 
 export default function ContactoPage() {
     const router = useRouter()
+    const t = useTranslations("contact")
 
     return (
         <div className="flex min-h-screen flex-col bg-gradient-to-b from-background via-background to-muted/20">
@@ -20,7 +22,7 @@ export default function ContactoPage() {
                     className="gap-2 hover:bg-primary/10"
                 >
                     <ArrowLeft className="h-4 w-4" />
-                    Volver al chat
+                    {t("backToChat")}
                 </Button>
                 <ThemeToggleButton />
             </header>
@@ -46,11 +48,11 @@ export default function ContactoPage() {
                     {/* Content */}
                     <article className="text-center space-y-8">
                         <h1 className="text-3xl font-bold tracking-tight text-foreground">
-                            Contacto
+                            {t("title")}
                         </h1>
                         
                         <p className="text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto">
-                            Contáctanos para cualquier comentario, aportación o pregunta en:
+                            {t("description")}
                         </p>
 
                         <div className="flex justify-center">

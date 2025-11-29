@@ -79,6 +79,7 @@ export async function authenticate(req, res, next) {
             rol: user.rol,
             nombre: user.nombre,
             sessionId: session.token,
+            idioma: user.idioma || 'es',
         };
 
         next();

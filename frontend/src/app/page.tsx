@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import { useTranslations } from "next-intl"
 import {
     Activity,
     Archive,
@@ -82,6 +83,7 @@ import { ThemeToggleButton } from "@/components/theme-toggle"
 import { UsageStats } from "@/components/usage-stats"
 import { downloadAsPDF, downloadAsWord } from "@/lib/document-generator"
 import { ChangePasswordModal } from "@/components/change-password-modal"
+import { useLocale, formatRelativeTime, type Locale } from "@/lib/locale-context"
 
 type MessageRole = "usuario" | "asistente"
 
@@ -121,9 +123,23 @@ function createId() {
     return `${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
-function formatChatTitle(date: Date): string {
-    const formattedDate = date.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "2-digit" })
-    const formattedTime = date.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", hour12: false })
+function formatChatTitle(date: Date, locale: string = 'es'): string {
+    // Map locale to Intl locale code
+    const localeMap: Record<string, string> = {
+        es: 'es-ES',
+        en: 'en-GB',
+        fr: 'fr-FR',
+        it: 'it-IT',
+        pt: 'pt-PT',
+        hu: 'hu-HU',
+        pl: 'pl-PL',
+        ca: 'ca-ES',
+        gl: 'gl-ES',
+        eu: 'eu-ES',
+    }
+    const intlLocale = localeMap[locale] || 'es-ES'
+    const formattedDate = date.toLocaleDateString(intlLocale, { day: "2-digit", month: "2-digit", year: "2-digit" })
+    const formattedTime = date.toLocaleTimeString(intlLocale, { hour: "2-digit", minute: "2-digit", hour12: false })
     return `Chat ${formattedDate} - ${formattedTime}h`
 }
 
@@ -158,6 +174,15 @@ type ProfileFormState = {
 export default function ChatHomePage() {
     const router = useRouter()
     const { user, status, isAuthenticated, token, logout, updateProfile } = useAuth()
+    const t = useTranslations()
+    const { locale, setLocale, locales, localeNames } = useLocale()
+
+    // Sync locale with user's language preference
+    useEffect(() => {
+        if (user?.idioma && user.idioma !== locale) {
+            setLocale(user.idioma as Locale)
+        }
+    }, [user?.idioma, locale, setLocale])
 
     const [chats, setChats] = useState<Chat[]>([])
     const [activeChatId, setActiveChatId] = useState<string>("")
@@ -196,42 +221,42 @@ export default function ChatHomePage() {
     const quickPrompts = useMemo<QuickPrompt[]>(
         () => [
             {
-                label: "Dinámicas y Actividades",
+                label: t("categories.dynamics"),
                 icon: Activity,
-                template: "Necesito una actividad para jóvenes de 15 a 17 años centrada en el trabajo en equipo.",
+                template: t("categories.dynamicsTemplate"),
                 intent: "DINAMICA",
                 tags: ["DINAMICAS"],
             },
             {
-                label: "Oraciones",
+                label: t("categories.prayers"),
                 icon: BookOpen,
-                template: "Necesito una oración breve para iniciar una reunión de jóvenes de 13 años.",
+                template: t("categories.prayersTemplate"),
                 intent: "ORACION",
                 tags: ["ORACIONES"],
             },
             {
-                label: "Celebraciones",
+                label: t("categories.celebrations"),
                 icon: PartyPopper,
-                template: "Diseña una celebración juvenil para el inicio del año pastoral.",
+                template: t("categories.celebrationsTemplate"),
                 intent: "CELEBRACION",
                 tags: ["CELEBRACIONES"],
             },
             {
-                label: "Programaciones",
+                label: t("categories.programming"),
                 icon: CalendarClock,
-                template: "Diseña una programación trimestral para un grupo juvenil que se reúne los sábados.",
+                template: t("categories.programmingTemplate"),
                 intent: "PROGRAMACION",
                 tags: ["PROGRAMACIONES"],
             },
             {
-                label: "Consulta",
+                label: t("categories.consultation"),
                 icon: FileText,
-                template: "Ayúdame con un recurso creativo para motivar a un grupo juvenil.",
+                template: t("categories.consultationTemplate"),
                 intent: "OTROS",
                 tags: ["OTROS", "CONTENIDO_MIXTO"],
             },
         ],
-        [],
+        [t],
     )
     const [selectedQuickPrompts, setSelectedQuickPrompts] = useState<string[]>([])
     const [isThinkingMode, setIsThinkingMode] = useState(false)
@@ -1185,15 +1210,15 @@ export default function ChatHomePage() {
         if (!chat) return
 
         const transcript = chat.messages
-            .map((message) => `${message.role === "usuario" ? "Usuario" : "Asistente"}:\n${message.content}`)
+            .map((message) => `${message.role === "usuario" ? t("chat.roleUser") : t("chat.roleAssistant")}:\n${message.content}`)
             .join("\n\n")
 
         try {
             await navigator?.clipboard?.writeText(transcript)
-            setShareFeedback("Conversación copiada al portapapeles")
+            setShareFeedback(t("chat.copiedToClipboard"))
         } catch (error) {
             console.error("No se pudo copiar la conversación", error)
-            setShareFeedback("No se pudo copiar la conversación")
+            setShareFeedback(t("chat.couldNotCopy"))
         }
     }
 
@@ -1236,7 +1261,7 @@ export default function ChatHomePage() {
             <div className="flex min-h-screen items-center justify-center bg-background">
                 <div className="space-y-4 text-center">
                     <Sparkles className="mx-auto h-8 w-8 animate-pulse text-primary" aria-hidden="true" />
-                    <p className="text-sm text-muted-foreground">Preparando tu espacio de trabajo...</p>
+                    <p className="text-sm text-muted-foreground">{t("chat.preparingWorkspace")}</p>
                 </div>
             </div>
         )
@@ -1285,7 +1310,7 @@ export default function ChatHomePage() {
                             value={inputValue}
                             onChange={(event) => setInputValue(event.target.value)}
                             onKeyDown={handlePromptKeyDown}
-                            placeholder="¿Cómo puedo ayudarte hoy?"
+                            placeholder={t("chat.inputPlaceholder")}
                             className={cn(
                                 "min-h-0 max-h-32 resize-none border-none bg-transparent px-0 py-0 text-sm leading-6 shadow-none",
                                 "focus-visible:ring-0 focus-visible:ring-offset-0",
@@ -1333,12 +1358,12 @@ export default function ChatHomePage() {
                                     >
                                         <FileText className="h-3 w-3" aria-hidden="true" />
                                         <span className="max-w-[200px] truncate">{file.fileName}</span>
-                                        <span className="text-xs opacity-70">({file.wordCount} palabras)</span>
+                                        <span className="text-xs opacity-70">({file.wordCount} {t("files.words")})</span>
                                         <button
                                             type="button"
                                             onClick={() => handleRemoveFile(file.fileName)}
                                             className="ml-1 rounded-full p-0.5 hover:bg-blue-200 dark:hover:bg-blue-900"
-                                            aria-label={`Eliminar ${file.fileName}`}
+                                            aria-label={`${t("files.remove")} ${file.fileName}`}
                                         >
                                             ×
                                         </button>
@@ -1359,7 +1384,7 @@ export default function ChatHomePage() {
                                                 variant="ghost"
                                                 size="icon"
                                                 className="h-8 w-8 shrink-0 rounded-full"
-                                                aria-label="Adjuntar archivos"
+                                                aria-label={t("files.attachFiles")}
                                                 onClick={handleFileSelect}
                                                 disabled={isThinking || isUploadingFiles}
                                             >
@@ -1367,7 +1392,7 @@ export default function ChatHomePage() {
                                             </Button>
                                         </TooltipTrigger>
                                         <TooltipContent side="top">
-                                            <p>Adjuntar archivos (imágenes JPG/PNG, PDFs)</p>
+                                            <p>{t("files.attachFilesTooltip")}</p>
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
@@ -1380,14 +1405,14 @@ export default function ChatHomePage() {
                                             variant="ghost"
                                             size="icon"
                                             className="h-8 w-8 shrink-0 rounded-full"
-                                            aria-label="Herramientas"
+                                            aria-label={t("tooltips.tools")}
                                         >
                                             <Wrench className="h-4 w-4" aria-hidden="true" />
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="start" className="w-56">
                                         <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                                            No hay herramientas disponibles
+                                            {t("tooltips.noToolsAvailable")}
                                         </div>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
@@ -1401,7 +1426,7 @@ export default function ChatHomePage() {
                                                 variant="ghost"
                                                 size="icon"
                                                 className="h-8 w-8 shrink-0 rounded-full"
-                                                aria-label="Seleccionar categorías"
+                                                aria-label={t("categories.selectCategories")}
                                             >
                                                 <Tag className="h-4 w-4" aria-hidden="true" />
                                             </Button>
@@ -1435,7 +1460,7 @@ export default function ChatHomePage() {
                                                 type="button"
                                                 onClick={() => setIsThinkingMode(!isThinkingMode)}
                                                 className="transition"
-                                                aria-label="Modo Thinking"
+                                                aria-label={t("tooltips.thinkingMode")}
                                                 aria-pressed={isThinkingMode}
                                             >
                                                 <Badge
@@ -1451,7 +1476,7 @@ export default function ChatHomePage() {
                                             </button>
                                         </TooltipTrigger>
                                         <TooltipContent side="top">
-                                            <p>Activa el modelo de razonamiento profundo</p>
+                                            <p>{t("tooltips.thinkingModeTooltip")}</p>
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
@@ -1468,7 +1493,7 @@ export default function ChatHomePage() {
                                                     "h-8 w-8 shrink-0 rounded-full transition-colors",
                                                     isRecording && "bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400"
                                                 )}
-                                                aria-label={isRecording ? "Detener grabación" : "Dictar"}
+                                                aria-label={isRecording ? t("recording.stopRecording") : t("recording.dictate")}
                                                 onClick={isRecording ? handleStopRecording : handleStartRecording}
                                                 disabled={isThinking || isTranscribing}
                                             >
@@ -1480,7 +1505,7 @@ export default function ChatHomePage() {
                                             </Button>
                                         </TooltipTrigger>
                                         <TooltipContent side="top">
-                                            <p>{isRecording ? "Detener grabación" : isTranscribing ? "Transcribiendo..." : "Dictar"}</p>
+                                            <p>{isRecording ? t("recording.stopRecording") : isTranscribing ? t("recording.transcribing") : t("recording.dictate")}</p>
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
@@ -1490,7 +1515,7 @@ export default function ChatHomePage() {
                                     size="icon"
                                     className="h-8 w-8 shrink-0 rounded-full"
                                     disabled={isThinking || inputValue.trim().length === 0 || !activeChat}
-                                    aria-label="Enviar"
+                                    aria-label={t("tooltips.send")}
                                 >
                                     <Send className="h-4 w-4" aria-hidden="true" />
                                 </Button>
@@ -1582,7 +1607,7 @@ export default function ChatHomePage() {
                                 size="icon"
                                 onClick={() => setIsSidebarCollapsed((prev) => !prev)}
                                 className="h-9 w-9"
-                                aria-label="Ocultar menú"
+                                aria-label={t("sidebar.hideMenu")}
                             >
                                 <ChevronsLeft className="h-4 w-4" />
                             </Button>
@@ -1610,7 +1635,7 @@ export default function ChatHomePage() {
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent side="right">
-                                    <p>Nueva conversación</p>
+                                    <p>{t("sidebar.newConversation")}</p>
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
@@ -1629,7 +1654,7 @@ export default function ChatHomePage() {
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent side="right">
-                                    <p>Buscar conversaciones</p>
+                                    <p>{t("sidebar.searchConversations")}</p>
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
@@ -1648,7 +1673,7 @@ export default function ChatHomePage() {
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent side="right">
-                                    <p>Conversaciones</p>
+                                    <p>{t("sidebar.conversations")}</p>
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
@@ -1662,7 +1687,7 @@ export default function ChatHomePage() {
                             size="icon"
                             onClick={() => setIsSidebarCollapsed(false)}
                             className="h-9 w-9 mx-auto mb-2 text-foreground"
-                            aria-label="Mostrar menú"
+                            aria-label={t("sidebar.showMenu")}
                         >
                             <ChevronsRight className="h-4 w-4" />
                         </Button>
@@ -1676,7 +1701,7 @@ export default function ChatHomePage() {
                             className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
                         >
                             <Plus className="h-5 w-5" aria-hidden="true" />
-                            <span>Nueva conversación</span>
+                            <span>{t("sidebar.newConversation")}</span>
                         </button>
 
                         {/* Buscar conversaciones - expandido */}
@@ -1686,7 +1711,7 @@ export default function ChatHomePage() {
                             className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
                         >
                             <Search className="h-5 w-5" aria-hidden="true" />
-                            <span>Buscar conversaciones</span>
+                            <span>{t("sidebar.searchConversations")}</span>
                         </button>
 
                         {/* Separador con más espacio */}
@@ -1701,7 +1726,7 @@ export default function ChatHomePage() {
                         >
                             <div className="flex items-center gap-3">
                                 <MessageSquare className="h-5 w-5" aria-hidden="true" />
-                                <span>Conversaciones</span>
+                                <span>{t("sidebar.conversations")}</span>
                             </div>
                             {isChatsListCollapsed ? (
                                 <ChevronRight className="h-4 w-4" />
@@ -1721,7 +1746,7 @@ export default function ChatHomePage() {
                             <div className="space-y-1 px-2 pb-4">
                                 {sidebarChats.length === 0 && (
                                         <div className="rounded-xl border border-dashed border-border/60 bg-background/60 px-3 py-8 text-center text-xs text-muted-foreground">
-                                            No hay conversaciones todavía. Crea una nueva conversación para empezar.
+                                            {t("sidebar.noConversations")}
                                         </div>
                                     )}
 
@@ -1762,7 +1787,7 @@ export default function ChatHomePage() {
                                                     handleShareChat(chat.id)
                                                 }}
                                             >
-                                                <Share2 className="mr-2 h-4 w-4" aria-hidden="true" /> Compartir
+                                                <Share2 className="mr-2 h-4 w-4" aria-hidden="true" /> {t("sidebar.share")}
                                             </DropdownMenuItem>
                                             <DropdownMenuItem
                                                 onSelect={(event) => {
@@ -1771,7 +1796,7 @@ export default function ChatHomePage() {
                                                 }}
                                             >
                                                 <Archive className="mr-2 h-4 w-4" aria-hidden="true" />
-                                                Archivar
+                                                {t("sidebar.archive")}
                                             </DropdownMenuItem>
                                             <DropdownMenuItem
                                                 className="text-destructive"
@@ -1780,7 +1805,7 @@ export default function ChatHomePage() {
                                                     handleRequestDeleteChat(chat)
                                                 }}
                                             >
-                                                <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" /> Eliminar
+                                                <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" /> {t("sidebar.delete")}
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
@@ -1817,33 +1842,33 @@ export default function ChatHomePage() {
                                         >
                                             <DropdownMenuItem onSelect={() => setIsUserDialogOpen(true)}>
                                                 <User className="mr-2 h-4 w-4" />
-                                                Usuario
+                                                {t("userMenu.user")}
                                             </DropdownMenuItem>
                                             <DropdownMenuItem onSelect={() => setIsArchivedDialogOpen(true)}>
                                                 <Archive className="mr-2 h-4 w-4" />
-                                                Conversaciones archivadas
+                                                {t("userMenu.archivedConversations")}
                                             </DropdownMenuItem>
                                             <DropdownMenuItem onSelect={() => setIsSettingsDialogOpen(true)}>
                                                 <Settings className="mr-2 h-4 w-4" />
-                                                Configuración
+                                                {t("userMenu.settings")}
                                             </DropdownMenuItem>
                                             {canShowOptions && (
                                                 <DropdownMenuSub>
                                                     <DropdownMenuSubTrigger>
                                                         <FileStack className="mr-2 h-4 w-4" />
-                                                        Opciones
+                                                        {t("userMenu.options")}
                                                     </DropdownMenuSubTrigger>
                                                     <DropdownMenuSubContent className="w-48">
                                                         {canAccessDocumentation && (
                                                             <DropdownMenuItem onSelect={() => router.push("/documentacion")}>
                                                                 <FileText className="mr-2 h-4 w-4" />
-                                                                Documentación
+                                                                {t("userMenu.documentation")}
                                                             </DropdownMenuItem>
                                                         )}
                                                         {canAccessAdministration && (
                                                             <DropdownMenuItem onSelect={() => router.push("/admin")}>
                                                                 <UserCog className="mr-2 h-4 w-4" />
-                                                                Administración
+                                                                {t("userMenu.administration")}
                                                             </DropdownMenuItem>
                                                         )}
                                                     </DropdownMenuSubContent>
@@ -1855,7 +1880,7 @@ export default function ChatHomePage() {
                                                 className="text-destructive"
                                             >
                                                 <LogOut className="mr-2 h-4 w-4" />
-                                                Salir
+                                                {t("userMenu.logout")}
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
@@ -1889,33 +1914,33 @@ export default function ChatHomePage() {
                                 >
                                     <DropdownMenuItem onSelect={() => setIsUserDialogOpen(true)}>
                                         <User className="mr-2 h-4 w-4" />
-                                        Usuario
+                                        {t("userMenu.user")}
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => setIsArchivedDialogOpen(true)}>
                                         <Archive className="mr-2 h-4 w-4" />
-                                        Conversaciones archivadas
+                                        {t("userMenu.archivedConversations")}
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => setIsSettingsDialogOpen(true)}>
                                         <Settings className="mr-2 h-4 w-4" />
-                                        Configuración
+                                        {t("userMenu.settings")}
                                     </DropdownMenuItem>
                                     {canShowOptions && (
                                         <DropdownMenuSub>
                                             <DropdownMenuSubTrigger>
                                                 <FileStack className="mr-2 h-4 w-4" />
-                                                Opciones
+                                                {t("userMenu.options")}
                                             </DropdownMenuSubTrigger>
                                             <DropdownMenuSubContent className="w-48">
                                                 {canAccessDocumentation && (
                                                     <DropdownMenuItem onSelect={() => router.push("/documentacion")}>
                                                         <FileText className="mr-2 h-4 w-4" />
-                                                        Documentación
+                                                        {t("userMenu.documentation")}
                                                     </DropdownMenuItem>
                                                 )}
                                                 {canAccessAdministration && (
                                                     <DropdownMenuItem onSelect={() => router.push("/admin")}>
                                                         <UserCog className="mr-2 h-4 w-4" />
-                                                        Administración
+                                                        {t("userMenu.administration")}
                                                     </DropdownMenuItem>
                                                 )}
                                             </DropdownMenuSubContent>
@@ -1927,7 +1952,7 @@ export default function ChatHomePage() {
                                         className="text-destructive"
                                     >
                                         <LogOut className="mr-2 h-4 w-4" />
-                                        Salir
+                                        {t("userMenu.logout")}
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
@@ -1946,7 +1971,7 @@ export default function ChatHomePage() {
                             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all"
                         >
                             <Info className="h-4 w-4" />
-                            Acerca de la IA RPJ
+                            {t("header.aboutIARPJ")}
                         </Link>
                         <div className="h-5 w-px bg-border/60 mx-2" />
                         <Link 
@@ -1954,7 +1979,7 @@ export default function ChatHomePage() {
                             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all"
                         >
                             <BookOpenCheck className="h-4 w-4" />
-                            Guía documental
+                            {t("header.documentGuide")}
                         </Link>
                         <div className="h-5 w-px bg-border/60 mx-2" />
                         <Link 
@@ -1962,7 +1987,7 @@ export default function ChatHomePage() {
                             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all"
                         >
                             <Mail className="h-4 w-4" />
-                            Contacto
+                            {t("header.contact")}
                         </Link>
                     </nav>
                     <div className="flex items-center gap-3">
@@ -1982,7 +2007,9 @@ export default function ChatHomePage() {
                                 <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-foreground max-w-2xl leading-relaxed whitespace-nowrap">
                                     {activeChat?.messages[0]?.role === "asistente" && activeChat?.messages[0]?.content 
                                         ? activeChat.messages[0].content 
-                                        : "¿Qué necesitas para tu tarea pastoral?"}
+                                        : user?.nombre 
+                                            ? t("chat.greeting", { name: user.nombre })
+                                            : t("chat.greetingGeneric")}
                                 </p>
                             </div>
                             {renderPromptComposer("center")}
@@ -1993,7 +2020,7 @@ export default function ChatHomePage() {
                             {activeChat?.isLoading && activeChat.messages.length === 0 && (
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                     <Sparkles className="h-4 w-4 animate-pulse" aria-hidden="true" />
-                                    <span>Cargando conversación…</span>
+                                    <span>{t("chat.loadingConversation")}</span>
                                 </div>
                             )}
 
@@ -2024,7 +2051,7 @@ export default function ChatHomePage() {
                                                                 className="cursor-pointer bg-muted text-muted-foreground hover:bg-muted/80 border-border flex items-center gap-1"
                                                             >
                                                                 <Download className="h-3 w-3" />
-                                                                Descargar
+                                                                {t("download.button")}
                                                             </Badge>
                                                         </button>
                                                     </DropdownMenuTrigger>
@@ -2039,7 +2066,7 @@ export default function ChatHomePage() {
                                                             }}
                                                         >
                                                             <FileText className="mr-2 h-4 w-4" />
-                                                            Documento PDF (.pdf)
+                                                            {t("download.pdfDocument")}
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem
                                                             onSelect={async () => {
@@ -2051,7 +2078,7 @@ export default function ChatHomePage() {
                                                             }}
                                                         >
                                                             <FileText className="mr-2 h-4 w-4" />
-                                                            Documento de Microsoft Word (.docx)
+                                                            {t("download.wordDocument")}
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
@@ -2105,7 +2132,7 @@ export default function ChatHomePage() {
                                         <span className="h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: "0ms" }} />
                                         <span className="h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: "120ms" }} />
                                         <span className="h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: "240ms" }} />
-                                        <span className="text-xs font-medium text-muted-foreground">Pensando...</span>
+                                        <span className="text-xs font-medium text-muted-foreground">{t("chat.thinking")}</span>
                                     </div>
                                 </div>
                             )}
@@ -2124,48 +2151,48 @@ export default function ChatHomePage() {
             <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Perfil de usuario</DialogTitle>
-                        <DialogDescription>Actualiza tus datos personales. Esta información ayuda a personalizar las propuestas del asistente.</DialogDescription>
+                        <DialogTitle>{t("profile.title")}</DialogTitle>
+                        <DialogDescription>{t("profile.subtitle")}</DialogDescription>
                     </DialogHeader>
                     <form className="space-y-4" onSubmit={handleProfileSubmit}>
                         <div className="grid gap-2">
-                            <Label htmlFor="profile-nombre">Nombre</Label>
-                            <Input id="profile-nombre" value={profileForm.nombre} onChange={handleProfileInputChange("nombre")} placeholder="Nombre" autoComplete="given-name" />
+                            <Label htmlFor="profile-nombre">{t("profile.name")}</Label>
+                            <Input id="profile-nombre" value={profileForm.nombre} onChange={handleProfileInputChange("nombre")} placeholder={t("profile.namePlaceholder")} autoComplete="given-name" />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="profile-apellidos">Apellidos</Label>
-                            <Input id="profile-apellidos" value={profileForm.apellidos} onChange={handleProfileInputChange("apellidos")} placeholder="Apellidos" autoComplete="family-name" />
+                            <Label htmlFor="profile-apellidos">{t("profile.lastName")}</Label>
+                            <Input id="profile-apellidos" value={profileForm.apellidos} onChange={handleProfileInputChange("apellidos")} placeholder={t("profile.lastNamePlaceholder")} autoComplete="family-name" />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="profile-telefono">Teléfono</Label>
-                            <Input id="profile-telefono" value={profileForm.telefono} onChange={handleProfileInputChange("telefono")} placeholder="Teléfono de contacto" autoComplete="tel" />
+                            <Label htmlFor="profile-telefono">{t("profile.phone")}</Label>
+                            <Input id="profile-telefono" value={profileForm.telefono} onChange={handleProfileInputChange("telefono")} placeholder={t("profile.phonePlaceholder")} autoComplete="tel" />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="profile-organizacion">Organización</Label>
-                            <Input id="profile-organizacion" value={profileForm.organizacion} onChange={handleProfileInputChange("organizacion")} placeholder="Nombre de la organización" />
+                            <Label htmlFor="profile-organizacion">{t("profile.organization")}</Label>
+                            <Input id="profile-organizacion" value={profileForm.organizacion} onChange={handleProfileInputChange("organizacion")} placeholder={t("profile.organizationPlaceholder")} />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="profile-cargo">Cargo</Label>
-                            <Input id="profile-cargo" value={profileForm.cargo} onChange={handleProfileInputChange("cargo")} placeholder="Ej. Coordinador de juventud" />
+                            <Label htmlFor="profile-cargo">{t("profile.position")}</Label>
+                            <Input id="profile-cargo" value={profileForm.cargo} onChange={handleProfileInputChange("cargo")} placeholder={t("profile.positionPlaceholder")} />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="profile-experiencia">Experiencia (años)</Label>
-                            <Input id="profile-experiencia" type="number" min="0" value={profileForm.experiencia} onChange={handleProfileInputChange("experiencia")} placeholder="0" />
+                            <Label htmlFor="profile-experiencia">{t("profile.experience")}</Label>
+                            <Input id="profile-experiencia" type="number" min="0" value={profileForm.experiencia} onChange={handleProfileInputChange("experiencia")} placeholder={t("profile.experiencePlaceholder")} />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="profile-avatar">URL de avatar</Label>
+                            <Label htmlFor="profile-avatar">{t("profile.avatar")}</Label>
                             <Input id="profile-avatar" value={profileForm.avatarUrl} onChange={handleProfileInputChange("avatarUrl")} placeholder="https://..." autoComplete="url" />
                         </div>
-                        <p className="text-xs text-muted-foreground">Correo: {user?.email}</p>
+                        <p className="text-xs text-muted-foreground">{t("auth.email")}: {user?.email}</p>
                         {profileFeedback && (
                             <p className="text-sm text-primary" role="status">{profileFeedback}</p>
                         )}
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => setIsUserDialogOpen(false)}>
-                                Cerrar
+                                {t("common.close")}
                             </Button>
                             <Button type="submit" disabled={profileSaving}>
-                                {profileSaving ? "Guardando..." : "Guardar cambios"}
+                                {profileSaving ? t("profile.saving") : t("profile.saveChanges")}
                             </Button>
                         </DialogFooter>
                     </form>
@@ -2174,23 +2201,23 @@ export default function ChatHomePage() {
             <Dialog open={isArchivedDialogOpen} onOpenChange={setIsArchivedDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Conversaciones archivadas</DialogTitle>
-                        <DialogDescription>Las conversaciones archivadas se ocultan del panel lateral. Desarchívalas para recuperarlas cuando las necesites.</DialogDescription>
+                        <DialogTitle>{t("archivedDialog.title")}</DialogTitle>
+                        <DialogDescription>{t("sidebar.archivedChats")}</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-3">
                         {archivedChats.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">No hay conversaciones archivadas por ahora.</p>
+                            <p className="text-sm text-muted-foreground">{t("archivedDialog.empty")}</p>
                         ) : (
                             archivedChats.map((chat) => (
                                 <div key={chat.id} className="rounded-lg border border-border/60 bg-muted/20 px-3 py-3 text-sm">
                                     <div className="font-medium">{chat.title}</div>
-                                    <div className="mt-1 text-xs text-muted-foreground">Archivado el {chat.createdAt.toLocaleString("es-ES")}</div>
+                                    <div className="mt-1 text-xs text-muted-foreground">{formatRelativeTime(chat.createdAt, locale)}</div>
                                     <div className="mt-2 flex flex-wrap gap-2">
                                         <Button size="sm" variant="outline" onClick={() => handleRestoreArchivedChat(chat.id)}>
-                                            Abrir
+                                            {t("archivedDialog.restore")}
                                         </Button>
                                         <Button size="sm" variant="ghost" onClick={() => handleArchiveChat(chat.id)}>
-                                            Desarchivar
+                                            {t("sidebar.unarchive")}
                                         </Button>
                                     </div>
                                 </div>
@@ -2198,7 +2225,7 @@ export default function ChatHomePage() {
                         )}
                     </div>
                     <DialogFooter>
-                        <Button type="button" onClick={() => setIsArchivedDialogOpen(false)} variant="outline">Cerrar</Button>
+                        <Button type="button" onClick={() => setIsArchivedDialogOpen(false)} variant="outline">{t("common.close")}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -2213,18 +2240,18 @@ export default function ChatHomePage() {
             >
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Eliminar chat</DialogTitle>
-                        <DialogDescription>Esta acción no se puede deshacer. El historial y las respuestas generadas se perderán definitivamente.</DialogDescription>
+                        <DialogTitle>{t("deleteDialog.title")}</DialogTitle>
+                        <DialogDescription>{t("deleteDialog.warning")}</DialogDescription>
                     </DialogHeader>
                     <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-3 text-sm">
                         <AlertTriangle className="h-5 w-5 text-destructive" aria-hidden="true" />
                         <p>
-                            ¿Seguro que quieres eliminar <span className="font-semibold">{chatPendingDeletion?.title ?? "esta conversación"}</span>?
+                            {t("deleteDialog.message")}
                         </p>
                     </div>
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={handleCancelDeleteChat}>
-                            Cancelar
+                            {t("common.cancel")}
                         </Button>
                         <Button
                             type="button"
@@ -2232,7 +2259,7 @@ export default function ChatHomePage() {
                             onClick={handleConfirmDeleteChat}
                             disabled={isDeletingChat}
                         >
-                            {isDeletingChat ? "Eliminando..." : "Eliminar definitivamente"}
+                            {isDeletingChat ? t("deleteDialog.deleting") : t("deleteDialog.confirm")}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -2242,7 +2269,7 @@ export default function ChatHomePage() {
             <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
                 <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
                     <DialogHeader>
-                        <DialogTitle className="text-xl">Configuración</DialogTitle>
+                        <DialogTitle className="text-xl">{t("settings.title")}</DialogTitle>
                     </DialogHeader>
                     <div className="flex flex-1 gap-6 overflow-hidden">
                         {/* Sidebar de navegación */}
@@ -2252,7 +2279,7 @@ export default function ChatHomePage() {
                                 className="w-full flex items-center gap-3 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-left"
                             >
                                 <Settings className="h-4 w-4" />
-                                General
+                                {t("settings.general")}
                             </button>
                         </div>
                         
@@ -2261,24 +2288,39 @@ export default function ChatHomePage() {
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
-                                        <Label className="text-sm font-medium">Apariencia</Label>
+                                        <Label className="text-sm font-medium">{t("settings.appearance")}</Label>
                                     </div>
                                     <ThemeToggleButton />
                                 </div>
                                 
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
-                                        <Label className="text-sm font-medium">Idioma</Label>
+                                        <Label className="text-sm font-medium">{t("settings.language")}</Label>
                                         <p className="text-xs text-muted-foreground">
-                                            Selecciona el idioma de la interfaz
+                                            {t("settings.languageDesc")}
                                         </p>
                                     </div>
                                     <select 
                                         className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-                                        defaultValue="es"
+                                        value={locale}
+                                        onChange={async (e) => {
+                                            const newLocale = e.target.value as Locale
+                                            setLocale(newLocale)
+                                            // Also save to backend if user is authenticated
+                                            if (isAuthenticated && token) {
+                                                try {
+                                                    await updateProfile({ idioma: newLocale })
+                                                } catch (error) {
+                                                    console.error("Error saving language preference:", error)
+                                                }
+                                            }
+                                        }}
                                     >
-                                        <option value="es">Español</option>
-                                        <option value="en">English</option>
+                                        {locales.map((loc) => (
+                                            <option key={loc} value={loc}>
+                                                {localeNames[loc]}
+                                            </option>
+                                        ))}
                                     </select>
                                 </div>
                             </div>
@@ -2291,9 +2333,9 @@ export default function ChatHomePage() {
             <Dialog open={isSearchDialogOpen} onOpenChange={setIsSearchDialogOpen}>
                 <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
                     <DialogHeader>
-                        <DialogTitle>Buscar en chats</DialogTitle>
+                        <DialogTitle>{t("searchDialog.title")}</DialogTitle>
                         <DialogDescription>
-                            Busca en todos tus chats (activos y archivados) por título o contenido
+                            {t("searchDialog.placeholder")}
                         </DialogDescription>
                     </DialogHeader>
                     
@@ -2302,7 +2344,7 @@ export default function ChatHomePage() {
                             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
                                 type="text"
-                                placeholder="Escribe para buscar..."
+                                placeholder={t("common.search") + "..."}
                                 value={searchQuery}
                                 onChange={handleSearchQueryChange}
                                 className="pl-10"
@@ -2319,14 +2361,14 @@ export default function ChatHomePage() {
                                 <div className="flex flex-col items-center justify-center py-12 text-center">
                                     <Search className="h-12 w-12 text-muted-foreground/40 mb-3" />
                                     <p className="text-sm text-muted-foreground">
-                                        Escribe algo para buscar en tus chats
+                                        {t("searchDialog.placeholder")}
                                     </p>
                                 </div>
                             ) : searchResults.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-12 text-center">
                                     <MessageSquare className="h-12 w-12 text-muted-foreground/40 mb-3" />
                                     <p className="text-sm text-muted-foreground">
-                                        No se encontraron chats que coincidan con &quot;{searchQuery}&quot;
+                                        {t("searchDialog.noResults")}
                                     </p>
                                 </div>
                             ) : (
@@ -2357,9 +2399,9 @@ export default function ChatHomePage() {
                                                             )}
                                                         </div>
                                                         <p className="text-xs text-muted-foreground">
-                                                            {chat.messages.length} {chat.messages.length === 1 ? "mensaje" : "mensajes"}
+                                                            {chat.messages.length} {t("usageStats.messages").toLowerCase()}
                                                             {matchesInContent > 0 && (
-                                                                <> • {matchesInContent} {matchesInContent === 1 ? "coincidencia" : "coincidencias"}</>
+                                                                <> • {matchesInContent}</>
                                                             )}
                                                         </p>
                                                     </div>
@@ -2382,7 +2424,7 @@ export default function ChatHomePage() {
                                 setSearchResults([])
                             }}
                         >
-                            Cerrar
+                            {t("common.close")}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
