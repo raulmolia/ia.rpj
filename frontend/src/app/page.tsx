@@ -1580,7 +1580,7 @@ export default function ChatHomePage() {
         <div className="flex h-screen overflow-hidden bg-background text-foreground">
             <aside
                 className={cn(
-                    "flex h-full flex-col border-r border-border/50 bg-muted/40 backdrop-blur transition-all duration-300",
+                    "relative z-10 flex h-full flex-col border-r border-border/50 bg-muted/40 backdrop-blur transition-all duration-300",
                     sidebarWidthClass,
                 )}
             >
