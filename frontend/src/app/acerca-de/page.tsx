@@ -153,16 +153,16 @@ export default function AcercaDePage() {
                             {t("section5Institutions")}
                         </p>
                         <p className="mb-6">
-                            <ExternalLinkStyled href="https://redpastoraljovenrpj.org/somos/" highlighted>
-                                → redpastoraljovenrpj.org/somos/
+                            <ExternalLinkStyled href="https://rpj.es/quienes-somos/" highlighted>
+                                → rpj.es/quienes-somos/
                             </ExternalLinkStyled>
                         </p>
                         <p className="mb-4 leading-relaxed text-muted-foreground font-medium">
                             {t("section5Teams")}
                         </p>
                         <p className="mb-6">
-                            <ExternalLinkStyled href="https://redpastoraljovenrpj.org" highlighted>
-                                → redpastoraljovenrpj.org
+                            <ExternalLinkStyled href="https://rpj.es/" highlighted>
+                                → rpj.es
                             </ExternalLinkStyled>
                         </p>
                         <p className="mb-6 leading-relaxed text-muted-foreground">

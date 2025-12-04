@@ -1,5 +1,6 @@
 // Servicio para interactuar con Gemma 3 4b It - Asistente de aplicación
 import dotenv from 'dotenv';
+import { getGreeting } from '../config/chatPrompts.js';
 
 dotenv.config();
 
@@ -123,7 +124,7 @@ Responde SOLO con el saludo, sin comillas ni explicaciones.`;
         return greeting.trim();
     } catch (error) {
         console.error('Error generando saludo inicial:', error);
-        return `Hola ${userName}, ¿qué necesitas para tu tarea pastoral?`;
+        return getGreeting(userName, 'es');
     }
 }
 

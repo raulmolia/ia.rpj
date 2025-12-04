@@ -1,4 +1,8 @@
 {
+  "app": {
+    "title": "Assistente IA per",
+    "subtitle": "Pastorale Giovanile RPJ"
+  },
   "common": {
     "loading": "Caricamento...",
     "save": "Salva",
@@ -93,8 +97,8 @@
     "showMenu": "Mostra menu"
   },
   "chat": {
-    "greeting": "Ciao {name}, di cosa hai bisogno per il tuo lavoro pastorale?",
-    "greetingGeneric": "Come posso aiutarti oggi?",
+    "greeting": "Ciao {name}, Cosa vuoi preparare, su quale argomento e in quale contesto giovanile?",
+    "greetingGeneric": "Cosa vuoi preparare, su quale argomento e in quale contesto giovanile?",
     "placeholder": "Scrivi il tuo messaggio...",
     "placeholderThinking": "Sto pensando...",
     "send": "Invia",

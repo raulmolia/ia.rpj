@@ -1,4 +1,8 @@
 {
+  "app": {
+    "title": "Asystent AI dla",
+    "subtitle": "Duszpasterstwa Młodzieży RPJ"
+  },
   "common": {
     "loading": "Ładowanie...",
     "save": "Zapisz",
@@ -93,8 +97,8 @@
     "showMenu": "Pokaż menu"
   },
   "chat": {
-    "greeting": "Cześć {name}, w czym mogę pomóc w Twojej pracy duszpasterskiej z młodzieżą?",
-    "greetingGeneric": "W czym mogę Ci dziś pomóc?",
+    "greeting": "Cześć {name}, Co chcesz przygotować, na jaki temat i w jakim kontekście młodzieżowym?",
+    "greetingGeneric": "Co chcesz przygotować, na jaki temat i w jakim kontekście młodzieżowym?",
     "placeholder": "Napisz wiadomość...",
     "placeholderThinking": "Myślę...",
     "send": "Wyślij",

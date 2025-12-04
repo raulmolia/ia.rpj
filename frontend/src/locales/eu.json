@@ -1,4 +1,8 @@
 {
+  "app": {
+    "title": "AA Laguntzailea",
+    "subtitle": "Gazte Pastoraltzarako RPJ"
+  },
   "common": {
     "loading": "Kargatzen...",
     "save": "Gorde",
@@ -93,8 +97,8 @@
     "showMenu": "Menua erakutsi"
   },
   "chat": {
-    "greeting": "Kaixo {name}, zer behar duzu zure pastoraltzarako?",
-    "greetingGeneric": "Nola lagun zaintzat gaur?",
+    "greeting": "Kaixo {name}, Zer prestatu nahi duzu, zein gairi buruz eta zein gazte-testuingurutan?",
+    "greetingGeneric": "Zer prestatu nahi duzu, zein gairi buruz eta zein gazte-testuingurutan?",
     "placeholder": "Idatzi zure mezua...",
     "placeholderThinking": "Pentsatzen...",
     "send": "Bidali",

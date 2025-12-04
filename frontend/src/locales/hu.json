@@ -1,4 +1,8 @@
 {
+  "app": {
+    "title": "AI Asszisztens a",
+    "subtitle": "Ifjúsági Lelkipásztorkodáshoz RPJ"
+  },
   "common": {
     "loading": "Betöltés...",
     "save": "Mentés",
@@ -93,8 +97,8 @@
     "showMenu": "Menü megjelenítése"
   },
   "chat": {
-    "greeting": "Szia {name}, miben segíthetek az ifjúsági lelkipásztori munkádban?",
-    "greetingGeneric": "Hogyan segíthetek ma?",
+    "greeting": "Szia {name}, Mit szeretnél előkészíteni, milyen témában és milyen ifjúsági környezetben?",
+    "greetingGeneric": "Mit szeretnél előkészíteni, milyen témában és milyen ifjúsági környezetben?",
     "placeholder": "Írja be az üzenetét...",
     "placeholderThinking": "Gondolkodás...",
     "send": "Küldés",

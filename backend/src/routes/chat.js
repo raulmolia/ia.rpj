@@ -9,6 +9,7 @@ import {
     resolveIntent,
     DEFAULT_INTENT,
     getLanguageInstruction,
+    getGreeting,
 } from '../config/chatPrompts.js';
 
 const { PrismaClient } = prismaPackage;
@@ -162,7 +163,7 @@ function logChatEvent(level = 'info', payload = {}) {
     }
 }
 
-async function ensureConversation({ conversationId, userId, intent, userName }) {
+async function ensureConversation({ conversationId, userId, intent, userName, userLanguage = 'es' }) {
     if (conversationId) {
         const existing = await prisma.conversacion.findUnique({
             where: { id: conversationId },
@@ -194,10 +195,10 @@ async function ensureConversation({ conversationId, userId, intent, userName }) 
         console.warn(`⚠️ No se pudo crear colección temporal: ${error.message}`);
     }
 
-    // Crear mensaje inicial estático del asistente
+    // Crear mensaje inicial estático del asistente en el idioma del usuario
     if (userName) {
         try {
-            const greeting = `Hola ${userName}, ¿qué necesitas para tu tarea pastoral?`;
+            const greeting = getGreeting(userName, userLanguage);
             
             // Crear mensaje inicial del asistente
             await prisma.mensajeConversacion.create({
@@ -209,7 +210,7 @@ async function ensureConversation({ conversationId, userId, intent, userName }) 
                 },
             });
             
-            console.log(`✅ Saludo inicial creado para ${userName}`);
+            console.log(`✅ Saludo inicial creado para ${userName} en idioma ${userLanguage}`);
         } catch (error) {
             console.warn(`⚠️ No se pudo crear saludo inicial: ${error.message}`);
         }
@@ -473,6 +474,7 @@ router.post('/', authenticate, async (req, res) => {
             userId: req.user?.id || null,
             intent: detectedIntent,
             userName: req.user?.nombre || 'Usuario',
+            userLanguage: req.user?.idioma || 'es',
         });
 
         const previousHistory = await fetchConversationHistory(conversation.id, 12);
@@ -793,6 +795,7 @@ router.post('/create', authenticate, async (req, res) => {
     try {
         const userId = req.user?.id;
         const userName = req.user?.nombre || 'Usuario';
+        const userLanguage = req.user?.idioma || 'es';
         const { intent } = req.body;
 
         if (!userId) {
@@ -808,6 +811,7 @@ router.post('/create', authenticate, async (req, res) => {
             userId,
             intent: detectedIntent,
             userName,
+            userLanguage,
         });
 
         // Obtener los mensajes (debería incluir el saludo inicial)

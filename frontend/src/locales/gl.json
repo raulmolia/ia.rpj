@@ -1,4 +1,8 @@
 {
+  "app": {
+    "title": "IA Asistente de",
+    "subtitle": "Pastoral Xuvenil RPJ"
+  },
   "common": {
     "loading": "Cargando...",
     "save": "Gardar",
@@ -93,8 +97,8 @@
     "showMenu": "Amosar menú"
   },
   "chat": {
-    "greeting": "Ola {name}, que precisas para o teu traballo pastoral?",
-    "greetingGeneric": "Como podo axudarte hoxe?",
+    "greeting": "Ola {name}, Que queres preparar, sobre que tema e en que contexto de mozos?",
+    "greetingGeneric": "Que queres preparar, sobre que tema e en que contexto de mozos?",
     "placeholder": "Escribe a túa mensaxe...",
     "placeholderThinking": "Pensando...",
     "send": "Enviar",

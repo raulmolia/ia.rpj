@@ -1597,8 +1597,8 @@ export default function ChatHomePage() {
                                     <Image src="/LogotipoRPJ_circulo.png" alt="RPJ" width={56} height={56} priority className="object-cover" />
                                 </span>
                                 <div className="flex flex-col">
-                                    <span className="text-base font-semibold leading-tight">IA Asistente de</span>
-                                    <span className="text-base font-semibold leading-tight">Pastoral Juvenil RPJ</span>
+                                    <span className="text-base font-semibold leading-tight">{t("app.title")}</span>
+                                    <span className="text-base font-semibold leading-tight">{t("app.subtitle")}</span>
                                 </div>
                             </div>
                             {/* Botón de colapsar junto al título */}
@@ -2003,8 +2003,8 @@ export default function ChatHomePage() {
                 <section className="flex flex-1 flex-col overflow-hidden bg-gradient-to-b from-background via-background to-muted/40">
                     {!hasMessages ? (
                         <div className="flex flex-1 flex-col items-center justify-center gap-6 px-8" style={{ paddingBottom: "15%" }}>
-                            <div className="flex flex-col items-center gap-6 text-center">
-                                <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-foreground max-w-2xl leading-relaxed whitespace-nowrap">
+                            <div className="flex flex-col items-center gap-2 text-center max-w-2xl">
+                                <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-foreground leading-relaxed">
                                     {activeChat?.messages[0]?.role === "asistente" && activeChat?.messages[0]?.content 
                                         ? activeChat.messages[0].content 
                                         : user?.nombre 
