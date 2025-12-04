@@ -97,8 +97,8 @@
     "showMenu": "Mostrar menu"
   },
   "chat": {
-    "greeting": "Olá {name}, O que queres preparar, sobre que tema e em que contexto de jovens?",
-    "greetingGeneric": "O que queres preparar, sobre que tema e em que contexto de jovens?",
+    "greeting": "Olá {name}, o que precisas para a tua missão pastoral?",
+    "greetingGeneric": "O que precisas para a tua missão pastoral?",
     "placeholder": "Escreva a sua mensagem...",
     "placeholderThinking": "A pensar...",
     "send": "Enviar",
@@ -115,7 +115,7 @@
     "rateLimitError": "Atingiu o limite de mensagens. Aguarde alguns minutos.",
     "assistantRole": "Assistente",
     "userRole": "Você",
-    "inputPlaceholder": "Como posso ajudá-lo hoje?",
+    "inputPlaceholder": "O que queres preparar, sobre que tema e em que contexto de jovens?",
     "preparingWorkspace": "A preparar o seu espaço de trabalho...",
     "roleUser": "Utilizador",
     "roleAssistant": "Assistente",

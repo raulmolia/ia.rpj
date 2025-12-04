@@ -27,38 +27,74 @@ const FALLBACK_MESSAGE = 'Lo siento, ahora mismo no puedo generar una propuesta.
 const RATE_LIMIT_MESSAGE = 'El servicio de IA está experimentando una alta demanda en este momento. Por favor, espera unos momentos e intenta de nuevo.';
 const SYSTEM_MESSAGE_PREDICATE = /mensaje del sistema:/i;
 
-// Límites por rol
-const USER_LIMITS = {
+// Límites por rol (para roles especiales que no dependen de suscripción)
+const ROLE_LIMITS = {
     SUPERADMIN: {
         maxConversations: null, // Sin límite
         maxMessagesPerConversation: null, // Sin límite
         maxDailyInteractions: null, // Sin límite
         maxDailyChats: null, // Sin límite
+        hasTools: true, // Acceso a herramientas
     },
     ADMINISTRADOR: {
         maxConversations: null,
         maxMessagesPerConversation: null,
         maxDailyInteractions: null,
         maxDailyChats: null,
+        hasTools: true,
     },
     DOCUMENTADOR: {
-        maxConversations: 10,
+        maxConversations: null, // Sin límite
         maxMessagesPerConversation: null, // Sin límite
         maxDailyInteractions: null, // Sin límite
         maxDailyChats: null, // Sin límite
+        hasTools: true,
     },
     DOCUMENTADOR_JUNIOR: {
-        maxConversations: 10,
+        maxConversations: null, // Sin límite
         maxMessagesPerConversation: null, // Sin límite
         maxDailyInteractions: null, // Sin límite
         maxDailyChats: null, // Sin límite
+        hasTools: true,
     },
-    USUARIO: {
+};
+
+// Límites por tipo de suscripción (para rol USUARIO)
+const SUBSCRIPTION_LIMITS = {
+    FREE: {
         maxConversations: 7,
         maxMessagesPerConversation: 5,
         maxDailyInteractions: 15,
         maxDailyChats: 3,
+        hasTools: false, // Sin acceso a herramientas
     },
+    PRO: {
+        maxConversations: 50,
+        maxMessagesPerConversation: 30,
+        maxDailyInteractions: 100,
+        maxDailyChats: 20,
+        hasTools: true, // Acceso completo a herramientas
+    },
+};
+
+// Función para obtener los límites según rol y suscripción
+function getUserLimits(userRole, tipoSuscripcion = 'FREE') {
+    // Si el rol tiene límites especiales (admin, documentador, etc.), usarlos
+    if (ROLE_LIMITS[userRole]) {
+        return ROLE_LIMITS[userRole];
+    }
+    
+    // Para rol USUARIO, usar los límites de suscripción
+    return SUBSCRIPTION_LIMITS[tipoSuscripcion] || SUBSCRIPTION_LIMITS.FREE;
+}
+
+// Mantener compatibilidad con código existente
+const USER_LIMITS = {
+    SUPERADMIN: ROLE_LIMITS.SUPERADMIN,
+    ADMINISTRADOR: ROLE_LIMITS.ADMINISTRADOR,
+    DOCUMENTADOR: ROLE_LIMITS.DOCUMENTADOR,
+    DOCUMENTADOR_JUNIOR: ROLE_LIMITS.DOCUMENTADOR_JUNIOR,
+    USUARIO: SUBSCRIPTION_LIMITS.FREE, // Por defecto FREE para usuarios normales
 };
 
 function mapRoleToOpenAI(role) {
@@ -235,8 +271,8 @@ async function fetchConversationHistory(conversationId, limit = 12) {
 }
 
 // Función para obtener estadísticas de uso del usuario
-async function getUserStats(userId, userRole) {
-    const limits = USER_LIMITS[userRole] || USER_LIMITS.USUARIO;
+async function getUserStats(userId, userRole, tipoSuscripcion = 'FREE') {
+    const limits = getUserLimits(userRole, tipoSuscripcion);
 
     // Contar conversaciones totales (activas + archivadas)
     const totalConversations = await prisma.conversacion.count({
@@ -282,13 +318,14 @@ async function getUserStats(userId, userRole) {
         messagesPerConversation: {
             max: limits.maxMessagesPerConversation,
         },
+        hasTools: limits.hasTools,
     };
 }
 
 // Función para validar límites antes de crear/enviar
-async function validateUserLimits(userId, userRole, conversationId = null) {
-    const limits = USER_LIMITS[userRole] || USER_LIMITS.USUARIO;
-    const stats = await getUserStats(userId, userRole);
+async function validateUserLimits(userId, userRole, conversationId = null, tipoSuscripcion = 'FREE') {
+    const limits = getUserLimits(userRole, tipoSuscripcion);
+    const stats = await getUserStats(userId, userRole, tipoSuscripcion);
 
     // Validar límite de conversaciones (solo si es nueva conversación)
     if (!conversationId && limits.maxConversations) {
@@ -373,11 +410,14 @@ router.get('/', authenticate, async (req, res) => {
 router.get('/stats', authenticate, async (req, res) => {
     try {
         const userRole = req.user?.rol || 'USUARIO';
-        const stats = await getUserStats(req.user.id, userRole);
+        const tipoSuscripcion = req.user?.tipoSuscripcion || 'FREE';
+        const limits = getUserLimits(userRole, tipoSuscripcion);
+        const stats = await getUserStats(req.user.id, userRole, tipoSuscripcion);
         
         return res.json({
             role: userRole,
-            limits: USER_LIMITS[userRole],
+            tipoSuscripcion,
+            limits,
             stats,
         });
     } catch (error) {
@@ -454,13 +494,14 @@ router.post('/', authenticate, async (req, res) => {
     try {
         // Validar límites del usuario
         const userRole = req.user?.rol || 'USUARIO';
-        const limitCheck = await validateUserLimits(req.user.id, userRole, conversationId);
+        const tipoSuscripcion = req.user?.tipoSuscripcion || 'FREE';
+        const limitCheck = await validateUserLimits(req.user.id, userRole, conversationId, tipoSuscripcion);
         
         if (!limitCheck.allowed) {
             return res.status(429).json({
                 error: limitCheck.reason,
                 message: limitCheck.message,
-                stats: await getUserStats(req.user.id, userRole),
+                stats: await getUserStats(req.user.id, userRole, tipoSuscripcion),
             });
         }
 

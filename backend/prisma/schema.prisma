@@ -24,6 +24,7 @@ model Usuario {
   fechaNacimiento DateTime?
   genero          Genero?
   rol             Rol      @default(USUARIO)
+  tipoSuscripcion TipoSuscripcion @default(FREE)
   
   // Autenticación
   emailVerificado DateTime?
@@ -64,6 +65,12 @@ enum Rol {
   DOCUMENTADOR
   DOCUMENTADOR_JUNIOR
   USUARIO
+}
+
+// Enum para tipo de suscripción
+enum TipoSuscripcion {
+  FREE
+  PRO
 }
 
 // Enum para género

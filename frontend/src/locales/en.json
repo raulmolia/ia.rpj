@@ -97,10 +97,10 @@
     "showMenu": "Show menu"
   },
   "chat": {
-    "greeting": "Hello {name}, What do you want to prepare, about what topic and in what youth context?",
-    "greetingGeneric": "What do you want to prepare, about what topic and in what youth context?",
+    "greeting": "Hello {name}, what do you need for your pastoral mission?",
+    "greetingGeneric": "What do you need for your pastoral mission?",
     "placeholder": "Type your message...",
-    "inputPlaceholder": "How can I help you today?",
+    "inputPlaceholder": "What do you want to prepare, about what topic and in what youth context?",
     "placeholderThinking": "Thinking...",
     "send": "Send",
     "stop": "Stop",

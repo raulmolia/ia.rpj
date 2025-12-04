@@ -97,8 +97,8 @@
     "showMenu": "Menua erakutsi"
   },
   "chat": {
-    "greeting": "Kaixo {name}, Zer prestatu nahi duzu, zein gairi buruz eta zein gazte-testuingurutan?",
-    "greetingGeneric": "Zer prestatu nahi duzu, zein gairi buruz eta zein gazte-testuingurutan?",
+    "greeting": "Kaixo {name}, zer behar duzu zure pastoraltzako misiorako?",
+    "greetingGeneric": "Zer behar duzu zure pastoraltzako misiorako?",
     "placeholder": "Idatzi zure mezua...",
     "placeholderThinking": "Pentsatzen...",
     "send": "Bidali",
@@ -115,7 +115,7 @@
     "rateLimitError": "Mezu mugara iritsi zara. Itxaron minutu batzuk.",
     "assistantRole": "Laguntzailea",
     "userRole": "Zu",
-    "inputPlaceholder": "Nola lagun zaintzat gaur?",
+    "inputPlaceholder": "Zer prestatu nahi duzu, zein gairi buruz eta zein gazte-testuingurutan?",
     "preparingWorkspace": "Zure lan-eremua prestatzen...",
     "roleUser": "Erabiltzailea",
     "roleAssistant": "Laguntzailea",

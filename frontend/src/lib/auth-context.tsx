@@ -13,6 +13,7 @@ type AuthUser = {
     apellidos?: string | null
     nombreUsuario?: string | null
     rol?: string | null
+    tipoSuscripcion?: string | null
     avatarUrl?: string | null
     organizacion?: string | null
     telefono?: string | null

@@ -2,7 +2,7 @@
 
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Loader2, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react"
+import { ArrowLeft, Loader2, MoreHorizontal, Pencil, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,10 +14,28 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
 import { useAuth } from "@/hooks/use-auth"
 import { ThemeToggleButton } from "@/components/theme-toggle"
 import { buildApiUrl } from "@/lib/utils"
+
 const ALLOWED_ROLES = new Set(["SUPERADMIN", "ADMINISTRADOR"])
+
+// Roles que siempre tienen acceso PRO (herramientas)
+const PRO_ROLES = new Set(["SUPERADMIN", "ADMINISTRADOR", "DOCUMENTADOR", "DOCUMENTADOR_JUNIOR"])
 
 const ROLE_PRIORITY: Record<string, number> = {
     SUPERADMIN: 4,
@@ -45,7 +63,20 @@ type ManagedUser = {
     fechaCreacion?: string
     organizacion?: string | null
     cargo?: string | null
+    telefono?: string | null
+    experiencia?: number | null
+    tipoSuscripcion?: string | null
 }
+
+const SUBSCRIPTION_OPTIONS = [
+    { value: "FREE", label: "Free" },
+    { value: "PRO", label: "Pro" },
+]
+
+const STATUS_OPTIONS = [
+    { value: "true", label: "Activo" },
+    { value: "false", label: "Inactivo" },
+]
 
 type UserFormState = {
     nombre: string
@@ -53,6 +84,7 @@ type UserFormState = {
     email: string
     password: string
     rol: string
+    tipoSuscripcion: string
     telefono: string
     organizacion: string
     cargo: string
@@ -61,18 +93,44 @@ type UserFormState = {
     enviarEmail: boolean
 }
 
+type EditUserFormState = {
+    nombre: string
+    apellidos: string
+    email: string
+    rol: string
+    tipoSuscripcion: string
+    activo: string
+    telefono: string
+    organizacion: string
+    cargo: string
+    experiencia: string
+}
+
 const INITIAL_FORM_STATE: UserFormState = {
     nombre: "",
     apellidos: "",
     email: "",
     password: "",
     rol: "USUARIO",
+    tipoSuscripcion: "FREE",
     telefono: "",
     organizacion: "",
     cargo: "",
     experiencia: "",
     generarPassword: true,
     enviarEmail: true,
+}
+
+// Función para determinar el badge de suscripción efectivo
+function getEffectiveSubscription(rol: string, tipoSuscripcion?: string | null): { label: string; isPro: boolean } {
+    // Los roles especiales siempre son PRO
+    if (PRO_ROLES.has(rol)) {
+        return { label: "Pro", isPro: true }
+    }
+    // Para usuarios normales, depende de su tipoSuscripcion
+    return tipoSuscripcion === "PRO" 
+        ? { label: "Pro", isPro: true } 
+        : { label: "Free", isPro: false }
 }
 
 export default function AdminPage() {
@@ -82,11 +140,20 @@ export default function AdminPage() {
     const [users, setUsers] = useState<ManagedUser[]>([])
     const [loadingUsers, setLoadingUsers] = useState(false)
     const [creatingUser, setCreatingUser] = useState(false)
-    const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null)
+    const [updatingUserId, setUpdatingUserId] = useState<string | null>(null)
     const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
     const [feedback, setFeedback] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [formState, setFormState] = useState<UserFormState>(INITIAL_FORM_STATE)
+    
+    // Estado para el diálogo de edición
+    const [editDialogOpen, setEditDialogOpen] = useState(false)
+    const [editingUser, setEditingUser] = useState<ManagedUser | null>(null)
+    const [editFormState, setEditFormState] = useState<EditUserFormState | null>(null)
+    
+    // Estado para el diálogo de confirmación de eliminación
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+    const [userToDelete, setUserToDelete] = useState<ManagedUser | null>(null)
 
     const canAccess = useMemo(
         () => Boolean(isAuthenticated && user && ALLOWED_ROLES.has(user.rol ?? "")),
@@ -186,6 +253,7 @@ export default function AdminPage() {
             apellidos: formState.apellidos.trim() || null,
             email: formState.email.trim(),
             rol: formState.rol,
+            tipoSuscripcion: formState.tipoSuscripcion,
             telefono: formState.telefono.trim() || null,
             organizacion: formState.organizacion.trim() || null,
             cargo: formState.cargo.trim() || null,
@@ -233,43 +301,85 @@ export default function AdminPage() {
         }
     }
 
-    const handleRoleChange = async (userId: string, currentRole: string, newRole: string) => {
-        if (!token || currentRole === newRole) return
-        setUpdatingRoleId(userId)
+    // Abrir diálogo de edición
+    const openEditDialog = (managedUser: ManagedUser) => {
+        setEditingUser(managedUser)
+        setEditFormState({
+            nombre: managedUser.nombre || "",
+            apellidos: managedUser.apellidos || "",
+            email: managedUser.email || "",
+            rol: managedUser.rol || "USUARIO",
+            tipoSuscripcion: managedUser.tipoSuscripcion || "FREE",
+            activo: managedUser.activo ? "true" : "false",
+            telefono: managedUser.telefono || "",
+            organizacion: managedUser.organizacion || "",
+            cargo: managedUser.cargo || "",
+            experiencia: managedUser.experiencia?.toString() || "",
+        })
+        setEditDialogOpen(true)
+    }
+
+    // Guardar cambios del usuario editado
+    const handleSaveEdit = async () => {
+        if (!token || !editingUser || !editFormState) return
+
+        setUpdatingUserId(editingUser.id)
         setError(null)
 
         try {
-            const response = await fetch(buildApiUrl(`/api/auth/users/${userId}/role`), {
-                method: "PATCH",
+            const response = await fetch(buildApiUrl(`/api/auth/users/${editingUser.id}`), {
+                method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify({ rol: newRole }),
+                body: JSON.stringify({
+                    nombre: editFormState.nombre.trim(),
+                    apellidos: editFormState.apellidos.trim() || null,
+                    email: editFormState.email.trim(),
+                    rol: editFormState.rol,
+                    tipoSuscripcion: editFormState.tipoSuscripcion,
+                    activo: editFormState.activo === "true",
+                    telefono: editFormState.telefono.trim() || null,
+                    organizacion: editFormState.organizacion.trim() || null,
+                    cargo: editFormState.cargo.trim() || null,
+                    experiencia: editFormState.experiencia.trim() ? Number.parseInt(editFormState.experiencia, 10) : null,
+                }),
             })
 
             if (!response.ok) {
-                const body = await response.json().catch(() => ({ message: "Error actualizando rol" }))
-                throw new Error(body?.message || "Error actualizando rol")
+                const body = await response.json().catch(() => ({ message: "Error actualizando usuario" }))
+                throw new Error(body?.message || "Error actualizando usuario")
             }
 
-            setFeedback("Rol actualizado correctamente")
+            setFeedback("Usuario actualizado correctamente")
+            setEditDialogOpen(false)
+            setEditingUser(null)
+            setEditFormState(null)
             fetchUsers()
         } catch (err) {
-            const message = err instanceof Error ? err.message : "No se pudo actualizar el rol"
+            const message = err instanceof Error ? err.message : "No se pudo actualizar el usuario"
             setError(message)
         } finally {
-            setUpdatingRoleId(null)
+            setUpdatingUserId(null)
         }
     }
 
-    const handleDeleteUser = async (userId: string) => {
-        if (!token) return
-        setDeletingUserId(userId)
+    // Abrir diálogo de confirmación de eliminación
+    const openDeleteDialog = (managedUser: ManagedUser) => {
+        setUserToDelete(managedUser)
+        setDeleteDialogOpen(true)
+    }
+
+    // Confirmar eliminación
+    const handleConfirmDelete = async () => {
+        if (!token || !userToDelete) return
+
+        setDeletingUserId(userToDelete.id)
         setError(null)
 
         try {
-            const response = await fetch(buildApiUrl(`/api/auth/users/${userId}`), {
+            const response = await fetch(buildApiUrl(`/api/auth/users/${userToDelete.id}`), {
                 method: "DELETE",
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -282,6 +392,8 @@ export default function AdminPage() {
             }
 
             setFeedback("Usuario eliminado correctamente")
+            setDeleteDialogOpen(false)
+            setUserToDelete(null)
             fetchUsers()
         } catch (err) {
             const message = err instanceof Error ? err.message : "No se pudo eliminar el usuario"
@@ -445,6 +557,31 @@ export default function AdminPage() {
                                     </SelectContent>
                                 </Select>
                             </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="admin-suscripcion">Tipo de suscripción</Label>
+                                <Select
+                                    value={formState.tipoSuscripcion}
+                                    onValueChange={(value) => {
+                                        setFormState((prev) => ({ ...prev, tipoSuscripcion: value }))
+                                    }}
+                                >
+                                    <SelectTrigger id="admin-suscripcion">
+                                        <SelectValue placeholder="Seleccionar suscripción" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {SUBSCRIPTION_OPTIONS.map((option) => (
+                                            <SelectItem key={option.value} value={option.value}>
+                                                <span className="flex items-center gap-2">
+                                                    <span className={`inline-block h-2 w-2 rounded-full ${
+                                                        option.value === 'PRO' ? 'bg-red-500' : 'bg-emerald-500'
+                                                    }`} />
+                                                    {option.label}
+                                                </span>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                             <Button type="submit" className="w-full" disabled={creatingUser}>
                                 {creatingUser ? (
                                     <>
@@ -500,55 +637,61 @@ export default function AdminPage() {
                                     {users.map((managedUser) => {
                                         const targetPriority = ROLE_PRIORITY[managedUser.rol] ?? 0
                                         const canManageUser = currentPriority > targetPriority && user?.id !== managedUser.id
+                                        const subscription = getEffectiveSubscription(managedUser.rol, managedUser.tipoSuscripcion)
 
                                         return (
                                             <tr key={managedUser.id} className="text-sm">
                                                 <td className="px-4 py-3">
                                                     <div className="flex flex-col">
-                                                        <span className="font-medium">{managedUser.nombre}</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-medium">{managedUser.nombre}</span>
+                                                            <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                                                                subscription.isPro
+                                                                    ? 'border-red-500 bg-red-50 text-red-700 dark:border-red-400 dark:bg-red-950 dark:text-red-300'
+                                                                    : 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:border-emerald-400 dark:bg-emerald-950 dark:text-emerald-300'
+                                                            }`}>
+                                                                {subscription.label}
+                                                            </span>
+                                                        </div>
                                                         <span className="text-xs text-muted-foreground">{managedUser.email}</span>
                                                     </div>
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    <Select
-                                                        value={managedUser.rol}
-                                                        onValueChange={(value) => handleRoleChange(managedUser.id, managedUser.rol, value)}
-                                                        disabled={!canManageUser || updatingRoleId === managedUser.id}
-                                                    >
-                                                        <SelectTrigger className="w-full">
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {availableRoleOptions.map((option) => (
-                                                                <SelectItem key={option.value} value={option.value}>
-                                                                    {option.label}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
+                                                    <span className="text-sm">{ROLE_OPTIONS.find(r => r.value === managedUser.rol)?.label || managedUser.rol}</span>
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    <span className={managedUser.activo ? "rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700" : "rounded-full bg-rose-100 px-3 py-1 text-xs font-medium text-rose-700"}>
+                                                    <span className={managedUser.activo ? "rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" : "rounded-full bg-rose-100 px-3 py-1 text-xs font-medium text-rose-700 dark:bg-rose-950 dark:text-rose-300"}>
                                                         {managedUser.activo ? "Activo" : "Inactivo"}
                                                     </span>
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    <div className="flex justify-end gap-2">
-                                                        <Button
-                                                            variant="destructive"
-                                                            size="sm"
-                                                            onClick={() => handleDeleteUser(managedUser.id)}
-                                                            disabled={!canManageUser || deletingUserId === managedUser.id}
-                                                        >
-                                                            {deletingUserId === managedUser.id ? (
-                                                                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                                                            ) : (
-                                                                <>
-                                                                    <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
+                                                    <div className="flex justify-end">
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-8 w-8 p-0"
+                                                                    disabled={!canManageUser}
+                                                                >
+                                                                    <MoreHorizontal className="h-4 w-4" />
+                                                                    <span className="sr-only">Abrir menú</span>
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                                <DropdownMenuItem onClick={() => openEditDialog(managedUser)}>
+                                                                    <Pencil className="mr-2 h-4 w-4" />
+                                                                    Editar
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem 
+                                                                    onClick={() => openDeleteDialog(managedUser)}
+                                                                    className="text-destructive focus:text-destructive"
+                                                                >
+                                                                    <Trash2 className="mr-2 h-4 w-4" />
                                                                     Eliminar
-                                                                </>
-                                                            )}
-                                                        </Button>
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -560,6 +703,195 @@ export default function AdminPage() {
                     </section>
                 </div>
             </div>
+
+            {/* Diálogo de edición de usuario */}
+            <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Editar usuario</DialogTitle>
+                        <DialogDescription>
+                            Modifica los datos del usuario. Los cambios se aplicarán de inmediato.
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    {editFormState && (
+                        <div className="grid gap-4 py-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="edit-nombre">Nombre *</Label>
+                                <Input 
+                                    id="edit-nombre" 
+                                    value={editFormState.nombre} 
+                                    onChange={(e) => setEditFormState(prev => prev ? { ...prev, nombre: e.target.value } : null)}
+                                    placeholder="Nombre" 
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="edit-apellidos">Apellidos</Label>
+                                <Input 
+                                    id="edit-apellidos" 
+                                    value={editFormState.apellidos} 
+                                    onChange={(e) => setEditFormState(prev => prev ? { ...prev, apellidos: e.target.value } : null)}
+                                    placeholder="Apellidos" 
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="edit-email">Email *</Label>
+                                <Input 
+                                    id="edit-email" 
+                                    type="email"
+                                    value={editFormState.email} 
+                                    onChange={(e) => setEditFormState(prev => prev ? { ...prev, email: e.target.value } : null)}
+                                    placeholder="nombre@dominio.com" 
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="edit-telefono">Teléfono</Label>
+                                <Input 
+                                    id="edit-telefono" 
+                                    value={editFormState.telefono} 
+                                    onChange={(e) => setEditFormState(prev => prev ? { ...prev, telefono: e.target.value } : null)}
+                                    placeholder="Teléfono de contacto" 
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="edit-organizacion">Organización</Label>
+                                <Input 
+                                    id="edit-organizacion" 
+                                    value={editFormState.organizacion} 
+                                    onChange={(e) => setEditFormState(prev => prev ? { ...prev, organizacion: e.target.value } : null)}
+                                    placeholder="Nombre de la organización" 
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="edit-cargo">Cargo</Label>
+                                <Input 
+                                    id="edit-cargo" 
+                                    value={editFormState.cargo} 
+                                    onChange={(e) => setEditFormState(prev => prev ? { ...prev, cargo: e.target.value } : null)}
+                                    placeholder="Ej. Coordinador de grupo" 
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="edit-experiencia">Experiencia (años)</Label>
+                                <Input 
+                                    id="edit-experiencia" 
+                                    type="number"
+                                    min="0"
+                                    value={editFormState.experiencia} 
+                                    onChange={(e) => setEditFormState(prev => prev ? { ...prev, experiencia: e.target.value } : null)}
+                                    placeholder="0" 
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="edit-rol">Rol</Label>
+                                <Select
+                                    value={editFormState.rol}
+                                    onValueChange={(value) => setEditFormState(prev => prev ? { ...prev, rol: value } : null)}
+                                >
+                                    <SelectTrigger id="edit-rol">
+                                        <SelectValue placeholder="Seleccionar rol" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {availableRoleOptions.map((option) => (
+                                            <SelectItem key={option.value} value={option.value}>
+                                                {option.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="edit-suscripcion">Tipo de suscripción</Label>
+                                <Select
+                                    value={editFormState.tipoSuscripcion}
+                                    onValueChange={(value) => setEditFormState(prev => prev ? { ...prev, tipoSuscripcion: value } : null)}
+                                >
+                                    <SelectTrigger id="edit-suscripcion">
+                                        <SelectValue placeholder="Seleccionar suscripción" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {SUBSCRIPTION_OPTIONS.map((option) => (
+                                            <SelectItem key={option.value} value={option.value}>
+                                                <span className="flex items-center gap-2">
+                                                    <span className={`inline-block h-2 w-2 rounded-full ${
+                                                        option.value === 'PRO' ? 'bg-red-500' : 'bg-emerald-500'
+                                                    }`} />
+                                                    {option.label}
+                                                </span>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="edit-activo">Estado</Label>
+                                <Select
+                                    value={editFormState.activo}
+                                    onValueChange={(value) => setEditFormState(prev => prev ? { ...prev, activo: value } : null)}
+                                >
+                                    <SelectTrigger id="edit-activo">
+                                        <SelectValue placeholder="Seleccionar estado" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {STATUS_OPTIONS.map((option) => (
+                                            <SelectItem key={option.value} value={option.value}>
+                                                {option.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+                            Cancelar
+                        </Button>
+                        <Button onClick={handleSaveEdit} disabled={updatingUserId !== null}>
+                            {updatingUserId ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Guardando…
+                                </>
+                            ) : (
+                                "Guardar cambios"
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Diálogo de confirmación de eliminación */}
+            <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>¿Eliminar usuario?</DialogTitle>
+                        <DialogDescription>
+                            Esta acción no se puede deshacer. Se eliminará permanentemente el usuario{" "}
+                            <span className="font-semibold">{userToDelete?.nombre}</span> ({userToDelete?.email}) y todos sus datos asociados.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+                            Cancelar
+                        </Button>
+                        <Button variant="destructive" onClick={handleConfirmDelete} disabled={deletingUserId !== null}>
+                            {deletingUserId ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Eliminando…
+                                </>
+                            ) : (
+                                <>
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Eliminar
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

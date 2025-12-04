@@ -17,16 +17,16 @@ export const LANGUAGE_NAMES = {
 
 // Saludos iniciales traducidos por idioma
 export const GREETING_MESSAGES = {
-    es: (name) => `Hola ${name}, ¿Qué quieres preparar, sobre qué tema y en qué contexto de jóvenes?`,
-    en: (name) => `Hello ${name}, What do you want to prepare, about what topic and in what youth context?`,
-    fr: (name) => `Bonjour ${name}, Que voulez-vous préparer, sur quel sujet et dans quel contexte de jeunes ?`,
-    it: (name) => `Ciao ${name}, Cosa vuoi preparare, su quale argomento e in quale contesto giovanile?`,
-    pt: (name) => `Olá ${name}, O que queres preparar, sobre que tema e em que contexto de jovens?`,
-    hu: (name) => `Szia ${name}, Mit szeretnél előkészíteni, milyen témában és milyen ifjúsági környezetben?`,
-    pl: (name) => `Cześć ${name}, Co chcesz przygotować, na jaki temat i w jakim kontekście młodzieżowym?`,
-    ca: (name) => `Hola ${name}, Què vols preparar, sobre quin tema i en quin context de joves?`,
-    gl: (name) => `Ola ${name}, Que queres preparar, sobre que tema e en que contexto de mozos?`,
-    eu: (name) => `Kaixo ${name}, Zer prestatu nahi duzu, zein gairi buruz eta zein gazte-testuingurutan?`,
+    es: (name) => `Hola ${name}, ¿qué necesitas para tu misión pastoral?`,
+    en: (name) => `Hello ${name}, what do you need for your pastoral mission?`,
+    fr: (name) => `Bonjour ${name}, de quoi avez-vous besoin pour votre mission pastorale ?`,
+    it: (name) => `Ciao ${name}, di cosa hai bisogno per la tua missione pastorale?`,
+    pt: (name) => `Olá ${name}, o que precisas para a tua missão pastoral?`,
+    hu: (name) => `Szia ${name}, mire van szükséged a lelkipásztori küldetésedhez?`,
+    pl: (name) => `Cześć ${name}, czego potrzebujesz do swojej misji duszpasterskiej?`,
+    ca: (name) => `Hola ${name}, què necessites per a la teva missió pastoral?`,
+    gl: (name) => `Ola ${name}, que precisas para a túa misión pastoral?`,
+    eu: (name) => `Kaixo ${name}, zer behar duzu zure pastoraltzako misiorako?`,
 };
 
 // Función para obtener el saludo en el idioma del usuario

@@ -97,8 +97,8 @@
     "showMenu": "Amosar menú"
   },
   "chat": {
-    "greeting": "Ola {name}, Que queres preparar, sobre que tema e en que contexto de mozos?",
-    "greetingGeneric": "Que queres preparar, sobre que tema e en que contexto de mozos?",
+    "greeting": "Ola {name}, que precisas para a túa misión pastoral?",
+    "greetingGeneric": "Que precisas para a túa misión pastoral?",
     "placeholder": "Escribe a túa mensaxe...",
     "placeholderThinking": "Pensando...",
     "send": "Enviar",
@@ -115,7 +115,7 @@
     "rateLimitError": "Acadaches o límite de mensaxes. Agarda uns minutos.",
     "assistantRole": "Asistente",
     "userRole": "Ti",
-    "inputPlaceholder": "Como podo axudarte hoxe?",
+    "inputPlaceholder": "Que queres preparar, sobre que tema e en que contexto de mozos?",
     "preparingWorkspace": "Preparando o teu espazo de traballo...",
     "roleUser": "Usuario",
     "roleAssistant": "Asistente",

@@ -291,6 +291,7 @@ router.post('/users', authenticate, authorize(['ADMINISTRADOR']), async (req, re
         experiencia,
         rol,
         telefono,
+        tipoSuscripcion,
         enviarEmail,
     } = req.body || {};
 
@@ -303,6 +304,9 @@ router.post('/users', authenticate, authorize(['ADMINISTRADOR']), async (req, re
 
     try {
         const assignedRole = resolveRole(rol, req.user.rol);
+        
+        // Validar tipo de suscripción
+        const validSubscription = ['FREE', 'PRO'].includes(tipoSuscripcion) ? tipoSuscripcion : 'FREE';
         
         // Si no se proporciona contraseña, generar una aleatoria
         const generatedPassword = password || generateRandomPassword(12);
@@ -323,6 +327,7 @@ router.post('/users', authenticate, authorize(['ADMINISTRADOR']), async (req, re
                 experiencia,
                 telefono,
                 rol: assignedRole,
+                tipoSuscripcion: validSubscription,
                 debeCambiarPassword: mustChangePassword,
             },
         });
@@ -439,6 +444,98 @@ router.patch('/users/:id/role', authenticate, authorize(['ADMINISTRADOR']), asyn
 
         return res.status(500).json({
             error: 'Error actualizando rol',
+            message: error.message,
+        });
+    }
+});
+
+// Actualizar usuario completo
+router.put('/users/:id', authenticate, authorize(['ADMINISTRADOR']), async (req, res) => {
+    const { id } = req.params;
+    const {
+        nombre,
+        apellidos,
+        email,
+        rol,
+        tipoSuscripcion,
+        activo,
+        telefono,
+        organizacion,
+        cargo,
+        experiencia,
+    } = req.body || {};
+
+    if (!nombre || !email) {
+        return res.status(400).json({
+            error: 'Datos incompletos',
+            message: 'Nombre y email son obligatorios',
+        });
+    }
+
+    try {
+        // Verificar que el usuario a editar existe y obtener su rol actual
+        const targetUser = await prisma.usuario.findUnique({ where: { id } });
+        
+        if (!targetUser) {
+            return res.status(404).json({
+                error: 'Usuario no encontrado',
+            });
+        }
+
+        // Verificar permisos: no puede editar usuarios con rol igual o superior
+        if (getRolePriority(req.user.rol) <= getRolePriority(targetUser.rol) && req.user.id !== id) {
+            return res.status(403).json({
+                error: 'No permitido',
+                message: 'No puedes editar usuarios con un rol igual o superior al tuyo',
+            });
+        }
+
+        // Si cambia el rol, verificar que puede asignarlo
+        let assignedRole = targetUser.rol;
+        if (rol && rol !== targetUser.rol) {
+            assignedRole = resolveRole(rol, req.user.rol);
+        }
+
+        // Validar tipo de suscripción
+        const validSubscription = ['FREE', 'PRO'].includes(tipoSuscripcion) ? tipoSuscripcion : targetUser.tipoSuscripcion;
+
+        const updated = await prisma.usuario.update({
+            where: { id },
+            data: {
+                nombre,
+                apellidos: apellidos || null,
+                email,
+                rol: assignedRole,
+                tipoSuscripcion: validSubscription,
+                activo: typeof activo === 'boolean' ? activo : targetUser.activo,
+                telefono: telefono || null,
+                organizacion: organizacion || null,
+                cargo: cargo || null,
+                experiencia: experiencia !== null && experiencia !== undefined ? experiencia : null,
+            },
+        });
+
+        return res.json({
+            message: 'Usuario actualizado correctamente',
+            user: sanitizeUser(updated),
+        });
+    } catch (error) {
+        if (error.code === 'P2002') {
+            return res.status(409).json({
+                error: 'Duplicado',
+                message: 'El email ya existe en otro usuario',
+            });
+        }
+
+        if (error.message === 'Rol inválido' || error.message === 'No puedes asignar un rol superior al tuyo') {
+            return res.status(403).json({
+                error: 'Rol no permitido',
+                message: error.message,
+            });
+        }
+
+        return res.status(500).json({
+            error: 'Error actualizando usuario',
             message: error.message,
         });
     }

@@ -97,8 +97,8 @@
     "showMenu": "Menü megjelenítése"
   },
   "chat": {
-    "greeting": "Szia {name}, Mit szeretnél előkészíteni, milyen témában és milyen ifjúsági környezetben?",
-    "greetingGeneric": "Mit szeretnél előkészíteni, milyen témában és milyen ifjúsági környezetben?",
+    "greeting": "Szia {name}, mire van szükséged a lelkipásztori küldetésedhez?",
+    "greetingGeneric": "Mire van szükséged a lelkipásztori küldetésedhez?",
     "placeholder": "Írja be az üzenetét...",
     "placeholderThinking": "Gondolkodás...",
     "send": "Küldés",
@@ -115,7 +115,7 @@
     "rateLimitError": "Elérte az üzenetküldési limitet. Várjon néhány percet.",
     "assistantRole": "Asszisztens",
     "userRole": "Ön",
-    "inputPlaceholder": "Hogyan segíthetek ma?",
+    "inputPlaceholder": "Mit szeretnél előkészíteni, milyen témában és milyen ifjúsági környezetben?",
     "preparingWorkspace": "Munkaterület előkészítése...",
     "roleUser": "Felhasználó",
     "roleAssistant": "Asszisztens",

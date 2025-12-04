@@ -308,9 +308,22 @@ export default function ChatHomePage() {
     }, [user])
 
     const userRole = user?.rol ?? ""
+    const tipoSuscripcion = user?.tipoSuscripcion ?? "FREE"
     const canAccessDocumentation = ["SUPERADMIN", "ADMINISTRADOR", "DOCUMENTADOR"].includes(userRole)
     const canAccessAdministration = ["SUPERADMIN", "ADMINISTRADOR"].includes(userRole)
     const canShowOptions = canAccessDocumentation || canAccessAdministration
+    
+    // Determinar si el usuario tiene acceso a herramientas
+    // Los roles especiales (admin, documentador, etc.) siempre tienen herramientas
+    // Para usuarios normales, depende de su tipo de suscripción
+    const hasTools = useMemo(() => {
+        const rolesWithTools = ["SUPERADMIN", "ADMINISTRADOR", "DOCUMENTADOR", "DOCUMENTADOR_JUNIOR"]
+        if (rolesWithTools.includes(userRole)) {
+            return true
+        }
+        // Para usuarios normales, solo PRO tiene herramientas
+        return tipoSuscripcion === "PRO"
+    }, [userRole, tipoSuscripcion])
 
     const { mustChangePassword, clearPasswordChangeFlag } = useAuth()
 
@@ -1397,7 +1410,8 @@ export default function ChatHomePage() {
                                     </Tooltip>
                                 </TooltipProvider>
                                 
-                                {/* Botón llave inglesa para herramientas */}
+                                {/* Botón llave inglesa para herramientas - solo visible para usuarios con acceso */}
+                                {hasTools && (
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button
@@ -1416,6 +1430,7 @@ export default function ChatHomePage() {
                                         </div>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
+                                )}
                                 
                                 {/* Selector de etiquetas - solo cuando hay mensajes */}
                                 {hasMessages && (

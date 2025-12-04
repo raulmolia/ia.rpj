@@ -77,6 +77,7 @@ export async function authenticate(req, res, next) {
             id: user.id,
             email: user.email,
             rol: user.rol,
+            tipoSuscripcion: user.tipoSuscripcion || 'FREE',
             nombre: user.nombre,
             sessionId: session.token,
             idioma: user.idioma || 'es',
