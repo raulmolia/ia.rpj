@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useCallback, useEffect, useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, BookOpenCheck, Loader2, Info as InfoIcon, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
+import { ArrowLeft, BookOpenCheck, Loader2, Info as InfoIcon, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ThemeToggleButton } from "@/components/theme-toggle"
@@ -60,15 +60,46 @@ export default function GuiaDocumentalPage() {
     // Paginación
     const [currentPage, setCurrentPage] = useState(1)
     const [itemsPerPage, setItemsPerPage] = useState(25)
+    
+    // Ordenamiento
+    const [sortOrder, setSortOrder] = useState<"none" | "asc" | "desc">("none")
 
     const hasAccess = isAuthenticated && user && ["SUPERADMIN", "ADMINISTRADOR", "DOCUMENTADOR", "DOCUMENTADOR_JUNIOR"].includes(user.rol || "")
 
-    // Cálculos de paginación
-    const totalPages = useMemo(() => Math.ceil(documents.length / itemsPerPage), [documents.length, itemsPerPage])
+    // Función para alternar el orden
+    const toggleSortOrder = () => {
+        setSortOrder(current => {
+            if (current === "none") return "asc"
+            if (current === "asc") return "desc"
+            return "none"
+        })
+        setCurrentPage(1) // Reset a primera página al ordenar
+    }
+
+    // Documentos ordenados según el estado de sortOrder
+    const sortedDocuments = useMemo(() => {
+        if (sortOrder === "none") return documents
+        
+        const sorted = [...documents].sort((a, b) => {
+            const titleA = a.titulo.toLowerCase()
+            const titleB = b.titulo.toLowerCase()
+            
+            if (sortOrder === "asc") {
+                return titleA.localeCompare(titleB, 'es', { sensitivity: 'base' })
+            } else {
+                return titleB.localeCompare(titleA, 'es', { sensitivity: 'base' })
+            }
+        })
+        
+        return sorted
+    }, [documents, sortOrder])
+
+    // Cálculos de paginación (usar sortedDocuments en lugar de documents)
+    const totalPages = useMemo(() => Math.ceil(sortedDocuments.length / itemsPerPage), [sortedDocuments.length, itemsPerPage])
     const paginatedDocuments = useMemo(() => {
         const startIndex = (currentPage - 1) * itemsPerPage
-        return documents.slice(startIndex, startIndex + itemsPerPage)
-    }, [documents, currentPage, itemsPerPage])
+        return sortedDocuments.slice(startIndex, startIndex + itemsPerPage)
+    }, [sortedDocuments, currentPage, itemsPerPage])
 
     // Reset página al cambiar items por página
     useEffect(() => {
@@ -231,7 +262,17 @@ export default function GuiaDocumentalPage() {
                                 <table className="min-w-full divide-y divide-border/80 text-sm">
                                     <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                                         <tr>
-                                            <th className="px-4 py-3 text-left font-medium">{t("tableTitle")}</th>
+                                            <th className="px-4 py-3 text-left font-medium">
+                                                <button
+                                                    onClick={toggleSortOrder}
+                                                    className="flex items-center gap-2 hover:text-foreground transition-colors"
+                                                >
+                                                    {t("tableTitle")}
+                                                    {sortOrder === "none" && <ArrowUpDown className="h-3.5 w-3.5" />}
+                                                    {sortOrder === "asc" && <ArrowUp className="h-3.5 w-3.5" />}
+                                                    {sortOrder === "desc" && <ArrowDown className="h-3.5 w-3.5" />}
+                                                </button>
+                                            </th>
                                             <th className="px-4 py-3 text-left font-medium">{t("tableDescription")}</th>
                                             <th className="px-4 py-3 text-left font-medium">{t("tableTags")}</th>
                                         </tr>
