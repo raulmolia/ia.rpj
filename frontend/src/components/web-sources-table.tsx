@@ -10,6 +10,8 @@ import {
     Search,
     Filter,
     ArrowUpDown,
+    ArrowUp,
+    ArrowDown,
     CheckCircle2,
     AlertCircle,
     Clock,
@@ -120,6 +122,7 @@ export function WebSourcesTable({ token, tagOptions, canEditDelete }: WebSources
     const [searchTerm, setSearchTerm] = useState("")
     const [filterTags, setFilterTags] = useState<string[]>([])
     const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
+    const [titleSortOrder, setTitleSortOrder] = useState<"none" | "asc" | "desc">("none")
     const [editingId, setEditingId] = useState<string | null>(null)
     const [editingTags, setEditingTags] = useState<string[]>([])
     const [editingDescription, setEditingDescription] = useState("")
@@ -275,14 +278,24 @@ export function WebSourcesTable({ token, tagOptions, canEditDelete }: WebSources
             )
         }
 
+        // Ordenar según el criterio activo
         filtered.sort((a, b) => {
-            const dateA = new Date(a.fechaCreacion).getTime()
-            const dateB = new Date(b.fechaCreacion).getTime()
-            return sortOrder === "asc" ? dateA - dateB : dateB - dateA
+            if (titleSortOrder !== "none") {
+                // Ordenar por título
+                const titleA = (a.titulo || a.dominio).toLowerCase()
+                const titleB = (b.titulo || b.dominio).toLowerCase()
+                const comparison = titleA.localeCompare(titleB, 'es', { sensitivity: 'base' })
+                return titleSortOrder === "asc" ? comparison : -comparison
+            } else {
+                // Ordenar por fecha (comportamiento por defecto)
+                const dateA = new Date(a.fechaCreacion).getTime()
+                const dateB = new Date(b.fechaCreacion).getTime()
+                return sortOrder === "asc" ? dateA - dateB : dateB - dateA
+            }
         })
 
         return filtered
-    }, [sources, searchTerm, filterTags, sortOrder])
+    }, [sources, searchTerm, filterTags, sortOrder, titleSortOrder])
 
     // Paginación
     const totalPages = Math.ceil(filteredSources.length / itemsPerPage)
@@ -334,7 +347,11 @@ export function WebSourcesTable({ token, tagOptions, canEditDelete }: WebSources
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                        onClick={() => {
+                            setSortOrder(sortOrder === "asc" ? "desc" : "asc")
+                            setTitleSortOrder("none")
+                            setCurrentPage(1)
+                        }}
                     >
                         <ArrowUpDown className="mr-2 h-4 w-4" />
                         {sortOrder === "asc" ? "Más antiguos" : "Más recientes"}
@@ -409,7 +426,24 @@ export function WebSourcesTable({ token, tagOptions, canEditDelete }: WebSources
                             <thead className="border-b bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
                                 <tr>
                                     <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 dark:text-slate-400">
-                                        URL / Título
+                                        <button
+                                            onClick={() => {
+                                                if (titleSortOrder === "none") {
+                                                    setTitleSortOrder("asc")
+                                                } else if (titleSortOrder === "asc") {
+                                                    setTitleSortOrder("desc")
+                                                } else {
+                                                    setTitleSortOrder("none")
+                                                }
+                                                setCurrentPage(1)
+                                            }}
+                                            className="flex items-center gap-2 hover:text-foreground transition-colors"
+                                        >
+                                            URL / Título
+                                            {titleSortOrder === "none" && <ArrowUpDown className="h-3.5 w-3.5" />}
+                                            {titleSortOrder === "asc" && <ArrowUp className="h-3.5 w-3.5" />}
+                                            {titleSortOrder === "desc" && <ArrowDown className="h-3.5 w-3.5" />}
+                                        </button>
                                     </th>
                                     <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 dark:text-slate-400">
                                         Tipo

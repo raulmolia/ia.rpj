@@ -18,6 +18,8 @@ import {
     Trash2,
     X,
     ArrowUpDown,
+    ArrowUp,
+    ArrowDown,
     Globe,
 } from "lucide-react"
 
@@ -127,6 +129,8 @@ export default function DocumentacionPage() {
     const [searchTerm, setSearchTerm] = useState("")
     const [filterTags, setFilterTags] = useState<string[]>([])
     const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
+    const [sortBy, setSortBy] = useState<"date" | "title">("date")
+    const [titleSortOrder, setTitleSortOrder] = useState<"none" | "asc" | "desc">("none")
     const [editingDocId, setEditingDocId] = useState<string | null>(null)
     const [editingTags, setEditingTags] = useState<string[]>([])
     const [editingTitle, setEditingTitle] = useState("")
@@ -359,15 +363,24 @@ export default function DocumentacionPage() {
             )
         }
 
-        // Ordenar por fecha
+        // Ordenar según el criterio activo
         const sorted = [...filtered].sort((a, b) => {
-            const dateA = new Date(a.fechaCreacion).getTime()
-            const dateB = new Date(b.fechaCreacion).getTime()
-            return sortOrder === "desc" ? dateB - dateA : dateA - dateB
+            if (titleSortOrder !== "none") {
+                // Ordenar por título
+                const titleA = a.titulo.toLowerCase()
+                const titleB = b.titulo.toLowerCase()
+                const comparison = titleA.localeCompare(titleB, 'es', { sensitivity: 'base' })
+                return titleSortOrder === "asc" ? comparison : -comparison
+            } else {
+                // Ordenar por fecha (comportamiento por defecto)
+                const dateA = new Date(a.fechaCreacion).getTime()
+                const dateB = new Date(b.fechaCreacion).getTime()
+                return sortOrder === "desc" ? dateB - dateA : dateA - dateB
+            }
         })
 
         return sorted
-    }, [documents, searchTerm, filterTags, sortOrder])
+    }, [documents, searchTerm, filterTags, sortOrder, titleSortOrder])
 
     // Paginación de documentos
     const docTotalPages = Math.ceil(filteredAndSortedDocuments.length / docItemsPerPage)
@@ -993,13 +1006,36 @@ export default function DocumentacionPage() {
                         <table className="min-w-full divide-y divide-border/80 text-sm">
                             <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                                 <tr>
-                                    <th className="px-4 py-3 text-left font-medium">Título</th>
+                                    <th className="px-4 py-3 text-left font-medium">
+                                        <button
+                                            onClick={() => {
+                                                if (titleSortOrder === "none") {
+                                                    setTitleSortOrder("asc")
+                                                } else if (titleSortOrder === "asc") {
+                                                    setTitleSortOrder("desc")
+                                                } else {
+                                                    setTitleSortOrder("none")
+                                                }
+                                                setDocCurrentPage(1)
+                                            }}
+                                            className="flex items-center gap-2 hover:text-foreground transition-colors"
+                                        >
+                                            Título
+                                            {titleSortOrder === "none" && <ArrowUpDown className="h-3.5 w-3.5" />}
+                                            {titleSortOrder === "asc" && <ArrowUp className="h-3.5 w-3.5" />}
+                                            {titleSortOrder === "desc" && <ArrowDown className="h-3.5 w-3.5" />}
+                                        </button>
+                                    </th>
                                     <th className="px-4 py-3 text-left font-medium">Descripción generada</th>
                                     <th className="px-4 py-3 text-left font-medium">Etiquetas</th>
                                     <th className="px-4 py-3 text-left font-medium">Estado</th>
                                     <th className="px-4 py-3 text-left font-medium">
                                         <button
-                                            onClick={() => setSortOrder(sortOrder === "desc" ? "asc" : "desc")}
+                                            onClick={() => {
+                                                setSortOrder(sortOrder === "desc" ? "asc" : "desc")
+                                                setTitleSortOrder("none")
+                                                setDocCurrentPage(1)
+                                            }}
                                             className="flex items-center gap-1 hover:text-foreground"
                                         >
                                             Subida
