@@ -80,6 +80,7 @@ import {
 import { useAuth } from "@/hooks/use-auth"
 import { cn, buildApiUrl } from "@/lib/utils"
 import { ThemeToggleButton } from "@/components/theme-toggle"
+import { LanguageSelector } from "@/components/language-selector"
 import { UsageStats } from "@/components/usage-stats"
 import { downloadAsPDF, downloadAsWord } from "@/lib/document-generator"
 import { ChangePasswordModal } from "@/components/change-password-modal"
@@ -1845,7 +1846,7 @@ export default function ChatHomePage() {
                                         <DropdownMenuTrigger asChild>
                                             <button
                                                 type="button"
-                                                className="flex h-12 w-12 mx-auto items-center justify-center rounded-full bg-[#009846] text-sm font-semibold uppercase text-white hover:bg-[#007a38] transition-colors"
+                                                className="flex h-12 w-12 mx-auto items-center justify-center rounded-full bg-[#94c120] text-sm font-semibold uppercase text-white hover:bg-[#7ba619] transition-colors"
                                             >
                                                 {initials}
                                             </button>
@@ -1913,7 +1914,7 @@ export default function ChatHomePage() {
                                         type="button"
                                         className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2 text-left transition hover:border-border/60"
                                     >
-                                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#009846] text-sm font-semibold uppercase text-white">
+                                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#94c120] text-sm font-semibold uppercase text-white">
                                             {initials}
                                         </div>
                                         <div className="flex flex-col">
@@ -2011,6 +2012,7 @@ export default function ChatHomePage() {
                                 {shareFeedback}
                             </p>
                         )}
+                        <LanguageSelector />
                         <ThemeToggleButton />
                     </div>
                 </header>
@@ -2131,8 +2133,8 @@ export default function ChatHomePage() {
                                         )}
                                     </div>
                                     {message.role === "usuario" && (
-                                        <Avatar className="h-9 w-9">
-                                            <AvatarFallback>{initials}</AvatarFallback>
+                                        <Avatar className="h-9 w-9" style={{ backgroundColor: '#94c120' }}>
+                                            <AvatarFallback style={{ backgroundColor: '#94c120', color: 'white' }}>{initials}</AvatarFallback>
                                         </Avatar>
                                     )}
                                 </div>
@@ -2305,7 +2307,10 @@ export default function ChatHomePage() {
                                     <div className="space-y-0.5">
                                         <Label className="text-sm font-medium">{t("settings.appearance")}</Label>
                                     </div>
-                                    <ThemeToggleButton />
+                                    <div className="flex items-center gap-2">
+                                        <LanguageSelector />
+                                        <ThemeToggleButton />
+                                    </div>
                                 </div>
                                 
                                 <div className="flex items-center justify-between">

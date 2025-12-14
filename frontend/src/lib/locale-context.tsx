@@ -20,19 +20,24 @@ interface LocaleProviderProps {
 }
 
 export function LocaleProvider({ children, initialLocale }: LocaleProviderProps) {
-  const [locale, setLocaleState] = useState<Locale>(initialLocale || defaultLocale);
+  // Initialize locale from localStorage immediately (before first render)
+  const getInitialLocale = (): Locale => {
+    if (typeof window !== 'undefined') {
+      const storedLocale = localStorage.getItem(LOCALE_STORAGE_KEY) as Locale | null;
+      if (storedLocale && locales.includes(storedLocale)) {
+        return storedLocale;
+      }
+    }
+    return initialLocale || defaultLocale;
+  };
+
+  const [locale, setLocaleState] = useState<Locale>(getInitialLocale);
   const [isHydrated, setIsHydrated] = useState(false);
 
-  // Initialize locale from localStorage on mount (client-side only)
+  // Mark as hydrated on mount
   useEffect(() => {
-    const storedLocale = localStorage.getItem(LOCALE_STORAGE_KEY) as Locale | null;
-    if (storedLocale && locales.includes(storedLocale)) {
-      setLocaleState(storedLocale);
-    } else if (initialLocale && locales.includes(initialLocale)) {
-      setLocaleState(initialLocale);
-    }
     setIsHydrated(true);
-  }, [initialLocale]);
+  }, []);
 
   const setLocale = useCallback((newLocale: Locale) => {
     if (locales.includes(newLocale)) {
