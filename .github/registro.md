@@ -1,5 +1,24 @@
 # Registro de Desarrollo - Asistente IA para Actividades Juveniles
 
+## Actualización 11 de febrero de 2026 - Sistema Canvas para edición iterativa y prompts especializados
+- 🎨 **Canvas Feature**: Sistema de edición iterativa para transformar respuestas del asistente usando IA
+- 🔧 **Backend API Canvas**: Nuevo endpoint `POST /api/canvas/transform` para transformaciones de contenido completo o parcial
+- 📝 **Soporte de selección**: Permite editar solo fragmentos seleccionados del contenido manteniendo el resto intacto
+- 🌐 **Multiidioma**: Soporta transformación en 10 idiomas (español, inglés, francés, italiano, portugués, húngaro, polaco, catalán, gallego, euskera)
+- 💬 **Prompts especializados**: Nuevos prompts para módulos específicos:
+  - `Prompt_Celebraciones_Jovenes.md` - Especializado en liturgia católica y celebraciones para jóvenes
+  - `Prompt_Programacion_Pastoral.md` - Para planificación completa de programaciones pastorales
+  - `Prompt_Oraciones_Grupales.md` - Oraciones diseñadas para grupos de jóvenes
+  - `Prompt_Oraciones_personal.md` - Oraciones personalizadas para reflexión individual
+- 🖼️ **Componentes UI Canvas**: 
+  - `CanvasDialog.tsx` - Diálogo modal para activar el canvas
+  - `CanvasEditor.tsx` - Editor de contenido con barra de herramientas
+  - `CanvasToolbar.tsx` - Barra de herramientas con acciones de edición
+  - `SelectionPopover.tsx` - Popover para contexto de selecciones parciales
+- ✅ **Características**: Transformación con IA respetando estructura original, manejo robusto de errores, UI responsiva
+- 🚀 **Sincronización dual**: Cambios propagados a ambos repos (asistente-ia-juvenil e ia.rpj)
+- 📊 **Fase 18**: Introducción del sistema de canvas para mejora de flujo de trabajo
+
 ## Actualización 14 de diciembre de 2025 - Ordenamiento alfabético en documentación y fuentes web
 - 📚 **Ordenamiento en biblioteca documental**: Añadida funcionalidad de ordenamiento alfabético en columna "Título" de la página documentación
 - 🌐 **Ordenamiento en fuentes web**: Implementado ordenamiento en columna "URL / Título" de la tabla de fuentes web
@@ -614,3 +633,77 @@ Stack de Base de Datos:
 - Despliegue actualizado: rebuild del frontend, copia de artefactos standalone y reinicio de PM2.
 
 *Última actualización: 5 de noviembre de 2025 - Integración del chat IA completada*
+
+---
+
+## Fase 18: Sistema Canvas para Edición Iterativa (11 feb 2026)
+**Estado**: ✅ Completada
+
+### Descripción General
+Implementación del sistema Canvas para permitir transformaciones iterativas de respuestas generadas por el asistente IA, con prompts especializados para diferentes módulos de contenido pastoral.
+
+### Funcionalidades Implementadas
+
+#### Backend
+- 🎨 **Servicio Canvas** (`backend/src/routes/canvas.js`):
+  - Endpoint `POST /api/canvas/transform` para transformar contenido completo
+  - Soporte para transformación parcial (solo fragmento seleccionado)
+  - Preservación de estructura original al modificar fragmentos
+  - Validación de campos requeridos (content, instruction)
+  - Manejo robusto de errores con mensajes descriptivos
+
+#### Prompts Especializados
+- ⛪ **Prompt_Celebraciones_Jovenes.md**:
+  - Especialización en liturgia católica y celebraciones para jóvenes
+  - Marco de referencia con Misal Romano, IGMR e documentos pontificios
+  - Recogida estructurada de información (fecha, tipo, lecturas, objetivo)
+  - Línea roja absoluta: nunca inventar fórmulas sacramentales
+
+- 🕊️ **Prompt_Programacion_Pastoral.md**:
+  - Acompañamiento para planificación pastoral completa
+  - Fase 1: Recogida de información (7 preguntas)
+  - Fase 2: Estructura en 5 bloques documentales
+  - Dimensiones de fe: Servicio, Comunidad, Testimonio, Liturgia
+
+- 🙏 **Prompt_Oraciones_Grupales.md** y **Prompt_Oraciones_personal.md**:
+  - Oraciones contextualizadas para grupos e individuos
+  - Estructura multilingüe (español, inglés, francés, etc.)
+  - Sensibilidad pastoral a edades y contextos
+
+#### Frontend
+- 🖼️ **Componentes Canvas**:
+  - `CanvasDialog.tsx` - Modal de activación del canvas
+  - `CanvasEditor.tsx` - Editor con textarea autoajustable
+  - `CanvasToolbar.tsx` - Barra de herramientas con acciones
+  - `SelectionPopover.tsx` - Contexto para selecciones parciales
+  - `index.ts` - Exportaciones centralizadas
+
+- 💬 **Características UX**:
+  - Invocación mediante comando o icono de transformación
+  - Textarea reactiva que crece con el contenido
+  - Historial de transformaciones
+  - Soporte multiidioma (10 idiomas)
+
+#### Multiidioma
+Soporte completo en 10 idiomas:
+- Español (`es`), Inglés (`en`), Francés (`fr`)
+- Italiano (`it`), Portugués (`pt`), Húngaro (`hu`)
+- Polaco (`pl`), Catalán (`ca`), Gallego (`gl`), Euskera (`eu`)
+
+### Cambios en Repositorios
+- ✅ Repositorio `asistente-ia-juvenil`: 33 archivos modificados/creados
+- ✅ Repositorio `ia.rpj`: Sincronización dual completada
+- 📝 Commits: "Actualización automática según directrices"
+- 🔗 Remotes: GitHub actualizados exitosamente
+
+### Tecnología Utilizada
+- **AI Service**: Chutes AI para transformaciones de texto
+- **Frontend**: React TypeScript con componentes Shadcn/ui
+- **Backend**: Express.js con autenticación via JWT
+- **APIs**: RESTful con validación de payloads
+
+### Próximos Pasos
+- Integración de canvas en interfaz principal del chat
+- Mejora de prompts especializados según feedback de usuarios
+- Estadísticas de uso del sistema canvas
+- Expansión a más módulos especializados
