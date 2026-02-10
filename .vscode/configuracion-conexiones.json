@@ -1,0 +1,29 @@
+{
+    "postgresql": {
+        "principal": {
+            "host": "localhost",
+            "port": 5432,
+            "database": "asistente_ia_juvenil",
+            "user": "app_user",
+            "description": "Base de datos principal para usuarios y autenticación"
+        },
+        "vectorial": {
+            "host": "localhost",
+            "port": 5432,
+            "database": "asistente_ia_vectorial",
+            "user": "app_user",
+            "description": "Base de datos vectorial para documentación y contexto de IA"
+        }
+    },
+    "ssh": {
+        "host": "RPJ",
+        "user": "adminweb",
+        "keyPath": "~/.ssh/id_rsa",
+        "description": "Conexión SSH al servidor de desarrollo"
+    },
+    "notas": [
+        "Las credenciales de base de datos se configuran en archivos .env",
+        "La conexión SSH debe estar configurada en ~/.ssh/config con el nombre RPJ",
+        "Las extensiones de PostgreSQL recomendadas están en extensions.json"
+    ]
+}

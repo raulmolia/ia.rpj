@@ -283,6 +283,7 @@ model MensajeConversacion {
   conversacionId String
   rol            RolMensaje
   contenido      String         @db.LongText
+  canvasContent  String?        @db.LongText
   intencion      String?
   tokensEntrada  Int?
   tokensSalida   Int?

@@ -303,7 +303,7 @@ class ChromaService {
                     if (!item.metadata || !item.metadata.etiquetas) {
                         return false;
                     }
-                    
+
                     // Las etiquetas están guardadas como string JSON
                     let documentTags = [];
                     try {
@@ -312,7 +312,7 @@ class ChromaService {
                         // Si no es JSON válido, intentar como string separado por comas
                         documentTags = item.metadata.etiquetas.split(',').map(t => t.trim());
                     }
-                    
+
                     // Verificar si alguna de las etiquetas solicitadas está en el documento
                     return tags.some(tag => documentTags.includes(tag));
                 });
@@ -350,7 +350,7 @@ class ChromaService {
      */
     async createTemporaryCollection(conversationId) {
         const collectionName = `rpjia-temp-${conversationId}`;
-        
+
         try {
             await this.getOrCreateCollection(collectionName);
             console.log(`✅ Colección temporal creada: ${collectionName}`);
@@ -369,10 +369,15 @@ class ChromaService {
      */
     async addToTemporaryCollection(conversationId, documents) {
         const collectionName = `rpjia-temp-${conversationId}`;
-        
+
+        if (!this.embeddingFunction) {
+            console.error('❌ No hay función de embeddings configurada, imposible agregar a colección temporal');
+            return false;
+        }
+
         try {
             const collection = await this.getOrCreateCollection(collectionName);
-            
+
             const ids = documents.map((doc, idx) => `${conversationId}-file-${idx}-${Date.now()}`);
             const texts = documents.map(doc => doc.text);
             const metadatas = documents.map(doc => this.normalizeMetadata({
@@ -385,11 +390,24 @@ class ChromaService {
                 ...doc.metadata,
             }));
 
-            await collection.add({
-                ids,
-                documents: texts,
-                metadatas,
-            });
+            // Pre-generar embeddings (consistente con addDocuments)
+            const batchSize = Math.max(Number.isFinite(this.embeddingBatchSize)
+                ? this.embeddingBatchSize
+                : 8, 1);
+
+            for (let i = 0; i < ids.length; i += batchSize) {
+                const batchIds = ids.slice(i, i + batchSize);
+                const batchTexts = texts.slice(i, i + batchSize);
+                const batchMetadatas = metadatas.slice(i, i + batchSize);
+                const embeddings = await this.embeddingFunction.generate(batchTexts);
+
+                await collection.add({
+                    ids: batchIds,
+                    documents: batchTexts,
+                    embeddings,
+                    metadatas: batchMetadatas,
+                });
+            }
 
             console.log(`✅ ${documents.length} documentos agregados a ${collectionName}`);
             return true;
@@ -408,13 +426,22 @@ class ChromaService {
      */
     async searchInTemporaryCollection(conversationId, query, limit = 3) {
         const collectionName = `rpjia-temp-${conversationId}`;
-        
+
+        if (!this.embeddingFunction) {
+            console.log('⚠️ No hay función de embeddings configurada para búsquedas temporales');
+            return [];
+        }
+
         try {
             const collection = await this.getOrCreateCollection(collectionName);
-            
+
+            // Pre-generar embedding del query (consistente con searchSimilar)
+            const [queryEmbedding] = await this.embeddingFunction.generate([query]);
+
             const results = await collection.query({
-                queryTexts: [query],
+                queryEmbeddings: [queryEmbedding],
                 nResults: limit,
+                include: ['documents', 'metadatas', 'distances'],
             });
 
             if (!results || !results.documents || results.documents.length === 0) {
@@ -445,7 +472,7 @@ class ChromaService {
      */
     async deleteTemporaryCollection(conversationId) {
         const collectionName = `rpjia-temp-${conversationId}`;
-        
+
         try {
             if (!this.isAvailable || !this.client) {
                 const ready = await this.ensureReady();
@@ -456,10 +483,10 @@ class ChromaService {
             }
 
             await this.client.deleteCollection({ name: collectionName });
-            
+
             // Remover de caché
             this.collections.delete(collectionName);
-            
+
             console.log(`✅ Colección temporal eliminada: ${collectionName}`);
             return true;
         } catch (error) {
@@ -468,7 +495,7 @@ class ChromaService {
                 console.log(`ℹ️ Colección temporal no existía: ${collectionName}`);
                 return true;
             }
-            
+
             console.error(`❌ Error eliminando colección temporal: ${error.message}`);
             return false;
         }
@@ -481,7 +508,7 @@ class ChromaService {
      */
     async hasTemporaryCollection(conversationId) {
         const collectionName = `rpjia-temp-${conversationId}`;
-        
+
         try {
             if (!this.isAvailable || !this.client) {
                 return false;

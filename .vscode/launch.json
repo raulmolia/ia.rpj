@@ -1,0 +1,55 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "🐛 Debug Next.js",
+            "type": "node",
+            "request": "launch",
+            "program": "${workspaceFolder}/frontend/node_modules/next/dist/bin/next",
+            "args": [
+                "dev"
+            ],
+            "cwd": "${workspaceFolder}/frontend",
+            "runtimeArgs": [
+                "--inspect"
+            ],
+            "env": {
+                "NODE_OPTIONS": "--inspect"
+            },
+            "console": "integratedTerminal",
+            "serverReadyAction": {
+                "pattern": "ready - started server on .+, url: (https?://.+)",
+                "uriFormat": "%s",
+                "action": "debugWithChrome"
+            }
+        },
+        {
+            "name": "🔧 Debug Backend API",
+            "type": "node",
+            "request": "launch",
+            "program": "${workspaceFolder}/backend/src/index.js",
+            "cwd": "${workspaceFolder}/backend",
+            "env": {
+                "NODE_ENV": "development"
+            },
+            "console": "integratedTerminal",
+            "restart": true,
+            "runtimeExecutable": "node",
+            "skipFiles": [
+                "<node_internals>/**"
+            ]
+        },
+        {
+            "name": "🧪 Debug Tests",
+            "type": "node",
+            "request": "launch",
+            "program": "${workspaceFolder}/node_modules/.bin/jest",
+            "args": [
+                "--runInBand"
+            ],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen"
+        }
+    ]
+}

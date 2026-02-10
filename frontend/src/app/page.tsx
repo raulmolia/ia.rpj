@@ -38,12 +38,14 @@ import {
     ChevronDown,
     FileStack,
     UserCog,
+    Users,
     Search,
     Paperclip,
     Wrench,
     Tag,
     Mic,
     Square,
+    PenLine,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -84,6 +86,7 @@ import { LanguageSelector } from "@/components/language-selector"
 import { UsageStats } from "@/components/usage-stats"
 import { downloadAsPDF, downloadAsWord } from "@/lib/document-generator"
 import { ChangePasswordModal } from "@/components/change-password-modal"
+import { CanvasDialog } from "@/components/canvas"
 import { useLocale, formatRelativeTime, type Locale } from "@/lib/locale-context"
 
 type MessageRole = "usuario" | "asistente"
@@ -109,6 +112,15 @@ type Chat = {
 }
 
 type QuickPrompt = {
+    label: string
+    icon: LucideIcon
+    template: string
+    intent: string
+    tags: string[]
+    subOptions?: QuickPromptSubOption[]
+}
+
+type QuickPromptSubOption = {
     label: string
     icon: LucideIcon
     template: string
@@ -232,8 +244,24 @@ export default function ChatHomePage() {
                 label: t("categories.prayers"),
                 icon: BookOpen,
                 template: t("categories.prayersTemplate"),
-                intent: "ORACION",
+                intent: "ORACION_PERSONAL",
                 tags: ["ORACIONES"],
+                subOptions: [
+                    {
+                        label: t("categories.personalPrayer"),
+                        icon: User,
+                        template: t("categories.personalPrayerTemplate"),
+                        intent: "ORACION_PERSONAL",
+                        tags: ["ORACIONES"],
+                    },
+                    {
+                        label: t("categories.groupPrayer"),
+                        icon: Users,
+                        template: t("categories.groupPrayerTemplate"),
+                        intent: "ORACION_GRUPAL",
+                        tags: ["ORACIONES"],
+                    },
+                ],
             },
             {
                 label: t("categories.celebrations"),
@@ -260,7 +288,12 @@ export default function ChatHomePage() {
         [t],
     )
     const [selectedQuickPrompts, setSelectedQuickPrompts] = useState<string[]>([])
+    const [prayerSubMenuOpen, setPrayerSubMenuOpen] = useState(false)
+    const [selectedPrayerType, setSelectedPrayerType] = useState<QuickPromptSubOption | null>(null)
     const [isThinkingMode, setIsThinkingMode] = useState(false)
+    const [isCanvasMode, setIsCanvasMode] = useState(false)
+    const [canvasOpen, setCanvasOpen] = useState(false)
+    const [canvasContent, setCanvasContent] = useState("")
     const [attachedFiles, setAttachedFiles] = useState<Array<{
         fileName: string
         mimeType: string
@@ -276,11 +309,18 @@ export default function ChatHomePage() {
     const mediaRecorderRef = useRef<MediaRecorder | null>(null)
     const audioChunksRef = useRef<Blob[]>([])
     const initialChatCreatedRef = useRef(false)
-    
+
     const selectedQuickPromptItems = useMemo(() => {
         const labelSet = new Set(selectedQuickPrompts)
-        return quickPrompts.filter((prompt) => labelSet.has(prompt.label))
-    }, [quickPrompts, selectedQuickPrompts])
+        const items = quickPrompts.filter((prompt) => labelSet.has(prompt.label))
+        // Si hay oración seleccionada con sub-tipo, usar el intent/tags del sub-tipo
+        return items.map(item => {
+            if (item.subOptions && selectedPrayerType) {
+                return { ...item, intent: selectedPrayerType.intent, tags: selectedPrayerType.tags }
+            }
+            return item
+        })
+    }, [quickPrompts, selectedQuickPrompts, selectedPrayerType])
 
     const activeChat = useMemo(() => chats.find((chat) => chat.id === activeChatId) ?? null, [chats, activeChatId])
     const sidebarChats = useMemo(() => chats.filter((chat) => !chat.archived), [chats])
@@ -313,7 +353,7 @@ export default function ChatHomePage() {
     const canAccessDocumentation = ["SUPERADMIN", "ADMINISTRADOR", "DOCUMENTADOR"].includes(userRole)
     const canAccessAdministration = ["SUPERADMIN", "ADMINISTRADOR"].includes(userRole)
     const canShowOptions = canAccessDocumentation || canAccessAdministration
-    
+
     // Determinar si el usuario tiene acceso a herramientas
     // Los roles especiales (admin, documentador, etc.) siempre tienen herramientas
     // Para usuarios normales, depende de su tipo de suscripción
@@ -354,14 +394,14 @@ export default function ChatHomePage() {
         // 3. No existan conversaciones previas
         // 4. No se haya creado ya un chat inicial en esta sesión
         if (
-            status === "authenticated" && 
-            hasInitialLoadCompleted && 
-            chats.length === 0 && 
-            token && 
+            status === "authenticated" &&
+            hasInitialLoadCompleted &&
+            chats.length === 0 &&
+            token &&
             !initialChatCreatedRef.current
         ) {
             initialChatCreatedRef.current = true
-            
+
             const newChat = createLocalChat()
             setChats([newChat])
             setActiveChatId(newChat.id)
@@ -382,7 +422,7 @@ export default function ChatHomePage() {
 
                     if (response.ok) {
                         const data = await response.json()
-                        
+
                         setChats((prevChats) =>
                             prevChats.map((chat) =>
                                 chat.id === newChat.id
@@ -610,11 +650,11 @@ export default function ChatHomePage() {
 
         const chatId = activeChat.id
         let currentConversationId = activeChat.conversationId
-        
+
         // Determinar intent y tags basados en quickPrompts seleccionados
         let intentToSend = activeChat.intent
         let tagsToSend: string[] = []
-        
+
         if (selectedQuickPromptItems.length > 0) {
             // Usar el intent del primer prompt seleccionado
             intentToSend = selectedQuickPromptItems[0].intent
@@ -650,7 +690,7 @@ export default function ChatHomePage() {
             let uploadedFiles = []
             if (attachedFiles.length > 0 && attachedFiles.some(f => f.file)) {
                 setIsUploadingFiles(true)
-                
+
                 // Crear el mensaje primero para tener conversationId
                 const initialResponse = await fetch(buildApiUrl("/api/chat"), {
                     method: "POST",
@@ -668,10 +708,10 @@ export default function ChatHomePage() {
                 })
 
                 const initialData = await initialResponse.json().catch(() => null)
-                
+
                 if (initialResponse.ok && initialData?.conversationId) {
                     currentConversationId = initialData.conversationId
-                    
+
                     // Actualizar el chat con la conversationId
                     setChats((prevChats) =>
                         prevChats.map((chat) =>
@@ -692,11 +732,11 @@ export default function ChatHomePage() {
                                 : chat,
                         ),
                     )
-                    
+
                     // Ahora subir archivos con el conversationId
                     const formData = new FormData()
                     formData.append('conversationId', currentConversationId || '')
-                    
+
                     attachedFiles.forEach(file => {
                         if (file.file) {
                             formData.append('files', file.file)
@@ -712,14 +752,14 @@ export default function ChatHomePage() {
                     })
 
                     const uploadData = await uploadResponse.json()
-                    
+
                     if (uploadResponse.ok && uploadData.files) {
                         uploadedFiles = uploadData.files
                     }
-                    
+
                     setIsUploadingFiles(false)
                     setAttachedFiles([])
-                    
+
                     if (!currentConversationId) {
                         fetchConversations()
                         // Cargar los mensajes completos de la conversación recién creada
@@ -728,11 +768,11 @@ export default function ChatHomePage() {
                             loadConversationMessages(initialData.conversationId)
                         }, 500)
                     }
-                    
+
                     setIsThinking(false)
                     return
                 }
-                
+
                 setIsUploadingFiles(false)
             }
 
@@ -789,16 +829,23 @@ export default function ChatHomePage() {
                     loadConversationMessages(data.conversationId)
                 }, 500)
             }
-            
+
             // Limpiar archivos adjuntos después de enviar
             setAttachedFiles([])
+
+            // Si modo Canvas está activo, abrir el editor con la respuesta
+            if (isCanvasMode && data.message.content) {
+                setCanvasContent(data.message.content)
+                setCanvasOpen(true)
+                setIsCanvasMode(false) // Reset after opening
+            }
         } catch (error) {
             const message = error instanceof Error ? error.message : "No se pudo generar la respuesta"
             setChatError(message)
         } finally {
             setIsThinking(false)
         }
-    }, [activeChat, fetchConversations, inputValue, isThinking, token, selectedQuickPromptItems, isThinkingMode, attachedFiles, isUploadingFiles, loadConversationMessages])
+    }, [activeChat, fetchConversations, inputValue, isThinking, token, selectedQuickPromptItems, isThinkingMode, isCanvasMode, attachedFiles, isUploadingFiles, loadConversationMessages])
 
     const handlePromptKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>) => {
         if (event.key !== "Enter" || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) {
@@ -814,6 +861,11 @@ export default function ChatHomePage() {
     }, [submitPrompt])
 
     const handleQuickPromptToggle = useCallback((prompt: QuickPrompt) => {
+        // Si es un prompt con sub-opciones (Oraciones), toggle sub-menú
+        if (prompt.subOptions) {
+            setPrayerSubMenuOpen((prev) => !prev)
+            return
+        }
         setSelectedQuickPrompts((prev) => {
             if (prev.includes(prompt.label)) {
                 return prev.filter((label) => label !== prompt.label)
@@ -821,6 +873,24 @@ export default function ChatHomePage() {
             return [...prev, prompt.label]
         })
     }, [])
+
+    const handlePrayerSubOptionSelect = useCallback((parentPrompt: QuickPrompt, subOption: QuickPromptSubOption) => {
+        // Si ya está seleccionada esta misma sub-opción, deseleccionar todo
+        if (selectedPrayerType?.intent === subOption.intent) {
+            setSelectedPrayerType(null)
+            setPrayerSubMenuOpen(false)
+            setSelectedQuickPrompts((prev) => prev.filter((label) => label !== parentPrompt.label))
+            return
+        }
+        setSelectedPrayerType(subOption)
+        setPrayerSubMenuOpen(false)
+        setSelectedQuickPrompts((prev) => {
+            if (!prev.includes(parentPrompt.label)) {
+                return [...prev, parentPrompt.label]
+            }
+            return prev
+        })
+    }, [selectedPrayerType])
 
     const handleFileSelect = useCallback(async () => {
         if (!token) {
@@ -832,7 +902,7 @@ export default function ChatHomePage() {
         input.type = 'file'
         input.multiple = true
         input.accept = '.jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf'
-        
+
         input.onchange = async (e: Event) => {
             const target = e.target as HTMLInputElement
             const files = target.files
@@ -887,7 +957,7 @@ export default function ChatHomePage() {
             mediaRecorder.onstop = async () => {
                 const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
                 stream.getTracks().forEach(track => track.stop())
-                
+
                 // Transcribir el audio
                 await transcribeAudio(audioBlob)
             }
@@ -1021,6 +1091,8 @@ export default function ChatHomePage() {
         setInputValue("")
         setChatError(null)
         setSelectedQuickPrompts([])
+        setPrayerSubMenuOpen(false)
+        setSelectedPrayerType(null)
 
         // Crear la conversación en el backend inmediatamente para generar el saludo
         if (token) {
@@ -1038,7 +1110,7 @@ export default function ChatHomePage() {
 
                 if (response.ok) {
                     const data = await response.json()
-                    
+
                     // Actualizar el chat con la conversación y los mensajes (saludo inicial)
                     setChats((prevChats) =>
                         prevChats.map((chat) =>
@@ -1074,19 +1146,19 @@ export default function ChatHomePage() {
         setIsSearching(true)
         try {
             const lowerQuery = query.toLowerCase()
-            
+
             // Buscar en todos los chats (activos y archivados)
             const matches = chats.filter((chat) => {
                 // Buscar en el título
                 if (chat.title.toLowerCase().includes(lowerQuery)) {
                     return true
                 }
-                
+
                 // Buscar en los mensajes
-                const hasMessageMatch = chat.messages.some((msg) => 
+                const hasMessageMatch = chat.messages.some((msg) =>
                     msg.content.toLowerCase().includes(lowerQuery)
                 )
-                
+
                 return hasMessageMatch
             })
 
@@ -1287,14 +1359,14 @@ export default function ChatHomePage() {
     }
 
     const sidebarWidthClass = isSidebarCollapsed ? "w-20" : "w-80"
-    
+
     // Considerar que no hay mensajes si solo está el saludo inicial del asistente
     const userMessages = activeChat?.messages.filter(m => m.role === "usuario") || []
     const hasMessages = Boolean(activeChat && userMessages.length > 0)
 
     const renderPromptComposer = (variant: "center" | "bottom") => {
         const hasMessages = variant === "bottom"
-        
+
         return (
             <form
                 onSubmit={handleSubmit}
@@ -1332,7 +1404,7 @@ export default function ChatHomePage() {
                             rows={1}
                             disabled={isThinking || !activeChat}
                         />
-                        
+
                         {/* Badges de etiquetas seleccionadas - solo cuando hay mensajes */}
                         {hasMessages && selectedQuickPromptItems.length > 0 && (
                             <div className="flex flex-wrap items-center gap-2">
@@ -1360,7 +1432,7 @@ export default function ChatHomePage() {
                                 })}
                             </div>
                         )}
-                        
+
                         {/* Badges de archivos adjuntos */}
                         {attachedFiles.length > 0 && (
                             <div className="flex flex-wrap items-center gap-2 py-2">
@@ -1385,7 +1457,7 @@ export default function ChatHomePage() {
                                 ))}
                             </div>
                         )}
-                        
+
                         {/* Barra de botones abajo */}
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -1410,29 +1482,38 @@ export default function ChatHomePage() {
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
-                                
+
                                 {/* Botón llave inglesa para herramientas - solo visible para usuarios con acceso */}
                                 {hasTools && (
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8 shrink-0 rounded-full"
-                                            aria-label={t("tooltips.tools")}
-                                        >
-                                            <Wrench className="h-4 w-4" aria-hidden="true" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="start" className="w-56">
-                                        <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                                            {t("tooltips.noToolsAvailable")}
-                                        </div>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 shrink-0 rounded-full"
+                                                aria-label={t("tooltips.tools")}
+                                            >
+                                                <Wrench className="h-4 w-4" aria-hidden="true" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="start" className="w-56">
+                                            <DropdownMenuItem
+                                                className={cn(isCanvasMode && "bg-primary/10 text-primary")}
+                                                onSelect={() => setIsCanvasMode(!isCanvasMode)}
+                                            >
+                                                <PenLine className="mr-2 h-4 w-4" aria-hidden="true" />
+                                                {t("tooltips.canvasMode")}
+                                                {isCanvasMode && (
+                                                    <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">
+                                                        ON
+                                                    </Badge>
+                                                )}
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 )}
-                                
+
                                 {/* Selector de etiquetas - solo cuando hay mensajes */}
                                 {hasMessages && (
                                     <DropdownMenu>
@@ -1447,10 +1528,44 @@ export default function ChatHomePage() {
                                                 <Tag className="h-4 w-4" aria-hidden="true" />
                                             </Button>
                                         </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="start" className="w-56">
+                                        <DropdownMenuContent align="start" className="w-64">
                                             {quickPrompts.map((item) => {
                                                 const Icon = item.icon
                                                 const isSelected = selectedQuickPrompts.includes(item.label)
+                                                if (item.subOptions) {
+                                                    return (
+                                                        <div key={item.label}>
+                                                            <DropdownMenuItem
+                                                                className={cn(isSelected && "bg-primary/10 text-primary")}
+                                                                onSelect={(e) => {
+                                                                    e.preventDefault()
+                                                                    handleQuickPromptToggle(item)
+                                                                }}
+                                                            >
+                                                                <Icon className="mr-2 h-4 w-4 text-primary" aria-hidden="true" />
+                                                                {item.label}
+                                                                <ChevronDown className={cn("ml-auto h-3 w-3 transition-transform", (isSelected || prayerSubMenuOpen) && "rotate-180")} />
+                                                            </DropdownMenuItem>
+                                                            {(isSelected || prayerSubMenuOpen) && item.subOptions.map((sub) => {
+                                                                const SubIcon = sub.icon
+                                                                const isSubSelected = selectedPrayerType?.intent === sub.intent
+                                                                return (
+                                                                    <DropdownMenuItem
+                                                                        key={sub.intent}
+                                                                        className={cn("pl-8", isSubSelected && "bg-primary/10 text-primary")}
+                                                                        onSelect={(e) => {
+                                                                            e.preventDefault()
+                                                                            handlePrayerSubOptionSelect(item, sub)
+                                                                        }}
+                                                                    >
+                                                                        <SubIcon className="mr-2 h-4 w-4 text-violet-500" aria-hidden="true" />
+                                                                        {sub.label}
+                                                                    </DropdownMenuItem>
+                                                                )
+                                                            })}
+                                                        </div>
+                                                    )
+                                                }
                                                 return (
                                                     <DropdownMenuItem
                                                         key={item.label}
@@ -1466,7 +1581,7 @@ export default function ChatHomePage() {
                                     </DropdownMenu>
                                 )}
                             </div>
-                            
+
                             <div className="flex shrink-0 items-center gap-2">
                                 {/* Badge Thinking */}
                                 <TooltipProvider>
@@ -1496,7 +1611,18 @@ export default function ChatHomePage() {
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
-                                
+
+                                {/* Badge Canvas - solo para usuarios con herramientas */}
+                                {hasTools && isCanvasMode && (
+                                    <Badge
+                                        className="cursor-pointer bg-violet-500 hover:bg-violet-600 text-white border-violet-500 transition-colors"
+                                        onClick={() => setIsCanvasMode(false)}
+                                    >
+                                        <PenLine className="mr-1 h-3 w-3" />
+                                        {t("tooltips.canvasMode")}
+                                    </Badge>
+                                )}
+
                                 {/* Botón de micrófono para dictar */}
                                 <TooltipProvider>
                                     <Tooltip>
@@ -1525,7 +1651,7 @@ export default function ChatHomePage() {
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
-                                
+
                                 <Button
                                     type="submit"
                                     size="icon"
@@ -1538,53 +1664,87 @@ export default function ChatHomePage() {
                             </div>
                         </div>
                     </div>
-                    
+
                     {/* Etiquetas debajo de la caja - solo cuando NO hay mensajes */}
                     {!hasMessages && (
-                        <div className="flex flex-wrap items-center justify-center gap-2">
-                            {quickPrompts.map((item) => {
-                                const Icon = item.icon
-                                const isSelected = selectedQuickPrompts.includes(item.label)
-                                const categoryColors: Record<string, { base: string, selected: string }> = {
-                                    "Dinámicas y Actividades": {
-                                        base: "border-emerald-500/30 bg-transparent text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30",
-                                        selected: "border-emerald-500 bg-emerald-100 text-emerald-800 dark:border-emerald-500 dark:bg-emerald-950/60 dark:text-emerald-300"
-                                    },
-                                    "Oraciones": {
-                                        base: "border-violet-500/30 bg-transparent text-violet-700 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30",
-                                        selected: "border-violet-500 bg-violet-100 text-violet-800 dark:border-violet-500 dark:bg-violet-950/60 dark:text-violet-300"
-                                    },
-                                    "Celebraciones": {
-                                        base: "border-pink-500/30 bg-transparent text-pink-700 dark:text-pink-400 hover:bg-pink-50 dark:hover:bg-pink-950/30",
-                                        selected: "border-pink-500 bg-pink-100 text-pink-800 dark:border-pink-500 dark:bg-pink-950/60 dark:text-pink-300"
-                                    },
-                                    "Programaciones": {
-                                        base: "border-blue-500/30 bg-transparent text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30",
-                                        selected: "border-blue-500 bg-blue-100 text-blue-800 dark:border-blue-500 dark:bg-blue-950/60 dark:text-blue-300"
-                                    },
-                                    "Consulta": {
-                                        base: "border-slate-500/30 bg-transparent text-slate-700 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-950/30",
-                                        selected: "border-slate-500 bg-slate-100 text-slate-800 dark:border-slate-500 dark:bg-slate-950/60 dark:text-slate-300"
-                                    },
-                                }
-                                const colors = categoryColors[item.label] || {
-                                    base: "border-gray-500/30 bg-transparent text-gray-700 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-950/30",
-                                    selected: "border-gray-500 bg-gray-100 text-gray-800 dark:border-gray-500 dark:bg-gray-950/60 dark:text-gray-300"
-                                }
-                                const colorClass = isSelected ? colors.selected : colors.base
-                                
+                        <div className="flex flex-col items-center gap-2">
+                            <div className="flex flex-wrap items-center justify-center gap-2">
+                                {quickPrompts.map((item) => {
+                                    const Icon = item.icon
+                                    const isSelected = selectedQuickPrompts.includes(item.label)
+                                    const categoryColors: Record<string, { base: string, selected: string }> = {
+                                        "Dinámicas y Actividades": {
+                                            base: "border-emerald-500/30 bg-transparent text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30",
+                                            selected: "border-emerald-500 bg-emerald-100 text-emerald-800 dark:border-emerald-500 dark:bg-emerald-950/60 dark:text-emerald-300"
+                                        },
+                                        "Oraciones": {
+                                            base: "border-violet-500/30 bg-transparent text-violet-700 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30",
+                                            selected: "border-violet-500 bg-violet-100 text-violet-800 dark:border-violet-500 dark:bg-violet-950/60 dark:text-violet-300"
+                                        },
+                                        "Celebraciones": {
+                                            base: "border-pink-500/30 bg-transparent text-pink-700 dark:text-pink-400 hover:bg-pink-50 dark:hover:bg-pink-950/30",
+                                            selected: "border-pink-500 bg-pink-100 text-pink-800 dark:border-pink-500 dark:bg-pink-950/60 dark:text-pink-300"
+                                        },
+                                        "Programaciones": {
+                                            base: "border-blue-500/30 bg-transparent text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30",
+                                            selected: "border-blue-500 bg-blue-100 text-blue-800 dark:border-blue-500 dark:bg-blue-950/60 dark:text-blue-300"
+                                        },
+                                        "Consulta": {
+                                            base: "border-slate-500/30 bg-transparent text-slate-700 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-950/30",
+                                            selected: "border-slate-500 bg-slate-100 text-slate-800 dark:border-slate-500 dark:bg-slate-950/60 dark:text-slate-300"
+                                        },
+                                    }
+                                    const colors = categoryColors[item.label] || {
+                                        base: "border-gray-500/30 bg-transparent text-gray-700 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-950/30",
+                                        selected: "border-gray-500 bg-gray-100 text-gray-800 dark:border-gray-500 dark:bg-gray-950/60 dark:text-gray-300"
+                                    }
+                                    const colorClass = isSelected ? colors.selected : colors.base
+
+                                    return (
+                                        <button
+                                            key={item.label}
+                                            type="button"
+                                            onClick={() => handleQuickPromptToggle(item)}
+                                            className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition ${colorClass}`}
+                                        >
+                                            <Icon className="h-4 w-4" aria-hidden="true" />
+                                            {item.label}
+                                            {item.subOptions && (
+                                                <ChevronDown className={cn("h-3 w-3 transition-transform", (isSelected || prayerSubMenuOpen) && "rotate-180")} />
+                                            )}
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                            {/* Sub-opciones de Oraciones */}
+                            {prayerSubMenuOpen && (() => {
+                                const prayerPrompt = quickPrompts.find(p => p.subOptions)
+                                if (!prayerPrompt?.subOptions) return null
                                 return (
-                                    <button
-                                        key={item.label}
-                                        type="button"
-                                        onClick={() => handleQuickPromptToggle(item)}
-                                        className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition ${colorClass}`}
-                                    >
-                                        <Icon className="h-4 w-4" aria-hidden="true" />
-                                        {item.label}
-                                    </button>
+                                    <div className="flex items-center justify-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                                        {prayerPrompt.subOptions.map((sub) => {
+                                            const SubIcon = sub.icon
+                                            const isSubSelected = selectedPrayerType?.intent === sub.intent
+                                            return (
+                                                <button
+                                                    key={sub.intent}
+                                                    type="button"
+                                                    onClick={() => handlePrayerSubOptionSelect(prayerPrompt, sub)}
+                                                    className={cn(
+                                                        "flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition",
+                                                        isSubSelected
+                                                            ? "border-violet-500 bg-violet-100 text-violet-800 dark:border-violet-500 dark:bg-violet-950/60 dark:text-violet-300"
+                                                            : "border-violet-500/30 bg-transparent text-violet-700 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30"
+                                                    )}
+                                                >
+                                                    <SubIcon className="h-4 w-4" aria-hidden="true" />
+                                                    {sub.label}
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
                                 )
-                            })}
+                            })()}
                         </div>
                     )}
                 </div>
@@ -1592,7 +1752,7 @@ export default function ChatHomePage() {
         )
     }
 
-        return (
+    return (
         <div className="flex h-screen overflow-hidden bg-background text-foreground">
             <aside
                 className={cn(
@@ -1761,12 +1921,12 @@ export default function ChatHomePage() {
                         {!isChatsListCollapsed && (
                             <div className="space-y-1 px-2 pb-4">
                                 {sidebarChats.length === 0 && (
-                                        <div className="rounded-xl border border-dashed border-border/60 bg-background/60 px-3 py-8 text-center text-xs text-muted-foreground">
-                                            {t("sidebar.noConversations")}
-                                        </div>
-                                    )}
+                                    <div className="rounded-xl border border-dashed border-border/60 bg-background/60 px-3 py-8 text-center text-xs text-muted-foreground">
+                                        {t("sidebar.noConversations")}
+                                    </div>
+                                )}
 
-                                    {sidebarChats.map((chat) => {
+                                {sidebarChats.map((chat) => {
                                     const isActive = chat.id === activeChatId
                                     const truncatedTitle = chat.title.length > 25 ? chat.title.substring(0, 25) + '...' : chat.title
 
@@ -1784,7 +1944,7 @@ export default function ChatHomePage() {
                                                     {truncatedTitle}
                                                 </span>
                                             </div>
-                                            
+
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
                                                     <Button
@@ -1800,37 +1960,37 @@ export default function ChatHomePage() {
                                                     <DropdownMenuItem
                                                         onSelect={(event) => {
                                                             event.preventDefault()
-                                                    handleShareChat(chat.id)
-                                                }}
-                                            >
-                                                <Share2 className="mr-2 h-4 w-4" aria-hidden="true" /> {t("sidebar.share")}
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                                onSelect={(event) => {
-                                                    event.preventDefault()
-                                                    handleArchiveChat(chat.id)
-                                                }}
-                                            >
-                                                <Archive className="mr-2 h-4 w-4" aria-hidden="true" />
-                                                {t("sidebar.archive")}
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                                className="text-destructive"
-                                                onSelect={(event) => {
-                                                    event.preventDefault()
-                                                    handleRequestDeleteChat(chat)
-                                                }}
-                                            >
-                                                <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" /> {t("sidebar.delete")}
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </div>
-                            )
-                        })}
-                    </div>
-                    )}
-                </ScrollArea>
+                                                            handleShareChat(chat.id)
+                                                        }}
+                                                    >
+                                                        <Share2 className="mr-2 h-4 w-4" aria-hidden="true" /> {t("sidebar.share")}
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onSelect={(event) => {
+                                                            event.preventDefault()
+                                                            handleArchiveChat(chat.id)
+                                                        }}
+                                                    >
+                                                        <Archive className="mr-2 h-4 w-4" aria-hidden="true" />
+                                                        {t("sidebar.archive")}
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        className="text-destructive"
+                                                        onSelect={(event) => {
+                                                            event.preventDefault()
+                                                            handleRequestDeleteChat(chat)
+                                                        }}
+                                                    >
+                                                        <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" /> {t("sidebar.delete")}
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        )}
+                    </ScrollArea>
                 )}
 
                 {/* Sección de usuario - siempre visible */}
@@ -1982,7 +2142,7 @@ export default function ChatHomePage() {
             <main className="flex flex-1 flex-col overflow-hidden">
                 <header className="flex items-center justify-between border-b border-border/60 bg-background/95 px-8 py-4">
                     <nav className="flex items-center">
-                        <Link 
+                        <Link
                             href="/acerca-de"
                             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all"
                         >
@@ -1990,7 +2150,7 @@ export default function ChatHomePage() {
                             {t("header.aboutIARPJ")}
                         </Link>
                         <div className="h-5 w-px bg-border/60 mx-2" />
-                        <Link 
+                        <Link
                             href="/guia-documental"
                             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all"
                         >
@@ -1998,7 +2158,7 @@ export default function ChatHomePage() {
                             {t("header.documentGuide")}
                         </Link>
                         <div className="h-5 w-px bg-border/60 mx-2" />
-                        <Link 
+                        <Link
                             href="/contacto"
                             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all"
                         >
@@ -2022,9 +2182,9 @@ export default function ChatHomePage() {
                         <div className="flex flex-1 flex-col items-center justify-center gap-6 px-8" style={{ paddingBottom: "15%" }}>
                             <div className="flex flex-col items-center gap-2 text-center max-w-2xl">
                                 <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-foreground leading-relaxed">
-                                    {activeChat?.messages[0]?.role === "asistente" && activeChat?.messages[0]?.content 
-                                        ? activeChat.messages[0].content 
-                                        : user?.nombre 
+                                    {activeChat?.messages[0]?.role === "asistente" && activeChat?.messages[0]?.content
+                                        ? activeChat.messages[0].content
+                                        : user?.nombre
                                             ? t("chat.greeting", { name: user.nombre })
                                             : t("chat.greetingGeneric")}
                                 </p>
@@ -2034,132 +2194,149 @@ export default function ChatHomePage() {
                     ) : (
                         <div className="flex h-full flex-col overflow-hidden">
                             <div ref={scrollRef} className="flex-1 space-y-6 overflow-y-auto px-8 py-8">
-                            {activeChat?.isLoading && activeChat.messages.length === 0 && (
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <Sparkles className="h-4 w-4 animate-pulse" aria-hidden="true" />
-                                    <span>{t("chat.loadingConversation")}</span>
-                                </div>
-                            )}
+                                {activeChat?.isLoading && activeChat.messages.length === 0 && (
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                        <Sparkles className="h-4 w-4 animate-pulse" aria-hidden="true" />
+                                        <span>{t("chat.loadingConversation")}</span>
+                                    </div>
+                                )}
 
-                            {activeChat && activeChat.messages.map((message) => (
-                                <div
-                                    key={message.id}
-                                    className={cn("flex gap-3", message.role === "usuario" ? "justify-end" : "justify-start")}
-                                >
-                                    {message.role === "asistente" && (
+                                {activeChat && activeChat.messages.map((message) => (
+                                    <div
+                                        key={message.id}
+                                        className={cn("flex gap-3", message.role === "usuario" ? "justify-end" : "justify-start")}
+                                    >
+                                        {message.role === "asistente" && (
+                                            <Avatar className="h-9 w-9">
+                                                <AvatarFallback>IA</AvatarFallback>
+                                            </Avatar>
+                                        )}
+                                        <div
+                                            className={cn(
+                                                "relative max-w-[80%] rounded-2xl border px-4 py-3 text-sm leading-relaxed shadow-sm",
+                                                message.role === "usuario"
+                                                    ? "border-primary/10 bg-primary text-primary-foreground"
+                                                    : "border-border/60 bg-card text-foreground",
+                                            )}
+                                        >
+                                            {message.role === "asistente" && (
+                                                <div className="flex justify-end mb-2 pb-2 border-b border-border/40">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <button type="button" className="focus:outline-none">
+                                                                <Badge
+                                                                    className="cursor-pointer bg-muted text-muted-foreground hover:bg-muted/80 border-border flex items-center gap-1"
+                                                                >
+                                                                    <Download className="h-3 w-3" />
+                                                                    {t("download.button")}
+                                                                </Badge>
+                                                            </button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem
+                                                                onSelect={async () => {
+                                                                    try {
+                                                                        await downloadAsPDF(message.content, `respuesta-${message.id}.pdf`)
+                                                                    } catch (error) {
+                                                                        console.error("Error descargando PDF:", error)
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <FileText className="mr-2 h-4 w-4" />
+                                                                {t("download.pdfDocument")}
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                onSelect={async () => {
+                                                                    try {
+                                                                        await downloadAsWord(message.content, `respuesta-${message.id}.docx`)
+                                                                    } catch (error) {
+                                                                        console.error("Error descargando Word:", error)
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <FileText className="mr-2 h-4 w-4" />
+                                                                {t("download.wordDocument")}
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                    {hasTools && (
+                                                        <button
+                                                            type="button"
+                                                            className="focus:outline-none"
+                                                            onClick={() => {
+                                                                setCanvasContent(message.content)
+                                                                setCanvasOpen(true)
+                                                            }}
+                                                        >
+                                                            <Badge
+                                                                className="cursor-pointer bg-muted text-muted-foreground hover:bg-violet-100 dark:hover:bg-violet-900/30 hover:text-violet-700 dark:hover:text-violet-300 border-border flex items-center gap-1"
+                                                            >
+                                                                <PenLine className="h-3 w-3" />
+                                                                {t("tooltips.canvasMode")}
+                                                            </Badge>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
+                                            {message.role === "asistente" ? (
+                                                <div className="prose prose-sm dark:prose-invert max-w-none">
+                                                    <ReactMarkdown
+                                                        remarkPlugins={[remarkGfm]}
+                                                        components={{
+                                                            p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                                                            ul: ({ children }) => <ul className="mb-2 ml-4 list-disc">{children}</ul>,
+                                                            ol: ({ children }) => <ol className="mb-2 ml-4 list-decimal">{children}</ol>,
+                                                            li: ({ children }) => <li className="mb-1">{children}</li>,
+                                                            strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                                                            em: ({ children }) => <em className="italic">{children}</em>,
+                                                            h1: ({ children }) => <h1 className="mb-2 text-xl font-bold">{children}</h1>,
+                                                            h2: ({ children }) => <h2 className="mb-2 text-lg font-bold">{children}</h2>,
+                                                            h3: ({ children }) => <h3 className="mb-2 text-base font-bold">{children}</h3>,
+                                                            code: ({ children, ...props }) => {
+                                                                const isInline = !props.className
+                                                                return isInline ? (
+                                                                    <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">{children}</code>
+                                                                ) : (
+                                                                    <code className="block rounded bg-muted p-2 font-mono text-xs">{children}</code>
+                                                                )
+                                                            },
+                                                        }}
+                                                    >
+                                                        {message.content}
+                                                    </ReactMarkdown>
+                                                </div>
+                                            ) : (
+                                                <div className="whitespace-pre-wrap">{message.content}</div>
+                                            )}
+                                        </div>
+                                        {message.role === "usuario" && (
+                                            <Avatar className="h-9 w-9" style={{ backgroundColor: '#94c120' }}>
+                                                <AvatarFallback style={{ backgroundColor: '#94c120', color: 'white' }}>{initials}</AvatarFallback>
+                                            </Avatar>
+                                        )}
+                                    </div>
+                                ))}
+
+                                {isThinking && (
+                                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
                                         <Avatar className="h-9 w-9">
                                             <AvatarFallback>IA</AvatarFallback>
                                         </Avatar>
-                                    )}
-                                    <div
-                                        className={cn(
-                                            "relative max-w-[80%] rounded-2xl border px-4 py-3 text-sm leading-relaxed shadow-sm",
-                                            message.role === "usuario"
-                                                ? "border-primary/10 bg-primary text-primary-foreground"
-                                                : "border-border/60 bg-card text-foreground",
-                                        )}
-                                    >
-                                        {message.role === "asistente" && (
-                                            <div className="flex justify-end mb-2 pb-2 border-b border-border/40">
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <button type="button" className="focus:outline-none">
-                                                            <Badge
-                                                                className="cursor-pointer bg-muted text-muted-foreground hover:bg-muted/80 border-border flex items-center gap-1"
-                                                            >
-                                                                <Download className="h-3 w-3" />
-                                                                {t("download.button")}
-                                                            </Badge>
-                                                        </button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem
-                                                            onSelect={async () => {
-                                                                try {
-                                                                    await downloadAsPDF(message.content, `respuesta-${message.id}.pdf`)
-                                                                } catch (error) {
-                                                                    console.error("Error descargando PDF:", error)
-                                                                }
-                                                            }}
-                                                        >
-                                                            <FileText className="mr-2 h-4 w-4" />
-                                                            {t("download.pdfDocument")}
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            onSelect={async () => {
-                                                                try {
-                                                                    await downloadAsWord(message.content, `respuesta-${message.id}.docx`)
-                                                                } catch (error) {
-                                                                    console.error("Error descargando Word:", error)
-                                                                }
-                                                            }}
-                                                        >
-                                                            <FileText className="mr-2 h-4 w-4" />
-                                                            {t("download.wordDocument")}
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </div>
-                                        )}
-                                        {message.role === "asistente" ? (
-                                            <div className="prose prose-sm dark:prose-invert max-w-none">
-                                                <ReactMarkdown
-                                                    remarkPlugins={[remarkGfm]}
-                                                    components={{
-                                                        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                                                        ul: ({ children }) => <ul className="mb-2 ml-4 list-disc">{children}</ul>,
-                                                        ol: ({ children }) => <ol className="mb-2 ml-4 list-decimal">{children}</ol>,
-                                                        li: ({ children }) => <li className="mb-1">{children}</li>,
-                                                        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-                                                        em: ({ children }) => <em className="italic">{children}</em>,
-                                                        h1: ({ children }) => <h1 className="mb-2 text-xl font-bold">{children}</h1>,
-                                                        h2: ({ children }) => <h2 className="mb-2 text-lg font-bold">{children}</h2>,
-                                                        h3: ({ children }) => <h3 className="mb-2 text-base font-bold">{children}</h3>,
-                                                        code: ({ children, ...props }) => {
-                                                            const isInline = !props.className
-                                                            return isInline ? (
-                                                                <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">{children}</code>
-                                                            ) : (
-                                                                <code className="block rounded bg-muted p-2 font-mono text-xs">{children}</code>
-                                                            )
-                                                        },
-                                                    }}
-                                                >
-                                                    {message.content}
-                                                </ReactMarkdown>
-                                            </div>
-                                        ) : (
-                                            <div className="whitespace-pre-wrap">{message.content}</div>
-                                        )}
+                                        <div className="flex items-center gap-2 rounded-full border border-border/60 bg-card px-3 py-2">
+                                            <span className="h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: "0ms" }} />
+                                            <span className="h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: "120ms" }} />
+                                            <span className="h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: "240ms" }} />
+                                            <span className="text-xs font-medium text-muted-foreground">{t("chat.thinking")}</span>
+                                        </div>
                                     </div>
-                                    {message.role === "usuario" && (
-                                        <Avatar className="h-9 w-9" style={{ backgroundColor: '#94c120' }}>
-                                            <AvatarFallback style={{ backgroundColor: '#94c120', color: 'white' }}>{initials}</AvatarFallback>
-                                        </Avatar>
-                                    )}
-                                </div>
-                            ))}
+                                )}
 
-                            {isThinking && (
-                                <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                                    <Avatar className="h-9 w-9">
-                                        <AvatarFallback>IA</AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex items-center gap-2 rounded-full border border-border/60 bg-card px-3 py-2">
-                                        <span className="h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: "0ms" }} />
-                                        <span className="h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: "120ms" }} />
-                                        <span className="h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: "240ms" }} />
-                                        <span className="text-xs font-medium text-muted-foreground">{t("chat.thinking")}</span>
+                                {!activeChat && (
+                                    <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                                        Selecciona o crea un chat para comenzar.
                                     </div>
-                                </div>
-                            )}
-
-                            {!activeChat && (
-                                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                                    Selecciona o crea un chat para comenzar.
-                                </div>
-                            )}
-                        </div>
+                                )}
+                            </div>
                             {renderPromptComposer("bottom")}
                         </div>
                     )}
@@ -2299,7 +2476,7 @@ export default function ChatHomePage() {
                                 {t("settings.general")}
                             </button>
                         </div>
-                        
+
                         {/* Contenido de configuración */}
                         <div className="flex-1 overflow-y-auto space-y-6 pr-2">
                             <div className="space-y-4">
@@ -2312,7 +2489,7 @@ export default function ChatHomePage() {
                                         <ThemeToggleButton />
                                     </div>
                                 </div>
-                                
+
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
                                         <Label className="text-sm font-medium">{t("settings.language")}</Label>
@@ -2320,7 +2497,7 @@ export default function ChatHomePage() {
                                             {t("settings.languageDesc")}
                                         </p>
                                     </div>
-                                    <select 
+                                    <select
                                         className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
                                         value={locale}
                                         onChange={async (e) => {
@@ -2348,7 +2525,7 @@ export default function ChatHomePage() {
                     </div>
                 </DialogContent>
             </Dialog>
-            
+
             {/* Diálogo de búsqueda de chats */}
             <Dialog open={isSearchDialogOpen} onOpenChange={setIsSearchDialogOpen}>
                 <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
@@ -2358,7 +2535,7 @@ export default function ChatHomePage() {
                             {t("searchDialog.placeholder")}
                         </DialogDescription>
                     </DialogHeader>
-                    
+
                     <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -2435,9 +2612,9 @@ export default function ChatHomePage() {
                     </div>
 
                     <DialogFooter>
-                        <Button 
-                            type="button" 
-                            variant="outline" 
+                        <Button
+                            type="button"
+                            variant="outline"
                             onClick={() => {
                                 setIsSearchDialogOpen(false)
                                 setSearchQuery("")
@@ -2449,13 +2626,43 @@ export default function ChatHomePage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-            
+
             {mustChangePassword && token && (
-                <ChangePasswordModal 
-                    token={token} 
+                <ChangePasswordModal
+                    token={token}
                     onSuccess={clearPasswordChangeFlag}
                 />
             )}
+
+            {/* Canvas Dialog */}
+            <CanvasDialog
+                open={canvasOpen}
+                onClose={(finalContent) => {
+                    setCanvasOpen(false)
+                    // Update the last assistant message with the canvas-edited content
+                    if (finalContent && activeChat) {
+                        const lastAssistantIdx = [...(activeChat.messages || [])].reverse().findIndex(m => m.role === "asistente")
+                        if (lastAssistantIdx >= 0) {
+                            const actualIdx = (activeChat.messages.length - 1) - lastAssistantIdx
+                            setChats(prev => prev.map(chat =>
+                                chat.id === activeChatId
+                                    ? {
+                                        ...chat,
+                                        messages: chat.messages.map((msg, i) =>
+                                            i === actualIdx ? { ...msg, content: finalContent } : msg
+                                        ),
+                                    }
+                                    : chat
+                            ))
+                        }
+                    }
+                }}
+                initialContent={canvasContent}
+                conversationId={activeChat?.conversationId ?? null}
+                token={token ?? ""}
+                userInitials={initials}
+                userLanguage={user?.idioma ?? "es"}
+            />
         </div>
     )
 }

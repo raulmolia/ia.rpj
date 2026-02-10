@@ -1,0 +1,61 @@
+{
+    "typescript.preferences.quoteStyle": "single",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": "explicit"
+    },
+    "files.associations": {
+        "*.prisma": "prisma",
+        "*.md": "markdown"
+    },
+    "prisma.showPrismaDataPlatformNotification": false,
+    "terminal.integrated.defaultProfile.linux": "bash",
+    "terminal.integrated.cwd": "/var/www/vhosts/practical-chatelet.217-154-99-32.plesk.page/httpdocs",
+    "git.autofetch": true,
+    "git.enableSmartCommit": true,
+    "emmet.includeLanguages": {
+        "typescript": "typescriptreact",
+        "javascript": "javascriptreact"
+    },
+    "tailwindCSS.includeLanguages": {
+        "typescript": "typescript",
+        "typescriptreact": "typescriptreact"
+    },
+    "tailwindCSS.experimental.classRegex": [
+        [
+            "cva\\(([^)]*)\\)",
+            "[\"'`]([^\"'`]*).*?[\"'`]"
+        ],
+        [
+            "cx\\(([^)]*)\\)",
+            "(?:'|\"|`)([^']*)(?:'|\"|`)"
+        ]
+    ],
+    "files.exclude": {
+        "**/node_modules": true,
+        "**/.git": false,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/CVS": true,
+        "**/.DS_Store": true,
+        "**/Thumbs.db": true,
+        "**/.next": true,
+        "**/dist": true,
+        "**/build": true
+    },
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/bower_components": true,
+        "**/*.code-search": true,
+        "**/.next": true,
+        "**/dist": true,
+        "**/build": true
+    },
+    "typescript.suggest.autoImports": true,
+    "typescript.updateImportsOnFileMove.enabled": "always",
+    "javascript.suggest.autoImports": true,
+    "javascript.updateImportsOnFileMove.enabled": "always",
+    "chat.agent.maxRequests": 10000,
+    "chat.todoListTool.writeOnly": true,
+    "chat.tools.terminal.autoReplyToPrompts": true
+}

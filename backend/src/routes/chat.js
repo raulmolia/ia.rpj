@@ -83,7 +83,7 @@ function getUserLimits(userRole, tipoSuscripcion = 'FREE') {
     if (ROLE_LIMITS[userRole]) {
         return ROLE_LIMITS[userRole];
     }
-    
+
     // Para rol USUARIO, usar los límites de suscripción
     return SUBSCRIPTION_LIMITS[tipoSuscripcion] || SUBSCRIPTION_LIMITS.FREE;
 }
@@ -166,14 +166,14 @@ function buildContextFromChroma(results = []) {
         const etiquetas = Array.isArray(item?.metadata?.etiquetas)
             ? `Etiquetas: ${item.metadata.etiquetas.join(', ')}`
             : '';
-        
+
         // Identificar tipo de fuente
         const tipo = item?.metadata?.tipo || 'documento';
         const sourceUrl = item?.metadata?.url || item?.metadata?.pagina_url;
-        const source = sourceUrl 
+        const source = sourceUrl
             ? `${tipo === 'fuente_web' ? 'Web: ' : ''}${sourceUrl}`
             : (item?.metadata?.nombreOriginal || item?.metadata?.documentoId || item?.id);
-        
+
         const fragment = (item?.document || '').trim().slice(0, 1200);
         return [`### Fuente: ${title}`, etiquetas, fragment, `Referencia: ${source}`]
             .filter((value) => value && value.length > 0)
@@ -235,7 +235,7 @@ async function ensureConversation({ conversationId, userId, intent, userName, us
     if (userName) {
         try {
             const greeting = getGreeting(userName, userLanguage);
-            
+
             // Crear mensaje inicial del asistente
             await prisma.mensajeConversacion.create({
                 data: {
@@ -245,7 +245,7 @@ async function ensureConversation({ conversationId, userId, intent, userName, us
                     intencion: intent?.id || DEFAULT_INTENT.id,
                 },
             });
-            
+
             console.log(`✅ Saludo inicial creado para ${userName} en idioma ${userLanguage}`);
         } catch (error) {
             console.warn(`⚠️ No se pudo crear saludo inicial: ${error.message}`);
@@ -282,7 +282,7 @@ async function getUserStats(userId, userRole, tipoSuscripcion = 'FREE') {
     // Obtener mensajes del usuario de hoy para límite diario
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     const dailyMessages = await prisma.mensajeConversacion.count({
         where: {
             conversacion: { usuarioId: userId },
@@ -413,7 +413,7 @@ router.get('/stats', authenticate, async (req, res) => {
         const tipoSuscripcion = req.user?.tipoSuscripcion || 'FREE';
         const limits = getUserLimits(userRole, tipoSuscripcion);
         const stats = await getUserStats(req.user.id, userRole, tipoSuscripcion);
-        
+
         return res.json({
             role: userRole,
             tipoSuscripcion,
@@ -496,7 +496,7 @@ router.post('/', authenticate, async (req, res) => {
         const userRole = req.user?.rol || 'USUARIO';
         const tipoSuscripcion = req.user?.tipoSuscripcion || 'FREE';
         const limitCheck = await validateUserLimits(req.user.id, userRole, conversationId, tipoSuscripcion);
-        
+
         if (!limitCheck.allowed) {
             return res.status(429).json({
                 error: limitCheck.reason,
@@ -510,7 +510,7 @@ router.post('/', authenticate, async (req, res) => {
             ? resolveIntent(rawIntent)
             : detectIntentFromText(trimmedMessage);
 
-        const conversation = await ensureConversation({
+        conversation = await ensureConversation({
             conversationId,
             userId: req.user?.id || null,
             intent: detectedIntent,
@@ -519,7 +519,7 @@ router.post('/', authenticate, async (req, res) => {
         });
 
         const previousHistory = await fetchConversationHistory(conversation.id, 12);
-        
+
         // Preparar metadatos con información de archivos adjuntos si existen
         const messageMetadata = {};
         if (attachments && attachments.length > 0) {
@@ -530,7 +530,7 @@ router.post('/', authenticate, async (req, res) => {
                 wordCount: file.wordCount,
             }));
         }
-        
+
         userMessageRecord = await prisma.mensajeConversacion.create({
             data: {
                 conversacionId: conversation.id,
@@ -592,7 +592,7 @@ router.post('/', authenticate, async (req, res) => {
             const attachmentsContext = attachments
                 .map(file => `--- Archivo: ${file.fileName} ---\n${file.text}`)
                 .join('\n\n');
-            
+
             const attachmentsHeader = '\n\n=== ARCHIVOS ADJUNTOS POR EL USUARIO ===\n\n';
             contextPrompt = attachmentsHeader + attachmentsContext + (contextPrompt ? '\n\n' + contextPrompt : '');
         }
@@ -664,12 +664,12 @@ router.post('/', authenticate, async (req, res) => {
             // length === 1 significa que solo existe el saludo inicial del asistente
             try {
                 const generatedTitle = await gemmaService.generateChatTitle(trimmedMessage);
-                
+
                 await prisma.conversacion.update({
                     where: { id: conversation.id },
                     data: { titulo: generatedTitle },
                 });
-                
+
                 updatedTitle = generatedTitle;
                 console.log(`✅ Título generado automáticamente: "${generatedTitle}"`);
             } catch (error) {
@@ -792,7 +792,7 @@ router.delete('/:id', authenticate, async (req, res) => {
             });
         }
 
-        if (!conversation.usuarioId || conversation.usuarioId !== userId) {
+        if (conversation.usuarioId && conversation.usuarioId !== userId) {
             return res.status(403).json({
                 error: 'Acceso denegado',
                 message: 'No puedes eliminar esta conversación',

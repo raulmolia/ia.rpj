@@ -1,6 +1,24 @@
 # Registro de Desarrollo - Asistente IA para Actividades Juveniles
 
-## Actualización 14 de diciembre de 2025 - Ordenamiento alfabético en tabla de documentos
+## Actualización 14 de diciembre de 2025 - Ordenamiento alfabético en documentación y fuentes web
+- 📚 **Ordenamiento en biblioteca documental**: Añadida funcionalidad de ordenamiento alfabético en columna "Título" de la página documentación
+- 🌐 **Ordenamiento en fuentes web**: Implementado ordenamiento en columna "URL / Título" de la tabla de fuentes web
+- 🔄 **Tres estados de ordenamiento**: Sin orden (none), ascendente (A-Z), descendente (Z-A) en ambas secciones
+- 🖱️ **UX mejorada**: Botones clickeables en encabezados con iconos visuales (ArrowUpDown, ArrowUp, ArrowDown)
+- 🌍 **Comparación con localeCompare**: Ordenamiento respeta acentos y caracteres especiales en español
+- 🔧 **Criterios mutuamente excluyentes**: Al ordenar por título, desactiva automáticamente el orden por fecha y viceversa
+- 📄 **Reset automático**: Al cambiar el criterio de ordenamiento, la paginación vuelve a la página 1
+- ✅ **Implementación técnica**: 
+  - Estado `titleSortOrder` con tipos `"none" | "asc" | "desc"`
+  - Lógica condicional en `useMemo` para optimización de rendimiento
+  - Ordenamiento por título usa título o dominio en fuentes web
+  - Integración perfecta con sistema de paginación existente
+- 📁 **Archivos modificados**: 
+  - `frontend/src/app/documentacion/page.tsx`
+  - `frontend/src/components/web-sources-table.tsx`
+- 🚀 **Despliegue**: Build y reinicio del frontend exitoso, funcionalidad operativa en producción
+
+## Actualización 14 de diciembre de 2025 - Ordenamiento alfabético en guía documental
 - 📊 **Ordenamiento en columna "Título"**: Añadida funcionalidad de ordenamiento alfabético en la tabla del repositorio documental
 - 🔄 **Tres estados de ordenamiento**: Sin orden (none), ascendente (A-Z), descendente (Z-A)
 - 🖱️ **UX mejorada**: Botón clickeable en encabezado con iconos visuales (ArrowUpDown, ArrowUp, ArrowDown)

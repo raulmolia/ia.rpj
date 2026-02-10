@@ -1,0 +1,122 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "📦 Instalar dependencias",
+            "type": "shell",
+            "command": "npm install",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "showReuseMessage": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "🚀 Ejecutar frontend (Next.js)",
+            "type": "shell",
+            "command": "npm run dev",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "showReuseMessage": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/frontend"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "⚙️ Ejecutar backend (Node.js)",
+            "type": "shell",
+            "command": "npm run server",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "showReuseMessage": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/backend"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "🔧 Prisma: Generar cliente",
+            "type": "shell",
+            "command": "npx prisma generate",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "showReuseMessage": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/backend"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "🗃️ Prisma: Migrar base de datos",
+            "type": "shell",
+            "command": "npx prisma migrate dev",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "showReuseMessage": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/backend"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "📊 Prisma: Studio (interfaz web)",
+            "type": "shell",
+            "command": "npx prisma studio",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "showReuseMessage": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/backend"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "🔄 Sincronizar con GitHub",
+            "type": "shell",
+            "command": "git add . && git commit -m 'Actualización de desarrollo $(date)' && git push",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "showReuseMessage": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "🏗️ Construir proyecto completo",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "📦 Instalar dependencias",
+                "🔧 Prisma: Generar cliente",
+                "🗃️ Prisma: Migrar base de datos"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "showReuseMessage": false
+            }
+        }
+    ]
+}
