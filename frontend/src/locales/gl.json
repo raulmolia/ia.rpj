@@ -453,13 +453,13 @@
     "remaining": "{count} restantes",
     "unlimited": "Ilimitado",
     "limitsInfo": "Límites para usuarios",
-    "maxChatsInfo": "7 chats almacenados simultaneamente (incluídos arquivados)",
-    "maxIterationsInfo": "5 iteracións (mensaxes ao modelo de IA) por chat",
-    "maxDailyChatsInfo": "3 chats novos diarios",
-    "totalChats": "Chats totais",
-    "dailyChats": "Chats diarios",
-    "dailyIterations": "Iteracións diarias",
-    "maxMessagesPerChat": "Máx. mensaxes por chat"
+    "maxChatsInfo": "7 conversas almacenadas simultaneamente (incluídas arquivadas)",
+    "maxIterationsInfo": "5 mensaxes ao modelo de IA por conversa",
+    "maxDailyChatsInfo": "3 conversas novas diarias",
+    "totalChats": "Conversas totais",
+    "dailyChats": "Conversas diarias",
+    "dailyIterations": "Mensaxes diarias",
+    "maxMessagesPerChat": "Máx. mensaxes por conversa"
   },
   "canvas": {
     "title": "Lenzo",

@@ -12,7 +12,6 @@ import {
     Activity,
     Archive,
     BookOpen,
-    BookOpenCheck,
     ChevronsLeft,
     ChevronsRight,
     LogOut,
@@ -313,10 +312,10 @@ export default function ChatHomePage() {
     const selectedQuickPromptItems = useMemo(() => {
         const labelSet = new Set(selectedQuickPrompts)
         const items = quickPrompts.filter((prompt) => labelSet.has(prompt.label))
-        // Si hay oración seleccionada con sub-tipo, usar el intent/tags del sub-tipo
+        // Si hay oración seleccionada con sub-tipo, usar el intent/tags/label del sub-tipo
         return items.map(item => {
             if (item.subOptions && selectedPrayerType) {
-                return { ...item, intent: selectedPrayerType.intent, tags: selectedPrayerType.tags }
+                return { ...item, label: selectedPrayerType.label, icon: selectedPrayerType.icon, intent: selectedPrayerType.intent, tags: selectedPrayerType.tags, _parentLabel: item.label }
             }
             return item
         })
@@ -363,6 +362,16 @@ export default function ChatHomePage() {
             return true
         }
         // Para usuarios normales, solo PRO tiene herramientas
+        return tipoSuscripcion === "PRO"
+    }, [userRole, tipoSuscripcion])
+
+    // Determinar si el usuario puede usar el modo Deep Think
+    // Solo disponible para cuentas PRO y roles especiales
+    const canUseThinkingMode = useMemo(() => {
+        const rolesWithThinking = ["SUPERADMIN", "ADMINISTRADOR", "DOCUMENTADOR", "DOCUMENTADOR_JUNIOR"]
+        if (rolesWithThinking.includes(userRole)) {
+            return true
+        }
         return tipoSuscripcion === "PRO"
     }, [userRole, tipoSuscripcion])
 
@@ -872,6 +881,15 @@ export default function ChatHomePage() {
             }
             return [...prev, prompt.label]
         })
+    }, [])
+
+    const handleBadgeRemove = useCallback((item: QuickPrompt & { _parentLabel?: string }) => {
+        const parentLabel = item._parentLabel || item.label
+        if (item.subOptions || item._parentLabel) {
+            setSelectedPrayerType(null)
+            setPrayerSubMenuOpen(false)
+        }
+        setSelectedQuickPrompts((prev) => prev.filter((label) => label !== parentLabel))
     }, [])
 
     const handlePrayerSubOptionSelect = useCallback((parentPrompt: QuickPrompt, subOption: QuickPromptSubOption) => {
@@ -1405,11 +1423,12 @@ export default function ChatHomePage() {
                             disabled={isThinking || !activeChat}
                         />
 
-                        {/* Badges de etiquetas seleccionadas - solo cuando hay mensajes */}
-                        {hasMessages && selectedQuickPromptItems.length > 0 && (
+                        {/* Badges de etiquetas seleccionadas */}
+                        {selectedQuickPromptItems.length > 0 && (
                             <div className="flex flex-wrap items-center gap-2">
                                 {selectedQuickPromptItems.map((item) => {
                                     const Icon = item.icon
+                                    const colorKey = (item as any)._parentLabel || item.label
                                     const categoryColors: Record<string, string> = {
                                         "Dinámicas y Actividades": "border-emerald-500 bg-emerald-100 text-emerald-800 dark:border-emerald-500 dark:bg-emerald-950/60 dark:text-emerald-300",
                                         "Oraciones": "border-violet-500 bg-violet-100 text-violet-800 dark:border-violet-500 dark:bg-violet-950/60 dark:text-violet-300",
@@ -1417,12 +1436,12 @@ export default function ChatHomePage() {
                                         "Programaciones": "border-blue-500 bg-blue-100 text-blue-800 dark:border-blue-500 dark:bg-blue-950/60 dark:text-blue-300",
                                         "Consulta": "border-slate-500 bg-slate-100 text-slate-800 dark:border-slate-500 dark:bg-slate-950/60 dark:text-slate-300",
                                     }
-                                    const colorClass = categoryColors[item.label] || "border-gray-500 bg-gray-100 text-gray-800 dark:border-gray-500 dark:bg-gray-950/60 dark:text-gray-300"
+                                    const colorClass = categoryColors[colorKey] || "border-gray-500 bg-gray-100 text-gray-800 dark:border-gray-500 dark:bg-gray-950/60 dark:text-gray-300"
                                     return (
                                         <button
                                             key={item.label}
                                             type="button"
-                                            onClick={() => handleQuickPromptToggle(item)}
+                                            onClick={() => handleBadgeRemove(item as any)}
                                             className={`flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition hover:opacity-80 ${colorClass}`}
                                         >
                                             <Icon className="h-4 w-4" aria-hidden="true" />
@@ -1583,34 +1602,36 @@ export default function ChatHomePage() {
                             </div>
 
                             <div className="flex shrink-0 items-center gap-2">
-                                {/* Badge Thinking */}
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <button
-                                                type="button"
-                                                onClick={() => setIsThinkingMode(!isThinkingMode)}
-                                                className="transition"
-                                                aria-label={t("tooltips.thinkingMode")}
-                                                aria-pressed={isThinkingMode}
-                                            >
-                                                <Badge
-                                                    className={cn(
-                                                        "cursor-pointer transition-colors",
-                                                        isThinkingMode
-                                                            ? "bg-[#8CC63F] hover:bg-[#7AB62F] text-white border-[#8CC63F]"
-                                                            : "bg-muted text-muted-foreground hover:bg-muted/80 border-border"
-                                                    )}
+                                {/* Badge Thinking - solo para PRO y roles especiales */}
+                                {canUseThinkingMode && (
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIsThinkingMode(!isThinkingMode)}
+                                                    className="transition"
+                                                    aria-label={t("tooltips.thinkingMode")}
+                                                    aria-pressed={isThinkingMode}
                                                 >
-                                                    Deep think
-                                                </Badge>
-                                            </button>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top">
-                                            <p>{t("tooltips.thinkingModeTooltip")}</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
+                                                    <Badge
+                                                        className={cn(
+                                                            "cursor-pointer transition-colors",
+                                                            isThinkingMode
+                                                                ? "bg-[#8CC63F] hover:bg-[#7AB62F] text-white border-[#8CC63F]"
+                                                                : "bg-muted text-muted-foreground hover:bg-muted/80 border-border"
+                                                        )}
+                                                    >
+                                                        Deep think
+                                                    </Badge>
+                                                </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top">
+                                                <p>{t("tooltips.thinkingModeTooltip")}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                )}
 
                                 {/* Badge Canvas - solo para usuarios con herramientas */}
                                 {hasTools && isCanvasMode && (
@@ -2148,14 +2169,6 @@ export default function ChatHomePage() {
                         >
                             <Info className="h-4 w-4" />
                             {t("header.aboutIARPJ")}
-                        </Link>
-                        <div className="h-5 w-px bg-border/60 mx-2" />
-                        <Link
-                            href="/guia-documental"
-                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all"
-                        >
-                            <BookOpenCheck className="h-4 w-4" />
-                            {t("header.documentGuide")}
                         </Link>
                         <div className="h-5 w-px bg-border/60 mx-2" />
                         <Link

@@ -453,13 +453,13 @@
     "remaining": "{count} rimanenti",
     "unlimited": "Illimitato",
     "limitsInfo": "Limiti per gli utenti",
-    "maxChatsInfo": "7 chat archiviati contemporaneamente (inclusi gli archiviati)",
-    "maxIterationsInfo": "5 iterazioni (messaggi al modello IA) per chat",
-    "maxDailyChatsInfo": "3 nuove chat giornaliere",
-    "totalChats": "Chat totali",
-    "dailyChats": "Chat giornaliere",
-    "dailyIterations": "Iterazioni giornaliere",
-    "maxMessagesPerChat": "Max. messaggi per chat"
+    "maxChatsInfo": "7 conversazioni archiviate contemporaneamente (incluse le archiviate)",
+    "maxIterationsInfo": "5 messaggi al modello IA per conversazione",
+    "maxDailyChatsInfo": "3 nuove conversazioni giornaliere",
+    "totalChats": "Conversazioni totali",
+    "dailyChats": "Conversazioni giornaliere",
+    "dailyIterations": "Messaggi giornalieri",
+    "maxMessagesPerChat": "Max. messaggi per conversazione"
   },
   "canvas": {
     "title": "Tela",

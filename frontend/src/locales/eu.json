@@ -453,13 +453,13 @@
     "remaining": "{count} geratzen dira",
     "unlimited": "Mugagabea",
     "limitsInfo": "Erabiltzaileentzako mugak",
-    "maxChatsInfo": "7 txat aldi berean gordeta (artxibatutakoak barne)",
-    "maxIterationsInfo": "5 iterazio (IA modelari mezuak) txat bakoitzeko",
-    "maxDailyChatsInfo": "3 txat berri egunero",
-    "totalChats": "Txat guztiak",
-    "dailyChats": "Eguneko txatak",
-    "dailyIterations": "Eguneko iterazioak",
-    "maxMessagesPerChat": "Geh. mezuak txat bakoitzeko"
+    "maxChatsInfo": "7 elkarrizketa aldi berean gordeta (artxibatutakoak barne)",
+    "maxIterationsInfo": "5 mezu IA modelari elkarrizketa bakoitzeko",
+    "maxDailyChatsInfo": "3 elkarrizketa berri egunero",
+    "totalChats": "Elkarrizketa guztiak",
+    "dailyChats": "Eguneko elkarrizketak",
+    "dailyIterations": "Eguneko mezuak",
+    "maxMessagesPerChat": "Gehienez mezuak elkarrizketa bakoitzeko"
   },
   "canvas": {
     "title": "Mihisea",

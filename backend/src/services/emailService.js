@@ -30,21 +30,21 @@ export function generateRandomPassword(length = 12) {
     const lowercase = 'abcdefghijklmnopqrstuvwxyz';
     const numbers = '0123456789';
     const symbols = '!@#$%&*-_+=';
-    
+
     const allChars = uppercase + lowercase + numbers + symbols;
-    
+
     // Asegurar al menos un carácter de cada tipo
     let password = '';
     password += uppercase[Math.floor(Math.random() * uppercase.length)];
     password += lowercase[Math.floor(Math.random() * lowercase.length)];
     password += numbers[Math.floor(Math.random() * numbers.length)];
     password += symbols[Math.floor(Math.random() * symbols.length)];
-    
+
     // Completar el resto de la longitud
     for (let i = password.length; i < length; i++) {
         password += allChars[Math.floor(Math.random() * allChars.length)];
     }
-    
+
     // Mezclar los caracteres
     return password.split('').sort(() => Math.random() - 0.5).join('');
 }
@@ -53,17 +53,10 @@ export function generateRandomPassword(length = 12) {
  * Carga el logo de RPJ en base64
  * @returns {string|null} Logo en formato base64 o null si no se encuentra
  */
-function getLogoBase64() {
-    try {
-        const logoPath = path.join(__dirname, '../../assets/logo-rpj.png');
-        if (fs.existsSync(logoPath)) {
-            const logoBuffer = fs.readFileSync(logoPath);
-            return `data:image/png;base64,${logoBuffer.toString('base64')}`;
-        }
-    } catch (error) {
-        console.warn('No se pudo cargar el logo RPJ:', error.message);
-    }
-    return null;
+function getLogoUrl() {
+    // Use public URL - Gmail and most email clients block data URIs (base64 inline images)
+    const baseUrl = process.env.FRONTEND_URL || 'https://ia.rpj.es';
+    return `${baseUrl}/Logotipo%20RPJ.jpg`;
 }
 
 /**
@@ -77,9 +70,9 @@ function getLogoBase64() {
  * @returns {string} HTML del email
  */
 function getWelcomeEmailTemplate({ nombre, email, nombreUsuario, password, loginUrl }) {
-    const logoBase64 = getLogoBase64();
+    const logoUrl = getLogoUrl();
     const currentYear = new Date().getFullYear();
-    
+
     return `
 <!DOCTYPE html>
 <html lang="es">
@@ -97,7 +90,7 @@ function getWelcomeEmailTemplate({ nombre, email, nombreUsuario, password, login
                     <!-- Header con logo -->
                     <tr>
                         <td align="center" style="padding: 40px 40px 20px 40px;">
-                            ${logoBase64 ? `<img src="${logoBase64}" alt="Logo RPJ" style="width: 120px; height: 120px; border-radius: 16px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);">` : '<div style="width: 120px; height: 120px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px;"></div>'}
+                            <img src="${logoUrl}" alt="Red Pastoral Juvenil" style="width: 200px; height: auto; border-radius: 8px;">
                         </td>
                     </tr>
                     
@@ -105,7 +98,7 @@ function getWelcomeEmailTemplate({ nombre, email, nombreUsuario, password, login
                     <tr>
                         <td align="center" style="padding: 20px 40px 10px 40px;">
                             <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #1a1a1a; line-height: 1.3;">
-                                ¡Bienvenido a IA RPJ! 🎉
+                                ¡Bienvenido a IA RPJ!
                             </h1>
                         </td>
                     </tr>
@@ -122,28 +115,28 @@ function getWelcomeEmailTemplate({ nombre, email, nombreUsuario, password, login
                     <!-- Credenciales en caja destacada -->
                     <tr>
                         <td style="padding: 0 40px 30px 40px;">
-                            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 30px; color: #ffffff;">
-                                <h2 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600; color: #ffffff;">
-                                    📋 Tus credenciales de acceso
+                            <div style="background-color: #f2f2f2; border-radius: 12px; padding: 30px; color: #1a1a1a;">
+                                <h2 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600; color: #1a1a1a;">
+                                    Tus credenciales de acceso
                                 </h2>
                                 
                                 <table style="width: 100%; border-collapse: collapse;">
                                     <tr>
-                                        <td style="padding: 12px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.2);">
-                                            <div style="font-size: 13px; color: rgba(255, 255, 255, 0.8); margin-bottom: 4px;">Email</div>
-                                            <div style="font-size: 16px; font-weight: 600; color: #ffffff; font-family: 'Courier New', monospace;">${email}</div>
+                                        <td style="padding: 12px 0; border-bottom: 1px solid #dcdcdc;">
+                                            <div style="font-size: 13px; color: #666666; margin-bottom: 4px;">Email</div>
+                                            <div style="font-size: 16px; font-weight: 600; color: #1a1a1a; font-family: 'Courier New', monospace;">${email}</div>
                                         </td>
                                     </tr>
                                     <tr>
-                                        <td style="padding: 12px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.2);">
-                                            <div style="font-size: 13px; color: rgba(255, 255, 255, 0.8); margin-bottom: 4px;">Usuario</div>
-                                            <div style="font-size: 16px; font-weight: 600; color: #ffffff; font-family: 'Courier New', monospace;">${nombreUsuario || email}</div>
+                                        <td style="padding: 12px 0; border-bottom: 1px solid #dcdcdc;">
+                                            <div style="font-size: 13px; color: #666666; margin-bottom: 4px;">Usuario</div>
+                                            <div style="font-size: 16px; font-weight: 600; color: #1a1a1a; font-family: 'Courier New', monospace;">${nombreUsuario || email}</div>
                                         </td>
                                     </tr>
                                     <tr>
                                         <td style="padding: 12px 0;">
-                                            <div style="font-size: 13px; color: rgba(255, 255, 255, 0.8); margin-bottom: 4px;">Contraseña temporal</div>
-                                            <div style="font-size: 18px; font-weight: 700; color: #ffffff; font-family: 'Courier New', monospace; letter-spacing: 1px;">${password}</div>
+                                            <div style="font-size: 13px; color: #666666; margin-bottom: 4px;">Contraseña temporal</div>
+                                            <div style="font-size: 18px; font-weight: 700; color: #1a1a1a; font-family: 'Courier New', monospace; letter-spacing: 1px;">${password}</div>
                                         </td>
                                     </tr>
                                 </table>
@@ -165,7 +158,7 @@ function getWelcomeEmailTemplate({ nombre, email, nombreUsuario, password, login
                     <!-- Botón de acción -->
                     <tr>
                         <td align="center" style="padding: 0 40px 40px 40px;">
-                            <a href="${loginUrl}" style="display: inline-block; padding: 16px 48px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; border-radius: 10px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); transition: transform 0.2s;">
+                            <a href="${loginUrl}" style="display: inline-block; padding: 16px 48px; background-color: #8DC63F; color: #ffffff; text-decoration: none; border-radius: 10px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(141, 198, 63, 0.4);">
                                 Iniciar Sesión →
                             </a>
                         </td>
@@ -192,7 +185,7 @@ function getWelcomeEmailTemplate({ nombre, email, nombreUsuario, password, login
                     <!-- Ayuda -->
                     <tr>
                         <td style="padding: 0 40px 40px 40px; text-align: center;">
-                            <p style="margin: 0; font-size: 14px; color: #718096; line-height: 1.6;">
+                            <p style="margin: 0; font-size: 14px; color: #1a1a1a; line-height: 1.6;">
                                 ¿Necesitas ayuda? Contacta con el administrador o visita nuestra documentación.
                             </p>
                         </td>
@@ -236,9 +229,9 @@ export async function sendWelcomeEmail({ nombre, email, nombreUsuario, password,
             password,
             loginUrl,
         });
-        
+
         const info = await transporter.sendMail({
-            from: `"IA RPJ - Asistente de Pastoral Juvenil" <${process.env.EMAIL_USER || 'noreply@ia.rpj.es'}>`,
+            from: `"${process.env.EMAIL_FROM_NAME || 'IA RPJ - Asistente de Pastoral Juvenil'}" <${process.env.EMAIL_USER || 'noreply@rpj.es'}>`,
             to: email,
             subject: '🎉 Bienvenido a IA RPJ - Tus credenciales de acceso',
             html,
@@ -270,9 +263,9 @@ Inicia sesión aquí: ${loginUrl}
 Este es un correo automático, por favor no respondas a este mensaje.
             `.trim(),
         });
-        
+
         console.log('✅ Email enviado:', info.messageId);
-        
+
         return {
             success: true,
             messageId: info.messageId,
@@ -280,6 +273,175 @@ Este es un correo automático, por favor no respondas a este mensaje.
     } catch (error) {
         console.error('❌ Error al enviar email:', error);
         throw new Error(`Error al enviar email: ${error.message}`);
+    }
+}
+
+/**
+ * Genera el template HTML para el email de recuperación de contraseña
+ */
+function getPasswordResetEmailTemplate({ nombre, email, password, loginUrl }) {
+    const logoUrl = getLogoUrl();
+    const currentYear = new Date().getFullYear();
+
+    return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recuperación de contraseña - IA RPJ</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f5f5f5;">
+        <tr>
+            <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" style="width: 100%; max-width: 600px; border-collapse: collapse; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);">
+                    
+                    <!-- Header con logo -->
+                    <tr>
+                        <td align="center" style="padding: 40px 40px 20px 40px;">
+                            <img src="${logoUrl}" alt="Red Pastoral Juvenil" style="width: 200px; height: auto; border-radius: 8px;">
+                        </td>
+                    </tr>
+                    
+                    <!-- Título -->
+                    <tr>
+                        <td align="center" style="padding: 20px 40px 10px 40px;">
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #1a1a1a; line-height: 1.3;">
+                                Recuperación de contraseña
+                            </h1>
+                        </td>
+                    </tr>
+                    
+                    <!-- Saludo personalizado -->
+                    <tr>
+                        <td style="padding: 10px 40px 30px 40px;">
+                            <p style="margin: 0; font-size: 16px; color: #4a5568; line-height: 1.6; text-align: center;">
+                                Hola <strong style="color: #1a1a1a;">${nombre}</strong>, hemos recibido una solicitud para restablecer tu contraseña.
+                            </p>
+                        </td>
+                    </tr>
+                    
+                    <!-- Credenciales en caja destacada -->
+                    <tr>
+                        <td style="padding: 0 40px 30px 40px;">
+                            <div style="background-color: #f2f2f2; border-radius: 12px; padding: 30px; color: #1a1a1a;">
+                                <h2 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600; color: #1a1a1a;">
+                                    Tu nueva contraseña temporal
+                                </h2>
+                                
+                                <table style="width: 100%; border-collapse: collapse;">
+                                    <tr>
+                                        <td style="padding: 12px 0; border-bottom: 1px solid #dcdcdc;">
+                                            <div style="font-size: 13px; color: #666666; margin-bottom: 4px;">Email</div>
+                                            <div style="font-size: 16px; font-weight: 600; color: #1a1a1a; font-family: 'Courier New', monospace;">${email}</div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 12px 0;">
+                                            <div style="font-size: 13px; color: #666666; margin-bottom: 4px;">Contraseña temporal</div>
+                                            <div style="font-size: 18px; font-weight: 700; color: #1a1a1a; font-family: 'Courier New', monospace; letter-spacing: 1px;">${password}</div>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </td>
+                    </tr>
+                    
+                    <!-- Alerta de seguridad -->
+                    <tr>
+                        <td style="padding: 0 40px 30px 40px;">
+                            <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 16px 20px; border-radius: 8px;">
+                                <p style="margin: 0; font-size: 14px; color: #856404; line-height: 1.6;">
+                                    <strong>⚠️ Importante:</strong> Por tu seguridad, deberás cambiar esta contraseña temporal en tu próximo inicio de sesión.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                    
+                    <!-- Botón de acción -->
+                    <tr>
+                        <td align="center" style="padding: 0 40px 30px 40px;">
+                            <a href="${loginUrl}" style="display: inline-block; padding: 16px 48px; background-color: #8DC63F; color: #ffffff; text-decoration: none; border-radius: 10px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(141, 198, 63, 0.4);">
+                                Iniciar Sesión →
+                            </a>
+                        </td>
+                    </tr>
+                    
+                    <!-- Nota de seguridad -->
+                    <tr>
+                        <td style="padding: 0 40px 40px 40px; text-align: center;">
+                            <p style="margin: 0; font-size: 14px; color: #1a1a1a; line-height: 1.6;">
+                                Si no solicitaste este cambio, ignora este correo. Tu contraseña anterior seguirá siendo válida solo si no usas la nueva.
+                            </p>
+                        </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 30px 40px; background-color: #f8f9fa; border-bottom-left-radius: 16px; border-bottom-right-radius: 16px;">
+                            <p style="margin: 0; font-size: 12px; color: #a0aec0; text-align: center; line-height: 1.6;">
+                                © ${currentYear} Red de Pastoral Juvenil (RPJ). Todos los derechos reservados.<br>
+                                Este es un correo automático, por favor no respondas a este mensaje.
+                            </p>
+                        </td>
+                    </tr>
+                    
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+    `.trim();
+}
+
+/**
+ * Envía un email de recuperación de contraseña
+ * @param {Object} params - Parámetros del email
+ * @param {string} params.nombre - Nombre del usuario
+ * @param {string} params.email - Email del destinatario
+ * @param {string} params.password - Nueva contraseña temporal
+ * @param {string} params.loginUrl - URL de login
+ * @returns {Promise<Object>} Resultado del envío
+ */
+export async function sendPasswordResetEmail({ nombre, email, password, loginUrl = 'https://ia.rpj.es/auth/login' }) {
+    try {
+        const html = getPasswordResetEmailTemplate({ nombre, email, password, loginUrl });
+
+        const info = await transporter.sendMail({
+            from: `"${process.env.EMAIL_FROM_NAME || 'IA RPJ - Asistente de Pastoral Juvenil'}" <${process.env.EMAIL_USER || 'noreply@rpj.es'}>`,
+            to: email,
+            subject: 'Recuperación de contraseña - IA RPJ',
+            html,
+            text: `
+Recuperación de contraseña - IA RPJ
+
+Hola ${nombre},
+
+Hemos recibido una solicitud para restablecer tu contraseña.
+
+Tu nueva contraseña temporal: ${password}
+
+IMPORTANTE: Por tu seguridad, deberás cambiar esta contraseña temporal en tu próximo inicio de sesión.
+
+Inicia sesión aquí: ${loginUrl}
+
+Si no solicitaste este cambio, ignora este correo.
+
+© ${new Date().getFullYear()} Red de Pastoral Juvenil (RPJ). Todos los derechos reservados.
+            `.trim(),
+        });
+
+        console.log('✅ Email de recuperación enviado:', info.messageId);
+
+        return {
+            success: true,
+            messageId: info.messageId,
+        };
+    } catch (error) {
+        console.error('❌ Error al enviar email de recuperación:', error);
+        throw new Error(`Error al enviar email de recuperación: ${error.message}`);
     }
 }
 
@@ -300,6 +462,7 @@ export async function verifyEmailService() {
 
 export default {
     sendWelcomeEmail,
+    sendPasswordResetEmail,
     generateRandomPassword,
     verifyEmailService,
 };

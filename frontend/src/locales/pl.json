@@ -453,13 +453,13 @@
     "remaining": "Pozostało: {count}",
     "unlimited": "Bez limitu",
     "limitsInfo": "Limity dla użytkowników",
-    "maxChatsInfo": "7 czatów przechowywanych jednocześnie (w tym zarchiwizowane)",
-    "maxIterationsInfo": "5 iteracji (wiadomości do modelu AI) na czat",
-    "maxDailyChatsInfo": "3 nowe czaty dziennie",
-    "totalChats": "Łączna liczba czatów",
-    "dailyChats": "Dzienne czaty",
-    "dailyIterations": "Dzienne iteracje",
-    "maxMessagesPerChat": "Maks. wiadomości na czat"
+    "maxChatsInfo": "7 rozmów przechowywanych jednocześnie (w tym zarchiwizowane)",
+    "maxIterationsInfo": "5 wiadomości do modelu AI na rozmowę",
+    "maxDailyChatsInfo": "3 nowe rozmowy dziennie",
+    "totalChats": "Łączna liczba rozmów",
+    "dailyChats": "Dzienne rozmowy",
+    "dailyIterations": "Dzienne wiadomości",
+    "maxMessagesPerChat": "Maks. wiadomości na rozmowę"
   },
   "canvas": {
     "title": "Płótno",

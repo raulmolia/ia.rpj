@@ -1,6 +1,7 @@
 // Servicio para interactuar con Gemma 3 4b It - Asistente de aplicación
 import dotenv from 'dotenv';
 import { getGreeting } from '../config/chatPrompts.js';
+import { callChatCompletion } from './llmService.js';
 
 dotenv.config();
 
@@ -43,7 +44,7 @@ async function callGemma(messages, options = {}) {
         }
 
         const data = await response.json();
-        
+
         if (!data.choices || !data.choices[0] || !data.choices[0].message) {
             throw new Error('Respuesta inválida de Gemma API');
         }
@@ -68,19 +69,35 @@ export async function generateChatTitle(firstMessage) {
 Responde SOLO con el título, sin comillas, sin explicaciones. Debe ser claro y reflejar el tema principal.`;
 
     try {
-        const title = await callGemma([
-            { role: 'user', content: prompt }
-        ], {
+        // Usar el servicio LLM principal (con fallback automático de modelos)
+        const result = await callChatCompletion({
+            messages: [{ role: 'user', content: prompt }],
             temperature: 0.5,
             maxTokens: 50,
+            timeoutMs: 15000,
+            maxRetries: 1,
         });
 
-        // Limpiar el título (quitar comillas, saltos de línea, etc.)
-        const cleanTitle = title.trim().replace(/^["']|["']$/g, '').slice(0, 60);
-        return cleanTitle || 'Nueva conversación';
-    } catch (error) {
-        console.error('Error generando título de chat:', error);
-        return 'Nueva conversación';
+        const title = (result?.content || '').trim().replace(/^["']|["']$/g, '').slice(0, 60);
+        return title || 'Nueva conversación';
+    } catch (primaryError) {
+        console.warn('LLM principal falló para título, intentando Gemma:', primaryError.message);
+
+        // Fallback a Gemma si el LLM principal falla
+        try {
+            const title = await callGemma([
+                { role: 'user', content: prompt }
+            ], {
+                temperature: 0.5,
+                maxTokens: 50,
+            });
+
+            const cleanTitle = title.trim().replace(/^["']|["']$/g, '').slice(0, 60);
+            return cleanTitle || 'Nueva conversación';
+        } catch (gemmaError) {
+            console.error('Error generando título de chat (todos los modelos fallaron):', gemmaError.message);
+            return 'Nueva conversación';
+        }
     }
 }
 
@@ -92,7 +109,7 @@ Responde SOLO con el título, sin comillas, sin explicaciones. Debe ser claro y 
  */
 export async function generateInitialGreeting(userName, intent = null) {
     const intentContext = intent ? `El usuario está interesado en: ${intent}.` : '';
-    
+
     const prompt = `Genera un saludo ultra corto y cálido para ${userName} que acaba de abrir un chat. ${intentContext}
 
 REQUISITOS ESTRICTOS:

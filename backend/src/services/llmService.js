@@ -3,7 +3,7 @@
 
 const CHUTES_API_URL = process.env.CHUTES_API_URL || "https://llm.chutes.ai/v1/chat/completions";
 const CHUTES_API_TOKEN = process.env.CHUTES_API_TOKEN || "";
-const DEFAULT_MODEL = process.env.CHUTES_MODEL || "deepseek-ai/DeepSeek-R1";
+const DEFAULT_MODEL = process.env.CHUTES_MODEL || "moonshotai/Kimi-K2.5-TEE";
 const DEFAULT_MAX_TOKENS = Number.parseInt(process.env.CHUTES_MAX_TOKENS || "128000", 10);
 const DEFAULT_TEMPERATURE = Number.parseFloat(process.env.CHUTES_TEMPERATURE || "0.7");
 const DEFAULT_TIMEOUT_MS = Number.parseInt(process.env.CHUTES_TIMEOUT_MS || "45000", 10);
@@ -11,7 +11,7 @@ const DEFAULT_MAX_RETRIES = Number.parseInt(process.env.CHUTES_MAX_RETRIES || "1
 const DEFAULT_RETRY_DELAY_MS = Number.parseInt(process.env.CHUTES_RETRY_DELAY_MS || "600", 10);
 
 // Modelos de fallback ordenados por preferencia (se prueban si el principal falla)
-const FALLBACK_MODELS = (process.env.CHUTES_FALLBACK_MODELS || "deepseek-ai/DeepSeek-V3,deepseek-ai/DeepSeek-R1-Distill-Llama-70B,Qwen/Qwen3-235B-A22B")
+const FALLBACK_MODELS = (process.env.CHUTES_FALLBACK_MODELS || "deepseek-ai/DeepSeek-R1,deepseek-ai/DeepSeek-V3,Qwen/Qwen3-235B-A22B")
     .split(",")
     .map(m => m.trim())
     .filter(Boolean);
@@ -28,6 +28,7 @@ const MODEL_MAX_COMPLETION_TOKENS = {
     'deepseek-ai/DeepSeek-R1': 65536,
     'deepseek-ai/DeepSeek-R1-0528-TEE': 65536,
     'deepseek-ai/DeepSeek-R1-Distill-Llama-70B': 65536,
+    'tngtech/DeepSeek-R1T-Chimera': 65536,
     'Qwen/Qwen3-235B-A22B': 32768,
     'Qwen/Qwen3-235B-A22B-Instruct-2507-TEE': 65536,
     'Qwen/Qwen2.5-72B-Instruct': 32768,

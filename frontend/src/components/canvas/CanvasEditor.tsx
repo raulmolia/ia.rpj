@@ -5,49 +5,162 @@ import { useEditor, EditorContent } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import Placeholder from "@tiptap/extension-placeholder"
 import Highlight from "@tiptap/extension-highlight"
+import Underline from "@tiptap/extension-underline"
 import { useTranslations } from "next-intl"
 import SelectionPopover from "./SelectionPopover"
 import CanvasToolbar from "./CanvasToolbar"
 import { downloadAsPDF, downloadAsWord } from "@/lib/document-generator"
 
 /**
- * Convert markdown-like text to HTML for TipTap editor.
- * Pure function at module level so it can be used in useEditor initialization.
+ * Simple word-level diff without external dependencies.
+ * Uses the Hunt-McIlroy LCS on words to produce added/removed/equal spans.
+ */
+function simpleWordDiff(oldText: string, newText: string): Array<{ value: string; added?: boolean; removed?: boolean }> {
+    const oldWords = oldText.split(/(\s+)/)
+    const newWords = newText.split(/(\s+)/)
+
+    // LCS (Longest Common Subsequence) via dynamic programming
+    const m = oldWords.length
+    const n = newWords.length
+    const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0))
+    for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+            dp[i][j] = oldWords[i - 1] === newWords[j - 1]
+                ? dp[i - 1][j - 1] + 1
+                : Math.max(dp[i - 1][j], dp[i][j - 1])
+        }
+    }
+
+    // Backtrack to build result
+    const result: Array<{ value: string; added?: boolean; removed?: boolean }> = []
+    let i = m, j = n
+    const stack: Array<{ value: string; added?: boolean; removed?: boolean }> = []
+    while (i > 0 || j > 0) {
+        if (i > 0 && j > 0 && oldWords[i - 1] === newWords[j - 1]) {
+            stack.push({ value: oldWords[i - 1] })
+            i--; j--
+        } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+            stack.push({ value: newWords[j - 1], added: true })
+            j--
+        } else {
+            stack.push({ value: oldWords[i - 1], removed: true })
+            i--
+        }
+    }
+    stack.reverse()
+
+    // Merge consecutive spans of same type
+    for (const item of stack) {
+        const last = result[result.length - 1]
+        if (last && last.added === item.added && last.removed === item.removed) {
+            last.value += item.value
+        } else {
+            result.push({ ...item })
+        }
+    }
+    return result
+}
+
+/**
+ * Convert markdown text to HTML for TipTap editor.
+ * Handles headings (h1-h4), lists, bold, italic, underline, and line breaks.
  */
 function convertMarkdownToHtml(text: string): string {
     if (!text) return "<p></p>"
     if (text.startsWith("<")) return text // Already HTML
-    return text
-        .split("\n\n")
-        .map((block) => {
-            const trimmed = block.trim()
-            if (!trimmed) return ""
-            if (trimmed.startsWith("### ")) return `<h3>${trimmed.slice(4)}</h3>`
-            if (trimmed.startsWith("## ")) return `<h2>${trimmed.slice(3)}</h2>`
-            if (trimmed.startsWith("# ")) return `<h1>${trimmed.slice(2)}</h1>`
-            if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
-                const items = trimmed
-                    .split("\n")
-                    .filter((l) => l.trim().startsWith("- ") || l.trim().startsWith("* "))
-                    .map((l) => `<li>${l.replace(/^[\s]*[-*]\s/, "")}</li>`)
-                    .join("")
-                return `<ul>${items}</ul>`
+
+    // Process line by line to preserve structure
+    const lines = text.split("\n")
+    let html = ""
+    let inUl = false
+    let inOl = false
+
+    const closeList = () => {
+        if (inUl) { html += "</ul>"; inUl = false }
+        if (inOl) { html += "</ol>"; inOl = false }
+    }
+
+    const processInline = (line: string): string => {
+        return line
+            .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+            .replace(/\*(.+?)\*/g, "<em>$1</em>")
+            .replace(/__(.+?)__/g, "<u>$1</u>")
+    }
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]
+        const trimmed = line.trim()
+
+        // Empty line → close any open list, add paragraph break
+        if (!trimmed) {
+            closeList()
+            continue
+        }
+
+        // Headings
+        if (trimmed.startsWith("#### ")) {
+            closeList()
+            html += `<h4>${processInline(trimmed.slice(5))}</h4>`
+            continue
+        }
+        if (trimmed.startsWith("### ")) {
+            closeList()
+            html += `<h3>${processInline(trimmed.slice(4))}</h3>`
+            continue
+        }
+        if (trimmed.startsWith("## ")) {
+            closeList()
+            html += `<h2>${processInline(trimmed.slice(3))}</h2>`
+            continue
+        }
+        if (trimmed.startsWith("# ")) {
+            closeList()
+            html += `<h1>${processInline(trimmed.slice(2))}</h1>`
+            continue
+        }
+
+        // Unordered list items
+        if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+            if (inOl) { html += "</ol>"; inOl = false }
+            if (!inUl) { html += "<ul>"; inUl = true }
+            html += `<li>${processInline(trimmed.replace(/^[-*]\s/, ""))}</li>`
+            continue
+        }
+
+        // Ordered list items
+        if (/^\d+\.\s/.test(trimmed)) {
+            if (inUl) { html += "</ul>"; inUl = false }
+            if (!inOl) { html += "<ol>"; inOl = true }
+            html += `<li>${processInline(trimmed.replace(/^\d+\.\s/, ""))}</li>`
+            continue
+        }
+
+        // Regular paragraph text
+        closeList()
+
+        // Check if next line is also a non-empty non-special line (continuation)
+        // Group consecutive plain text lines into one <p> with <br> between them
+        let paragraphLines = [processInline(trimmed)]
+        while (i + 1 < lines.length) {
+            const nextTrimmed = lines[i + 1].trim()
+            if (
+                !nextTrimmed ||
+                nextTrimmed.startsWith("#") ||
+                nextTrimmed.startsWith("- ") ||
+                nextTrimmed.startsWith("* ") ||
+                /^\d+\.\s/.test(nextTrimmed)
+            ) {
+                break
             }
-            if (/^\d+\.\s/.test(trimmed)) {
-                const items = trimmed
-                    .split("\n")
-                    .filter((l) => /^\s*\d+\.\s/.test(l))
-                    .map((l) => `<li>${l.replace(/^\s*\d+\.\s/, "")}</li>`)
-                    .join("")
-                return `<ol>${items}</ol>`
-            }
-            let html = trimmed
-                .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-                .replace(/\*(.+?)\*/g, "<em>$1</em>")
-            return `<p>${html}</p>`
-        })
-        .filter(Boolean)
-        .join("")
+            i++
+            paragraphLines.push(processInline(nextTrimmed))
+        }
+
+        html += `<p>${paragraphLines.join("<br>")}</p>`
+    }
+
+    closeList()
+    return html || "<p></p>"
 }
 
 export interface CanvasVersion {
@@ -85,11 +198,12 @@ export default function CanvasEditor({
     // Refs to track external content updates and prevent feedback loops
     const lastExternalContentRef = useRef(initialContent)
     const isExternalUpdateRef = useRef(false)
+    const isUserEditRef = useRef(false)
 
     const editor = useEditor({
         extensions: [
             StarterKit.configure({
-                heading: { levels: [1, 2, 3] },
+                heading: { levels: [1, 2, 3, 4] },
             }),
             Placeholder.configure({
                 placeholder: t("editPlaceholder"),
@@ -97,34 +211,47 @@ export default function CanvasEditor({
             Highlight.configure({
                 multicolor: true,
             }),
+            Underline,
         ],
         content: convertMarkdownToHtml(initialContent), // FIX Bug 1: convert markdown to HTML
         editorProps: {
             attributes: {
-                class: "prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[300px] px-6 py-4",
+                class: "prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[300px] px-16 py-8",
             },
         },
         onUpdate: ({ editor }) => {
-            // FIX Bug 3: don't report back when content was set externally (prevents loop)
+            // Don't report back when content was set externally (prevents loop)
             if (isExternalUpdateRef.current) {
                 isExternalUpdateRef.current = false
                 return
             }
+            // Mark this as a user-initiated edit so the initialContent sync effect
+            // doesn't reset the editor when the parent feeds the value back.
+            isUserEditRef.current = true
             onContentChange?.(editor.getText())
         },
     })
 
-    // FIX Bug 3: Sync editor when initialContent prop changes (from transform API result)
+    // Sync editor when initialContent prop changes (from transform API result)
     useEffect(() => {
         if (!editor) return
         if (initialContent === lastExternalContentRef.current) return
+
+        // If this change came from the user editing the editor (onUpdate → parent → back here),
+        // just update the ref without resetting the editor content or adding a version.
+        if (isUserEditRef.current) {
+            isUserEditRef.current = false
+            lastExternalContentRef.current = initialContent
+            return
+        }
+
         lastExternalContentRef.current = initialContent
 
         // Set content in editor, suppressing the onUpdate callback
         isExternalUpdateRef.current = true
         editor.commands.setContent(convertMarkdownToHtml(initialContent))
 
-        // Add as new version
+        // Add as new version (only for real external changes like transform results)
         const newVersion: CanvasVersion = { content: initialContent, timestamp: Date.now() }
         setVersions((prev) => {
             const next = [...prev, newVersion]
@@ -144,7 +271,10 @@ export default function CanvasEditor({
         }
     }, [currentVersionIndex, versions, editor])
 
-    // FIX Bug 2: Use mouseup on container for reliable selection detection
+    // Ref to the popover wrapper so we can check containment without querying the DOM
+    const popoverWrapperRef = useRef<HTMLDivElement>(null)
+
+    // Selection detection: listen for mouseup on the editor container
     useEffect(() => {
         const container = editorContainerRef.current
         if (!container) return
@@ -170,21 +300,36 @@ export default function CanvasEditor({
             }, 10)
         }
 
-        // Dismiss popover when clicking outside (but not on the popover itself)
-        const handleMouseDown = (e: MouseEvent) => {
-            const popover = document.querySelector("[data-canvas-popover]")
-            if (popover && popover.contains(e.target as Node)) return
+        container.addEventListener("mouseup", handleMouseUp)
+        return () => {
+            container.removeEventListener("mouseup", handleMouseUp)
+        }
+    }, [])
+
+    // Close popover when clicking inside the EDITOR container (not on the popover).
+    // We use a native capture-phase listener on document so it fires before React.
+    // This checks our popoverWrapperRef to avoid closing when clicking inside the popover.
+    useEffect(() => {
+        const handleDocumentMouseDown = (e: MouseEvent) => {
+            // If popover is not visible, nothing to do
+            if (!popoverPosition) return
+
+            // If click is inside the popover wrapper, don't close
+            if (popoverWrapperRef.current && popoverWrapperRef.current.contains(e.target as Node)) {
+                return
+            }
+
+            // Click was outside the popover → close it
             setPopoverPosition(null)
             setSelectedText("")
         }
 
-        container.addEventListener("mouseup", handleMouseUp)
-        document.addEventListener("mousedown", handleMouseDown)
+        // Use capture phase so it fires before any React synthetic event
+        document.addEventListener("mousedown", handleDocumentMouseDown, true)
         return () => {
-            container.removeEventListener("mouseup", handleMouseUp)
-            document.removeEventListener("mousedown", handleMouseDown)
+            document.removeEventListener("mousedown", handleDocumentMouseDown, true)
         }
-    }, [])
+    }, [popoverPosition])
 
     const addVersion = useCallback(
         (content: string) => {
@@ -247,17 +392,17 @@ export default function CanvasEditor({
         downloadAsWord(editor.getText(), `lienzo-${Date.now()}.docx`)
     }, [editor])
 
-    // Diff view rendering (dynamic import to avoid SSR regex crash)
+    // Diff view rendering using inline word-diff (no external dependency)
     const [diffHtml, setDiffHtml] = useState<string | null>(null)
     useEffect(() => {
         if (!showDiff || versions.length < 2 || currentVersionIndex === 0) {
             setDiffHtml(null)
             return
         }
-        const prev = versions[currentVersionIndex - 1].content
-        const curr = versions[currentVersionIndex].content
-        import("diff").then(({ diffWords }) => {
-            const changes = diffWords(prev, curr)
+        try {
+            const prev = versions[currentVersionIndex - 1].content
+            const curr = versions[currentVersionIndex].content
+            const changes = simpleWordDiff(prev, curr)
             const html = changes
                 .map((part) => {
                     if (part.added) {
@@ -270,7 +415,10 @@ export default function CanvasEditor({
                 })
                 .join("")
             setDiffHtml(html)
-        })
+        } catch {
+            // Fallback if diff fails
+            setDiffHtml(`<p>${versions[currentVersionIndex].content}</p>`)
+        }
     }, [showDiff, versions, currentVersionIndex])
 
     return (
@@ -291,9 +439,32 @@ export default function CanvasEditor({
 
             <div
                 ref={editorContainerRef}
-                className="flex-1 overflow-y-auto"
+                className="flex-1 overflow-y-auto canvas-editor-container"
                 data-canvas-editor
+                style={{
+                    // Ensure text selection is clearly visible
+                }}
             >
+                <style>{`
+                    .canvas-editor-container .ProseMirror::selection,
+                    .canvas-editor-container .ProseMirror *::selection {
+                        background-color: rgba(141, 198, 63, 0.35) !important;
+                        color: inherit !important;
+                    }
+                    .canvas-editor-container .ProseMirror:focus ::selection {
+                        background-color: rgba(141, 198, 63, 0.45) !important;
+                    }
+                    /* Keep selection visible even when input in popover has focus */
+                    .canvas-editor-container .ProseMirror {
+                        caret-color: currentColor;
+                    }
+                    .canvas-editor-container .ProseMirror h4 {
+                        font-size: 1rem;
+                        font-weight: 600;
+                        margin-top: 1.25em;
+                        margin-bottom: 0.5em;
+                    }
+                `}</style>
                 {showDiff && diffHtml ? (
                     <div
                         className="prose prose-sm dark:prose-invert max-w-none px-6 py-4 whitespace-pre-wrap"
@@ -304,7 +475,7 @@ export default function CanvasEditor({
                 )}
             </div>
 
-            <div data-canvas-popover>
+            <div ref={popoverWrapperRef} data-canvas-popover>
                 <SelectionPopover
                     position={popoverPosition}
                     selectedText={selectedText}
@@ -314,6 +485,7 @@ export default function CanvasEditor({
                         setSelectedText("")
                     }}
                     isTransforming={isTransforming}
+                    editor={editor}
                 />
             </div>
         </div>

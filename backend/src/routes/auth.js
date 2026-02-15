@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import prismaPackage from '@prisma/client';
 import { authenticate, authorize, getRolePriority } from '../middleware/auth.js';
-import { sendWelcomeEmail, generateRandomPassword } from '../services/emailService.js';
+import { sendWelcomeEmail, sendPasswordResetEmail, generateRandomPassword } from '../services/emailService.js';
 
 const { PrismaClient } = prismaPackage;
 const PrismaEnums = prismaPackage.$Enums || {};
@@ -158,6 +158,155 @@ router.post('/login', async (req, res) => {
     }
 });
 
+// ──────────────────────────────────────────────────
+// POST /api/auth/register — Registro público (USUARIO / FREE)
+// ──────────────────────────────────────────────────
+router.post('/register', async (req, res) => {
+    const { email, nombre, apellidos, telefono, organizacion, cargo } = req.body || {};
+
+    if (!email || !nombre || !apellidos) {
+        return res.status(400).json({
+            error: 'Datos incompletos',
+            message: 'Email, nombre y apellidos son obligatorios',
+        });
+    }
+
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        return res.status(400).json({
+            error: 'Email inválido',
+            message: 'El formato del email no es válido',
+        });
+    }
+
+    try {
+        // Verificar que el email no existe ya
+        const existing = await prisma.usuario.findUnique({ where: { email } });
+        if (existing) {
+            return res.status(409).json({
+                error: 'Email duplicado',
+                message: 'Ya existe una cuenta con ese correo electrónico',
+            });
+        }
+
+        const generatedPassword = generateRandomPassword(12);
+        const hashedPassword = await bcrypt.hash(generatedPassword, DEFAULT_PASSWORD_ROUNDS);
+
+        const newUser = await prisma.usuario.create({
+            data: {
+                email,
+                passwordHash: hashedPassword,
+                nombre,
+                apellidos: apellidos || null,
+                nombreUsuario: email.split('@')[0],
+                telefono: telefono || null,
+                organizacion: organizacion || null,
+                cargo: cargo || null,
+                rol: Rol.USUARIO || DEFAULT_ROLES.USUARIO,
+                tipoSuscripcion: 'FREE',
+                debeCambiarPassword: true,
+                activo: true,
+            },
+        });
+
+        // Enviar email de bienvenida
+        try {
+            await sendWelcomeEmail({
+                nombre: newUser.nombre,
+                email: newUser.email,
+                nombreUsuario: newUser.email,
+                password: generatedPassword,
+                loginUrl: process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/auth/login` : 'https://ia.rpj.es/auth/login',
+            });
+
+            return res.status(201).json({
+                message: 'Cuenta creada correctamente. Revisa tu correo electrónico para obtener tu contraseña.',
+                emailSent: true,
+            });
+        } catch (emailError) {
+            console.error('Error enviando email de bienvenida (registro público):', emailError);
+            // Usuario creado pero email falló — eliminamos el usuario para no dejarlo sin acceso
+            await prisma.usuario.delete({ where: { id: newUser.id } });
+            return res.status(500).json({
+                error: 'Error enviando email',
+                message: 'No se pudo enviar el correo con las credenciales. Inténtalo de nuevo más tarde.',
+            });
+        }
+    } catch (error) {
+        if (error.code === 'P2002') {
+            return res.status(409).json({
+                error: 'Email duplicado',
+                message: 'Ya existe una cuenta con ese correo electrónico',
+            });
+        }
+
+        console.error('Error en registro público:', error);
+        return res.status(500).json({
+            error: 'Error interno',
+            message: 'Error al crear la cuenta. Inténtalo de nuevo más tarde.',
+        });
+    }
+});
+
+// ──────────────────────────────────────────────────
+// POST /api/auth/forgot-password — Recuperación de contraseña
+// ──────────────────────────────────────────────────
+router.post('/forgot-password', async (req, res) => {
+    const { email } = req.body || {};
+
+    if (!email) {
+        return res.status(400).json({
+            error: 'Datos incompletos',
+            message: 'Debes proporcionar tu correo electrónico',
+        });
+    }
+
+    try {
+        const user = await prisma.usuario.findUnique({ where: { email } });
+
+        // Siempre responder con éxito para evitar enumeración de usuarios
+        if (!user || !user.activo) {
+            return res.json({
+                message: 'Si el correo está registrado, recibirás un email con tu nueva contraseña.',
+            });
+        }
+
+        const newPassword = generateRandomPassword(12);
+        const hashedPassword = await bcrypt.hash(newPassword, DEFAULT_PASSWORD_ROUNDS);
+
+        await prisma.usuario.update({
+            where: { id: user.id },
+            data: {
+                passwordHash: hashedPassword,
+                debeCambiarPassword: true,
+            },
+        });
+
+        try {
+            await sendPasswordResetEmail({
+                nombre: user.nombre,
+                email: user.email,
+                password: newPassword,
+                loginUrl: process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/auth/login` : 'https://ia.rpj.es/auth/login',
+            });
+        } catch (emailError) {
+            console.error('Error enviando email de recuperación:', emailError);
+            // Aún así respondemos éxito para no revelar información
+        }
+
+        return res.json({
+            message: 'Si el correo está registrado, recibirás un email con tu nueva contraseña.',
+        });
+    } catch (error) {
+        console.error('Error en forgot-password:', error);
+        return res.status(500).json({
+            error: 'Error interno',
+            message: 'Error al procesar la solicitud. Inténtalo de nuevo más tarde.',
+        });
+    }
+});
+
 router.post('/logout', authenticate, async (req, res) => {
     try {
         await prisma.sesion.updateMany({
@@ -304,14 +453,14 @@ router.post('/users', authenticate, authorize(['ADMINISTRADOR']), async (req, re
 
     try {
         const assignedRole = resolveRole(rol, req.user.rol);
-        
+
         // Validar tipo de suscripción
         const validSubscription = ['FREE', 'PRO'].includes(tipoSuscripcion) ? tipoSuscripcion : 'FREE';
-        
+
         // Si no se proporciona contraseña, generar una aleatoria
         const generatedPassword = password || generateRandomPassword(12);
         const hashedPassword = await bcrypt.hash(generatedPassword, DEFAULT_PASSWORD_ROUNDS);
-        
+
         // Si se genera contraseña automáticamente, el usuario debe cambiarla
         const mustChangePassword = !password;
 
@@ -331,7 +480,7 @@ router.post('/users', authenticate, authorize(['ADMINISTRADOR']), async (req, re
                 debeCambiarPassword: mustChangePassword,
             },
         });
-        
+
         // Enviar email de bienvenida si se solicita o si se generó contraseña automática
         if (enviarEmail !== false && mustChangePassword) {
             try {
@@ -342,7 +491,7 @@ router.post('/users', authenticate, authorize(['ADMINISTRADOR']), async (req, re
                     password: generatedPassword,
                     loginUrl: process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/auth/login` : 'https://ia.rpj.es/auth/login',
                 });
-                
+
                 return res.status(201).json({
                     message: 'Usuario creado correctamente. Se ha enviado un email con las credenciales.',
                     user: sanitizeUser(newUser),
@@ -350,7 +499,7 @@ router.post('/users', authenticate, authorize(['ADMINISTRADOR']), async (req, re
                 });
             } catch (emailError) {
                 console.error('Error enviando email de bienvenida:', emailError);
-                
+
                 // Usuario creado pero email falló - devolver contraseña en respuesta
                 return res.status(201).json({
                     message: 'Usuario creado correctamente, pero no se pudo enviar el email.',
@@ -475,7 +624,7 @@ router.put('/users/:id', authenticate, authorize(['ADMINISTRADOR']), async (req,
     try {
         // Verificar que el usuario a editar existe y obtener su rol actual
         const targetUser = await prisma.usuario.findUnique({ where: { id } });
-        
+
         if (!targetUser) {
             return res.status(404).json({
                 error: 'Usuario no encontrado',

@@ -453,13 +453,13 @@
     "remaining": "{count} remaining",
     "unlimited": "Unlimited",
     "limitsInfo": "Limits for users",
-    "maxChatsInfo": "7 chats stored simultaneously (including archived)",
-    "maxIterationsInfo": "5 iterations (messages to AI model) per chat",
-    "maxDailyChatsInfo": "3 new chats daily",
-    "totalChats": "Total chats",
-    "dailyChats": "Daily chats",
-    "dailyIterations": "Daily iterations",
-    "maxMessagesPerChat": "Max. messages per chat"
+    "maxChatsInfo": "7 conversations stored simultaneously (including archived)",
+    "maxIterationsInfo": "5 messages to AI model per conversation",
+    "maxDailyChatsInfo": "3 new conversations daily",
+    "totalChats": "Total conversations",
+    "dailyChats": "Daily conversations",
+    "dailyIterations": "Daily messages",
+    "maxMessagesPerChat": "Max. messages per conversation"
   },
   "canvas": {
     "title": "Canvas",

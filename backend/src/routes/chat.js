@@ -338,24 +338,24 @@ async function validateUserLimits(userId, userRole, conversationId = null, tipoS
         }
     }
 
-    // Validar límite de chats diarios (solo si es nueva conversación)
+    // Validar límite de conversaciones diarias (solo si es nueva conversación)
     if (!conversationId && limits.maxDailyChats) {
         if (stats.dailyChats.current >= limits.maxDailyChats) {
             return {
                 allowed: false,
                 reason: 'MAX_DAILY_CHATS',
-                message: `Has alcanzado el límite de ${limits.maxDailyChats} chats diarios. Vuelve mañana para crear más.`,
+                message: `Has alcanzado el límite de ${limits.maxDailyChats} conversaciones diarias. Vuelve mañana para crear más.`,
             };
         }
     }
 
-    // Validar límite diario
+    // Validar límite diario de mensajes
     if (limits.maxDailyInteractions) {
         if (stats.dailyInteractions.current >= limits.maxDailyInteractions) {
             return {
                 allowed: false,
                 reason: 'MAX_DAILY_INTERACTIONS',
-                message: `Has alcanzado el límite diario de ${limits.maxDailyInteractions} interacciones. Vuelve mañana.`,
+                message: `Has alcanzado el límite diario de ${limits.maxDailyInteractions} mensajes. Vuelve mañana.`,
             };
         }
     }
@@ -619,7 +619,7 @@ router.post('/', authenticate, async (req, res) => {
         try {
             llmResponse = await callChatCompletion({
                 messages: llmMessages,
-                model: useThinkingModel === true ? 'moonshotai/Kimi-K2-Thinking' : undefined,
+                model: useThinkingModel === true ? 'tngtech/DeepSeek-R1T-Chimera' : undefined,
             });
         } catch (error) {
             throw new Error(`El modelo no pudo generar una respuesta: ${error.message}`);

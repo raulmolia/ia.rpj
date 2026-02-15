@@ -453,13 +453,13 @@
     "remaining": "{count} restants",
     "unlimited": "Il·limitat",
     "limitsInfo": "Límits per a usuaris",
-    "maxChatsInfo": "7 xats emmagatzemats simultàniament (inclosos arxivats)",
-    "maxIterationsInfo": "5 iteracions (missatges al model d'IA) per xat",
-    "maxDailyChatsInfo": "3 xats nous diaris",
-    "totalChats": "Xats totals",
-    "dailyChats": "Xats diaris",
-    "dailyIterations": "Iteracions diàries",
-    "maxMessagesPerChat": "Màx. missatges per xat"
+    "maxChatsInfo": "7 converses emmagatzemades simultàniament (incloses arxivades)",
+    "maxIterationsInfo": "5 missatges al model d'IA per conversa",
+    "maxDailyChatsInfo": "3 converses noves diàries",
+    "totalChats": "Converses totals",
+    "dailyChats": "Converses diàries",
+    "dailyIterations": "Missatges diaris",
+    "maxMessagesPerChat": "Màx. missatges per conversa"
   },
   "canvas": {
     "title": "Llenç",

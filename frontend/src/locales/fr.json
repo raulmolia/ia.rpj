@@ -453,13 +453,13 @@
     "remaining": "{count} restants",
     "unlimited": "Illimité",
     "limitsInfo": "Limites pour les utilisateurs",
-    "maxChatsInfo": "7 chats stockés simultanément (y compris archivés)",
-    "maxIterationsInfo": "5 itérations (messages au modèle IA) par chat",
-    "maxDailyChatsInfo": "3 nouveaux chats quotidiens",
-    "totalChats": "Chats totaux",
-    "dailyChats": "Chats quotidiens",
-    "dailyIterations": "Itérations quotidiennes",
-    "maxMessagesPerChat": "Max. messages par chat"
+    "maxChatsInfo": "7 conversations stockées simultanément (y compris archivées)",
+    "maxIterationsInfo": "5 messages au modèle IA par conversation",
+    "maxDailyChatsInfo": "3 nouvelles conversations quotidiennes",
+    "totalChats": "Conversations totales",
+    "dailyChats": "Conversations quotidiennes",
+    "dailyIterations": "Messages quotidiens",
+    "maxMessagesPerChat": "Max. messages par conversation"
   },
   "canvas": {
     "title": "Toile",

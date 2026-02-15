@@ -453,13 +453,13 @@
     "remaining": "{count} maradt",
     "unlimited": "Korlátlan",
     "limitsInfo": "Felhasználói korlátok",
-    "maxChatsInfo": "7 chat egyidejűleg tárolva (beleértve az archivált)",
-    "maxIterationsInfo": "5 iteráció (üzenetek az AI modellnek) chatonként",
-    "maxDailyChatsInfo": "3 új chat naponta",
-    "totalChats": "Összes chat",
-    "dailyChats": "Napi chatok",
-    "dailyIterations": "Napi iterációk",
-    "maxMessagesPerChat": "Max. üzenetek chatonként"
+    "maxChatsInfo": "7 beszélgetés egyidejűleg tárolva (beleértve az archivált)",
+    "maxIterationsInfo": "5 üzenet az AI modellnek beszélgetésenként",
+    "maxDailyChatsInfo": "3 új beszélgetés naponta",
+    "totalChats": "Összes beszélgetés",
+    "dailyChats": "Napi beszélgetések",
+    "dailyIterations": "Napi üzenetek",
+    "maxMessagesPerChat": "Max. üzenetek beszélgetésenként"
   },
   "canvas": {
     "title": "Vászon",
