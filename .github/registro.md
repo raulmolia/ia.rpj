@@ -1,5 +1,14 @@
 # Registro de Desarrollo - Asistente IA para Actividades Juveniles
 
+## Actualización 16 de febrero de 2026 - Logotipo RPJ en página de autenticación
+- 🖼️ **Logotipo RPJ**: Añadido logotipo oficial de Red Pastoral Juvenil (`LogotipoRPJ.png`) sobre el diálogo de autenticación
+- 📝 **Título descriptivo**: Texto "Asistente de IA de Pastoral Juvenil RPJ" debajo del logotipo, centrado y con estilo destacado
+- 🔧 **Implementación técnica**: Uso de componente `Image` de Next.js con prioridad de carga y dimensiones optimizadas (220px)
+- 🎨 **Diseño**: Logo y texto centrados sobre la tarjeta de login con separación visual (`mb-6`, `gap-3`)
+- 📁 **Archivos modificados**: `frontend/src/app/auth/login/page.tsx`
+- 🚀 **Sincronización dual**: Cambios propagados a ambos repos (asistente-ia-juvenil e ia.rpj)
+- 📊 **Fase 19**: Branding de la página de autenticación con identidad visual RPJ
+
 ## Actualización 11 de febrero de 2026 - Sistema Canvas para edición iterativa y prompts especializados
 - 🎨 **Canvas Feature**: Sistema de edición iterativa para transformar respuestas del asistente usando IA
 - 🔧 **Backend API Canvas**: Nuevo endpoint `POST /api/canvas/transform` para transformaciones de contenido completo o parcial

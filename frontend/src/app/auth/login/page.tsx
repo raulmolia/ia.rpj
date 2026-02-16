@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { Loader2, LogIn, UserPlus, KeyRound, Mail } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -150,6 +151,21 @@ export default function LoginPage() {
 
     return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-muted px-4 py-12">
+            {/* ── Logotipo RPJ ── */}
+            <div className="mb-6 flex flex-col items-center gap-3">
+                <Image
+                    src="/LogotipoRPJ.png"
+                    alt="Logotipo Red Pastoral Juvenil"
+                    width={220}
+                    height={80}
+                    priority
+                    className="h-auto w-[220px]"
+                />
+                <p className="text-center text-lg font-medium text-foreground">
+                    Asistente de IA de Pastoral Juvenil RPJ
+                </p>
+            </div>
+
             {/* ── Tarjeta de login ── */}
             <div className="w-full max-w-md space-y-8 rounded-xl border border-border bg-background p-8 shadow-lg">
                 <div className="space-y-2 text-center">
