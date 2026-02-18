@@ -3,15 +3,15 @@
 
 const CHUTES_API_URL = process.env.CHUTES_API_URL || "https://llm.chutes.ai/v1/chat/completions";
 const CHUTES_API_TOKEN = process.env.CHUTES_API_TOKEN || "";
-const DEFAULT_MODEL = process.env.CHUTES_MODEL || "moonshotai/Kimi-K2.5-TEE";
-const DEFAULT_MAX_TOKENS = Number.parseInt(process.env.CHUTES_MAX_TOKENS || "128000", 10);
+const DEFAULT_MODEL = process.env.CHUTES_MODEL || "Qwen/Qwen3-235B-A22B";
+const DEFAULT_MAX_TOKENS = Number.parseInt(process.env.CHUTES_MAX_TOKENS || "8192", 10);
 const DEFAULT_TEMPERATURE = Number.parseFloat(process.env.CHUTES_TEMPERATURE || "0.7");
-const DEFAULT_TIMEOUT_MS = Number.parseInt(process.env.CHUTES_TIMEOUT_MS || "45000", 10);
-const DEFAULT_MAX_RETRIES = Number.parseInt(process.env.CHUTES_MAX_RETRIES || "1", 10);
-const DEFAULT_RETRY_DELAY_MS = Number.parseInt(process.env.CHUTES_RETRY_DELAY_MS || "600", 10);
+const DEFAULT_TIMEOUT_MS = Number.parseInt(process.env.CHUTES_TIMEOUT_MS || "120000", 10);
+const DEFAULT_MAX_RETRIES = Number.parseInt(process.env.CHUTES_MAX_RETRIES || "2", 10);
+const DEFAULT_RETRY_DELAY_MS = Number.parseInt(process.env.CHUTES_RETRY_DELAY_MS || "1000", 10);
 
 // Modelos de fallback ordenados por preferencia (se prueban si el principal falla)
-const FALLBACK_MODELS = (process.env.CHUTES_FALLBACK_MODELS || "deepseek-ai/DeepSeek-R1,deepseek-ai/DeepSeek-V3,Qwen/Qwen3-235B-A22B")
+const FALLBACK_MODELS = (process.env.CHUTES_FALLBACK_MODELS || "deepseek-ai/DeepSeek-R1,Qwen/Qwen3-235B-A22B,deepseek-ai/DeepSeek-V3-0324")
     .split(",")
     .map(m => m.trim())
     .filter(Boolean);
@@ -110,7 +110,24 @@ async function tryModelCompletion({
             }
 
             const data = await response.json();
-            const content = data?.choices?.[0]?.message?.content?.trim();
+            const message = data?.choices?.[0]?.message;
+            let content = message?.content?.trim() || '';
+
+            // Algunos modelos de razonamiento (R1, Qwen3) envuelven la respuesta en <think>...</think>
+            // Limpiar etiquetas de pensamiento: manejar tanto pares completos como tags sin cerrar
+            if (content) {
+                // Primero eliminar bloques <think>...</think> completos
+                content = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+                // Luego eliminar <think> sin cierre (todo desde <think> hasta el inicio del contenido real)
+                content = content.replace(/^<think>[\s\S]*$/gi, '').trim();
+                // Eliminar tags sueltos que puedan quedar
+                content = content.replace(/<\/?think>/gi, '').trim();
+            }
+
+            // Si content está vacío, intentar extraer de reasoning_content (modelos thinking)
+            if (!content && message?.reasoning_content) {
+                content = message.reasoning_content.trim();
+            }
 
             if (!content) {
                 throw new Error("La respuesta de Chutes AI no contiene contenido");
@@ -166,6 +183,10 @@ function shouldTryFallback(error) {
     }
     // Límites de tokens/contexto: recuperable con un modelo diferente
     if (msg.includes('max_completion_tokens') || msg.includes('context length') || msg.includes('too large') || msg.includes('token count exceeds')) {
+        return true;
+    }
+    // Respuesta vacía: el modelo respondió pero sin contenido útil
+    if (msg.includes('no contiene contenido')) {
         return true;
     }
     return false;

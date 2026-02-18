@@ -180,7 +180,24 @@ function buildContextFromChroma(results = []) {
             .join('\n');
     });
 
-    return `Contexto documental relevante:\n\n${sections.join('\n\n')}\n\nUsa estas referencias para complementar la respuesta sin copiar literalmente. No inventes datos.`;
+    // Extraer nombres resumidos de las fuentes para la cita final
+    const sourceNames = limited
+        .map(item => {
+            const title = item?.metadata?.titulo || '';
+            const url = item?.metadata?.url || item?.metadata?.pagina_url || '';
+            if (title) return title;
+            if (url) {
+                try { return new URL(url).hostname.replace('www.', ''); } catch { return url; }
+            }
+            return null;
+        })
+        .filter(Boolean);
+
+    const sourceHint = sourceNames.length > 0
+        ? `\n\n**CITA DE FUENTES:** Al final de tu respuesta, añade una línea en cursiva entre paréntesis que diga "Inspirado en" seguido de una mención natural y breve de las fuentes que hayas utilizado. No numeres las fuentes, no uses sus títulos íntegros, reformúlalas de forma natural. Ejemplo: *(Inspirado en materiales de pastoral juvenil y recursos de animación comunitaria)*. Si no has utilizado ninguna fuente del contexto, no añadas esta línea.`
+        : '';
+
+    return `Contexto documental relevante:\n\n${sections.join('\n\n')}\n\nUsa estas referencias para complementar la respuesta sin copiar literalmente. No inventes datos.${sourceHint}`;
 }
 
 function logChatEvent(level = 'info', payload = {}) {
@@ -624,6 +641,12 @@ router.post('/', authenticate, async (req, res) => {
         } catch (error) {
             throw new Error(`El modelo no pudo generar una respuesta: ${error.message}`);
         }
+
+        // Limpiar cualquier tag <think> residual del contenido antes de guardar y devolver
+        let cleanContent = llmResponse.content || '';
+        cleanContent = cleanContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+        cleanContent = cleanContent.replace(/<\/?think>/gi, '').trim();
+        llmResponse.content = cleanContent;
 
         const durationMs = typeof llmResponse.durationMs === 'number'
             ? llmResponse.durationMs

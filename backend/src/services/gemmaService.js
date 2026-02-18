@@ -66,7 +66,7 @@ export async function generateChatTitle(firstMessage) {
 
 "${firstMessage}"
 
-Responde SOLO con el título, sin comillas, sin explicaciones. Debe ser claro y reflejar el tema principal.`;
+Responde SOLO con el título, sin comillas, sin explicaciones, sin etiquetas. Debe ser claro y reflejar el tema principal.`;
 
     try {
         // Usar el servicio LLM principal (con fallback automático de modelos)
@@ -78,7 +78,13 @@ Responde SOLO con el título, sin comillas, sin explicaciones. Debe ser claro y 
             maxRetries: 1,
         });
 
-        const title = (result?.content || '').trim().replace(/^["']|["']$/g, '').slice(0, 60);
+        let title = (result?.content || '').trim();
+        // Limpiar posibles etiquetas <think> de modelos de razonamiento
+        title = title.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+        title = title.replace(/<\/?think>/gi, '').trim();
+        // Limpiar comillas envolventes
+        title = title.replace(/^["'«»]|["'«»]$/g, '').trim();
+        title = title.slice(0, 60);
         return title || 'Nueva conversación';
     } catch (primaryError) {
         console.warn('LLM principal falló para título, intentando Gemma:', primaryError.message);
