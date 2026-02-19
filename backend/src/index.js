@@ -1,8 +1,8 @@
+import './config/env.js'; // PRIMERO: cargar .env antes que cualquier otro módulo
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import apiRoutes from './routes/index.js';
@@ -10,9 +10,6 @@ import chromaService from './services/chromaService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
-// Cargar variables de entorno desde la ruta explícita
-dotenv.config({ path: join(__dirname, '../.env') });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
