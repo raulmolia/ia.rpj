@@ -1709,8 +1709,8 @@ export default function ChatHomePage() {
 
                     {/* Etiquetas debajo de la caja - solo cuando NO hay mensajes */}
                     {!hasMessages && (
-                        <div className="flex flex-col items-center gap-2">
-                            <div className="flex flex-wrap items-center justify-center gap-2">
+                        <div className="flex flex-col items-center gap-2 w-full">
+                            <div className="flex flex-nowrap items-center justify-center gap-2">
                                 {quickPrompts.map((item) => {
                                     const Icon = item.icon
                                     const isSelected = selectedQuickPrompts.includes(item.label)
@@ -2524,7 +2524,6 @@ export default function ChatHomePage() {
                                         <Label className="text-sm font-medium">{t("settings.appearance")}</Label>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <LanguageSelector />
                                         <ThemeToggleButton />
                                     </div>
                                 </div>
