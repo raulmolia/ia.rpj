@@ -1747,9 +1747,9 @@ export default function ChatHomePage() {
                                             key={item.label}
                                             type="button"
                                             onClick={() => handleQuickPromptToggle(item)}
-                                            className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition ${colorClass}`}
+                                            className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition whitespace-nowrap ${colorClass}`}
                                         >
-                                            <Icon className="h-4 w-4" aria-hidden="true" />
+                                            <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                                             {item.label}
                                             {item.subOptions && (
                                                 <ChevronDown className={cn("h-3 w-3 transition-transform", (isSelected || openSubMenuLabel === item.label) && "rotate-180")} />
