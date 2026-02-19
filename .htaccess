@@ -1,5 +1,9 @@
 RewriteEngine On
 
+# Permite verificación de Google sin pasar por el proxy
+RewriteCond %{REQUEST_URI} ^/google2f50d5d3b185d060\.html$ [NC]
+RewriteRule ^ - [L]
+
 # Evita proxyear recursos del propio panel o rutas especiales
 RewriteCond %{REQUEST_URI} ^/(error_docs|plesk-stat|.well-known) [NC]
 RewriteRule ^ - [L]
