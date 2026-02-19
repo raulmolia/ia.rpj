@@ -651,6 +651,30 @@ router.post('/', authenticate, async (req, res) => {
         const durationMs = typeof llmResponse.durationMs === 'number'
             ? llmResponse.durationMs
             : null;
+
+        // Verificar que la conversación aún existe (puede haber sido borrada mientras el LLM procesaba)
+        const conversationStillExists = await prisma.conversacion.findUnique({
+            where: { id: conversation.id },
+            select: { id: true },
+        });
+
+        if (!conversationStillExists) {
+            // La conversación fue eliminada durante el procesamiento.
+            // Devolver la respuesta igualmente para que el usuario la vea.
+            console.warn(`⚠️ Conversación ${conversation.id} eliminada durante procesamiento LLM. Devolviendo respuesta sin guardar.`);
+            return res.json({
+                conversationId: null,
+                intent: detectedIntent.id,
+                title: null,
+                message: {
+                    role: 'assistant',
+                    content: llmResponse.content,
+                },
+                usage: llmResponse.usage || null,
+                deleted: true,
+            });
+        }
+
         const assistantMessageRecord = await prisma.mensajeConversacion.create({
             data: {
                 conversacionId: conversation.id,
@@ -738,12 +762,42 @@ router.post('/', authenticate, async (req, res) => {
             });
         }
 
-        // Detectar si es un error 429 (rate limit)
-        const is429Error = error.message.includes('429');
+        // Detectar si es un error 429 (rate limit) o FK (conversación borrada)
+        const is429Error = error.message.includes('429') || error.message.includes('maximum capacity');
+        const isFKError = error.message.includes('Foreign key') || error.message.includes('P2003') || error.message.includes('P2025');
         const fallbackContent = is429Error ? RATE_LIMIT_MESSAGE : FALLBACK_MESSAGE;
+
+        // Si la conversación fue borrada durante el procesamiento, no intentar guardar
+        if (isFKError) {
+            console.warn(`⚠️ Conversación ${conversation.id} eliminada durante procesamiento. No se guarda fallback.`);
+            return res.status(200).json({
+                conversationId: null,
+                intent: detectedIntent.id,
+                message: {
+                    role: 'assistant',
+                    content: fallbackContent,
+                    fallback: true,
+                },
+                fallback: true,
+                deleted: true,
+            });
+        }
 
         let assistantMessageRecord = null;
         try {
+            // Verificar que la conversación sigue existiendo antes de guardar el fallback
+            const convExists = await prisma.conversacion.findUnique({ where: { id: conversation.id }, select: { id: true } });
+            if (!convExists) {
+                console.warn(`⚠️ Conversación ${conversation.id} ya no existe. Devolviendo fallback sin guardar.`);
+                return res.status(200).json({
+                    conversationId: null,
+                    intent: detectedIntent.id,
+                    message: { role: 'assistant', content: fallbackContent, fallback: true },
+                    fallback: true,
+                    deleted: true,
+                });
+            }
+
             assistantMessageRecord = await prisma.mensajeConversacion.create({
                 data: {
                     conversacionId: conversation.id,

@@ -3,7 +3,7 @@
 
 const CHUTES_API_URL = process.env.CHUTES_API_URL || "https://llm.chutes.ai/v1/chat/completions";
 const CHUTES_API_TOKEN = process.env.CHUTES_API_TOKEN || "";
-const DEFAULT_MODEL = process.env.CHUTES_MODEL || "Qwen/Qwen3-235B-A22B";
+const DEFAULT_MODEL = process.env.CHUTES_MODEL || "Qwen/Qwen3-235B-A22B-Instruct-2507-TEE";
 const DEFAULT_MAX_TOKENS = Number.parseInt(process.env.CHUTES_MAX_TOKENS || "8192", 10);
 const DEFAULT_TEMPERATURE = Number.parseFloat(process.env.CHUTES_TEMPERATURE || "0.7");
 const DEFAULT_TIMEOUT_MS = Number.parseInt(process.env.CHUTES_TIMEOUT_MS || "120000", 10);
@@ -11,7 +11,7 @@ const DEFAULT_MAX_RETRIES = Number.parseInt(process.env.CHUTES_MAX_RETRIES || "2
 const DEFAULT_RETRY_DELAY_MS = Number.parseInt(process.env.CHUTES_RETRY_DELAY_MS || "1000", 10);
 
 // Modelos de fallback ordenados por preferencia (se prueban si el principal falla)
-const FALLBACK_MODELS = (process.env.CHUTES_FALLBACK_MODELS || "deepseek-ai/DeepSeek-R1,Qwen/Qwen3-235B-A22B,deepseek-ai/DeepSeek-V3-0324")
+const FALLBACK_MODELS = (process.env.CHUTES_FALLBACK_MODELS || "deepseek-ai/DeepSeek-V3-0324-TEE,Qwen/Qwen2.5-72B-Instruct,deepseek-ai/DeepSeek-R1-0528-TEE")
     .split(",")
     .map(m => m.trim())
     .filter(Boolean);
@@ -70,6 +70,7 @@ async function tryModelCompletion({
     stream,
     timeoutMs,
     maxRetries,
+    extraBody = {},
 }) {
     // Ajustar max_tokens al límite conocido del modelo
     const effectiveMaxTokens = getEffectiveMaxTokens(model, maxTokens);
@@ -96,6 +97,7 @@ async function tryModelCompletion({
                     temperature,
                     max_tokens: effectiveMaxTokens,
                     stream,
+                    ...extraBody,
                 }),
                 signal: controller.signal,
             });
@@ -155,11 +157,11 @@ async function tryModelCompletion({
                 break;
             }
 
-            // Detectar error 429 y aumentar el tiempo de espera
-            const is429Error = lastError.message.includes('429');
+            // Detectar error 429 y usar un tiempo de espera corto pero creciente
+            const is429Error = lastError.message.includes('429') || lastError.message.includes('maximum capacity');
             const waitTime = is429Error
-                ? Math.min(DEFAULT_RETRY_DELAY_MS * attempt * 3, 5000)
-                : Math.min(DEFAULT_RETRY_DELAY_MS * attempt, DEFAULT_RETRY_DELAY_MS * 4);
+                ? Math.min(DEFAULT_RETRY_DELAY_MS * attempt * 2, 5000)   // 429: 2s, 4s, 5s max
+                : Math.min(DEFAULT_RETRY_DELAY_MS * attempt, DEFAULT_RETRY_DELAY_MS * 3);
 
             console.warn(`[ChutesAI] ${model} intento ${attempt} fallido: ${lastError.message}. Reintentando en ${waitTime} ms`);
             await delay(waitTime);
@@ -181,6 +183,14 @@ function shouldTryFallback(error) {
     if (msg.includes('503') || msg.includes('502') || msg.includes('Timeout') || msg.includes('No instances')) {
         return true;
     }
+    // Capacidad máxima / rate limit: probar con otro modelo que tenga instancias libres
+    if (msg.includes('429') || msg.includes('maximum capacity') || msg.includes('rate limit') || msg.includes('try again later')) {
+        return true;
+    }
+    // Modelo no encontrado: 404 o mensaje explícito del API
+    if (msg.includes('404') || msg.includes('model not found') || msg.includes('not_found')) {
+        return true;
+    }
     // Límites de tokens/contexto: recuperable con un modelo diferente
     if (msg.includes('max_completion_tokens') || msg.includes('context length') || msg.includes('too large') || msg.includes('token count exceeds')) {
         return true;
@@ -200,14 +210,15 @@ export async function callChatCompletion({
     stream = false,
     timeoutMs = DEFAULT_TIMEOUT_MS,
     maxRetries = DEFAULT_MAX_RETRIES,
+    extraBody = {},
 }) {
     ensureApiToken();
 
     // Intentar con el modelo principal
     try {
-        return await tryModelCompletion({ messages, model, temperature, maxTokens, stream, timeoutMs, maxRetries });
+        return await tryModelCompletion({ messages, model, temperature, maxTokens, stream, timeoutMs, maxRetries, extraBody });
     } catch (primaryError) {
-        // Si el error no justifica fallback (ej: 429 rate limit, 401 auth), lanzar directamente
+        // Si el error no justifica fallback (ej: 401 auth), lanzar directamente
         if (!shouldTryFallback(primaryError)) {
             throw new Error(`El modelo no pudo generar una respuesta tras ${primaryError.attempts || '?'} intentos: ${primaryError.message}`);
         }
@@ -227,7 +238,8 @@ export async function callChatCompletion({
                     maxTokens,
                     stream,
                     timeoutMs,
-                    maxRetries: 0, // Solo 1 intento por modelo de fallback
+                    maxRetries: 1, // 2 intentos por modelo de fallback
+                    extraBody,
                 });
                 console.log(`[ChutesAI] ✅ Modelo de fallback ${fallbackModel} respondió correctamente`);
                 return result;

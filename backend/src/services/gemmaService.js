@@ -69,13 +69,15 @@ export async function generateChatTitle(firstMessage) {
 Responde SOLO con el título, sin comillas, sin explicaciones, sin etiquetas. Debe ser claro y reflejar el tema principal.`;
 
     try {
-        // Usar el servicio LLM principal (con fallback automático de modelos)
+        // Usar un modelo no-pensante para generar el título directamente
         const result = await callChatCompletion({
             messages: [{ role: 'user', content: prompt }],
+            model: 'Qwen/Qwen2.5-72B-Instruct',
             temperature: 0.5,
-            maxTokens: 50,
+            maxTokens: 100,
             timeoutMs: 15000,
             maxRetries: 1,
+            extraBody: { chat_template_kwargs: { enable_thinking: false } },
         });
 
         let title = (result?.content || '').trim();

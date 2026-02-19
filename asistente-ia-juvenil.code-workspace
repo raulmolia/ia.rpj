@@ -16,7 +16,7 @@
         },
         "prisma.showPrismaDataPlatformNotification": false,
         "terminal.integrated.defaultProfile.linux": "bash",
-        "terminal.integrated.cwd": "/var/www/vhosts/practical-chatelet.217-154-99-32.plesk.page/httpdocs",
+        "terminal.integrated.cwd": "/var/www/vhosts/ia.rpj.es/httpdocs",
         "git.autofetch": true,
         "git.enableSmartCommit": true,
         "emmet.includeLanguages": {

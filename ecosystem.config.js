@@ -16,15 +16,13 @@ module.exports = {
         },
         {
             name: "rpjia-frontend",
-            cwd: "./frontend/.next/standalone",
+            cwd: "./frontend",
             script: "node",
-            args: "server.js",
+            args: "start-standalone.js",
             watch: false,
             env: {
                 NODE_ENV: "production",
-                PORT: "3000",
-                HOSTNAME: "127.0.0.1",
-                HOST: "127.0.0.1"
+                PORT: "3000"
             },
             autorestart: true,
             max_restarts: 5,

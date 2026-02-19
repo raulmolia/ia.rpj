@@ -45,6 +45,8 @@ import {
     Mic,
     Square,
     PenLine,
+    Flame,
+    BookMarked,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -266,8 +268,24 @@ export default function ChatHomePage() {
                 label: t("categories.celebrations"),
                 icon: PartyPopper,
                 template: t("categories.celebrationsTemplate"),
-                intent: "CELEBRACION",
+                intent: "EUCARISTIA",
                 tags: ["CELEBRACIONES"],
+                subOptions: [
+                    {
+                        label: t("categories.eucharist"),
+                        icon: Flame,
+                        template: t("categories.eucharistTemplate"),
+                        intent: "EUCARISTIA",
+                        tags: ["CELEBRACIONES"],
+                    },
+                    {
+                        label: t("categories.wordCelebration"),
+                        icon: BookMarked,
+                        template: t("categories.wordCelebrationTemplate"),
+                        intent: "CELEBRACION_PALABRA",
+                        tags: ["CELEBRACIONES"],
+                    },
+                ],
             },
             {
                 label: t("categories.programming"),
@@ -287,8 +305,8 @@ export default function ChatHomePage() {
         [t],
     )
     const [selectedQuickPrompts, setSelectedQuickPrompts] = useState<string[]>([])
-    const [prayerSubMenuOpen, setPrayerSubMenuOpen] = useState(false)
-    const [selectedPrayerType, setSelectedPrayerType] = useState<QuickPromptSubOption | null>(null)
+    const [openSubMenuLabel, setOpenSubMenuLabel] = useState<string | null>(null)
+    const [selectedSubOption, setSelectedSubOption] = useState<Record<string, QuickPromptSubOption | null>>({})
     const [isThinkingMode, setIsThinkingMode] = useState(false)
     const [isCanvasMode, setIsCanvasMode] = useState(false)
     const [canvasOpen, setCanvasOpen] = useState(false)
@@ -314,12 +332,13 @@ export default function ChatHomePage() {
         const items = quickPrompts.filter((prompt) => labelSet.has(prompt.label))
         // Si hay oración seleccionada con sub-tipo, usar el intent/tags/label del sub-tipo
         return items.map(item => {
-            if (item.subOptions && selectedPrayerType) {
-                return { ...item, label: selectedPrayerType.label, icon: selectedPrayerType.icon, intent: selectedPrayerType.intent, tags: selectedPrayerType.tags, _parentLabel: item.label }
+            if (item.subOptions && selectedSubOption[item.label]) {
+                const sub = selectedSubOption[item.label]!
+                return { ...item, label: sub.label, icon: sub.icon, intent: sub.intent, tags: sub.tags, _parentLabel: item.label }
             }
             return item
         })
-    }, [quickPrompts, selectedQuickPrompts, selectedPrayerType])
+    }, [quickPrompts, selectedQuickPrompts, selectedSubOption])
 
     const activeChat = useMemo(() => chats.find((chat) => chat.id === activeChatId) ?? null, [chats, activeChatId])
     const sidebarChats = useMemo(() => chats.filter((chat) => !chat.archived), [chats])
@@ -870,9 +889,9 @@ export default function ChatHomePage() {
     }, [submitPrompt])
 
     const handleQuickPromptToggle = useCallback((prompt: QuickPrompt) => {
-        // Si es un prompt con sub-opciones (Oraciones), toggle sub-menú
+        // Si es un prompt con sub-opciones, toggle sub-menú
         if (prompt.subOptions) {
-            setPrayerSubMenuOpen((prev) => !prev)
+            setOpenSubMenuLabel((prev) => prev === prompt.label ? null : prompt.label)
             return
         }
         setSelectedQuickPrompts((prev) => {
@@ -886,29 +905,30 @@ export default function ChatHomePage() {
     const handleBadgeRemove = useCallback((item: QuickPrompt & { _parentLabel?: string }) => {
         const parentLabel = item._parentLabel || item.label
         if (item.subOptions || item._parentLabel) {
-            setSelectedPrayerType(null)
-            setPrayerSubMenuOpen(false)
+            setSelectedSubOption((prev) => { const next = { ...prev }; delete next[parentLabel]; return next })
+            setOpenSubMenuLabel(null)
         }
         setSelectedQuickPrompts((prev) => prev.filter((label) => label !== parentLabel))
     }, [])
 
-    const handlePrayerSubOptionSelect = useCallback((parentPrompt: QuickPrompt, subOption: QuickPromptSubOption) => {
+    const handleSubOptionSelect = useCallback((parentPrompt: QuickPrompt, subOption: QuickPromptSubOption) => {
         // Si ya está seleccionada esta misma sub-opción, deseleccionar todo
-        if (selectedPrayerType?.intent === subOption.intent) {
-            setSelectedPrayerType(null)
-            setPrayerSubMenuOpen(false)
+        const currentSub = selectedSubOption[parentPrompt.label]
+        if (currentSub?.intent === subOption.intent) {
+            setSelectedSubOption((prev) => { const next = { ...prev }; delete next[parentPrompt.label]; return next })
+            setOpenSubMenuLabel(null)
             setSelectedQuickPrompts((prev) => prev.filter((label) => label !== parentPrompt.label))
             return
         }
-        setSelectedPrayerType(subOption)
-        setPrayerSubMenuOpen(false)
+        setSelectedSubOption((prev) => ({ ...prev, [parentPrompt.label]: subOption }))
+        setOpenSubMenuLabel(null)
         setSelectedQuickPrompts((prev) => {
             if (!prev.includes(parentPrompt.label)) {
                 return [...prev, parentPrompt.label]
             }
             return prev
         })
-    }, [selectedPrayerType])
+    }, [selectedSubOption])
 
     const handleFileSelect = useCallback(async () => {
         if (!token) {
@@ -1109,8 +1129,8 @@ export default function ChatHomePage() {
         setInputValue("")
         setChatError(null)
         setSelectedQuickPrompts([])
-        setPrayerSubMenuOpen(false)
-        setSelectedPrayerType(null)
+        setOpenSubMenuLabel(null)
+        setSelectedSubOption({})
 
         // Crear la conversación en el backend inmediatamente para generar el saludo
         if (token) {
@@ -1552,37 +1572,38 @@ export default function ChatHomePage() {
                                                 const Icon = item.icon
                                                 const isSelected = selectedQuickPrompts.includes(item.label)
                                                 if (item.subOptions) {
+                                                    const subColor = item.intent.startsWith("ORACION") ? "text-violet-500" : "text-pink-500"
                                                     return (
-                                                        <div key={item.label}>
-                                                            <DropdownMenuItem
-                                                                className={cn(isSelected && "bg-primary/10 text-primary")}
-                                                                onSelect={(e) => {
-                                                                    e.preventDefault()
-                                                                    handleQuickPromptToggle(item)
-                                                                }}
+                                                        <DropdownMenuSub key={item.label}>
+                                                            <DropdownMenuSubTrigger
+                                                                className={cn(
+                                                                    "flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none",
+                                                                    isSelected && "bg-primary/10 text-primary"
+                                                                )}
                                                             >
                                                                 <Icon className="mr-2 h-4 w-4 text-primary" aria-hidden="true" />
                                                                 {item.label}
-                                                                <ChevronDown className={cn("ml-auto h-3 w-3 transition-transform", (isSelected || prayerSubMenuOpen) && "rotate-180")} />
-                                                            </DropdownMenuItem>
-                                                            {(isSelected || prayerSubMenuOpen) && item.subOptions.map((sub) => {
-                                                                const SubIcon = sub.icon
-                                                                const isSubSelected = selectedPrayerType?.intent === sub.intent
-                                                                return (
-                                                                    <DropdownMenuItem
-                                                                        key={sub.intent}
-                                                                        className={cn("pl-8", isSubSelected && "bg-primary/10 text-primary")}
-                                                                        onSelect={(e) => {
-                                                                            e.preventDefault()
-                                                                            handlePrayerSubOptionSelect(item, sub)
-                                                                        }}
-                                                                    >
-                                                                        <SubIcon className="mr-2 h-4 w-4 text-violet-500" aria-hidden="true" />
-                                                                        {sub.label}
-                                                                    </DropdownMenuItem>
-                                                                )
-                                                            })}
-                                                        </div>
+                                                            </DropdownMenuSubTrigger>
+                                                            <DropdownMenuSubContent className="w-52">
+                                                                {item.subOptions.map((sub) => {
+                                                                    const SubIcon = sub.icon
+                                                                    const isSubSelected = selectedSubOption[item.label]?.intent === sub.intent
+                                                                    return (
+                                                                        <DropdownMenuItem
+                                                                            key={sub.intent}
+                                                                            className={cn(isSubSelected && "bg-primary/10 text-primary")}
+                                                                            onSelect={(e) => {
+                                                                                e.preventDefault()
+                                                                                handleSubOptionSelect(item, sub)
+                                                                            }}
+                                                                        >
+                                                                            <SubIcon className={cn("mr-2 h-4 w-4", subColor)} aria-hidden="true" />
+                                                                            {sub.label}
+                                                                        </DropdownMenuItem>
+                                                                    )
+                                                                })}
+                                                            </DropdownMenuSubContent>
+                                                        </DropdownMenuSub>
                                                     )
                                                 }
                                                 return (
@@ -1731,31 +1752,36 @@ export default function ChatHomePage() {
                                             <Icon className="h-4 w-4" aria-hidden="true" />
                                             {item.label}
                                             {item.subOptions && (
-                                                <ChevronDown className={cn("h-3 w-3 transition-transform", (isSelected || prayerSubMenuOpen) && "rotate-180")} />
+                                                <ChevronDown className={cn("h-3 w-3 transition-transform", (isSelected || openSubMenuLabel === item.label) && "rotate-180")} />
                                             )}
                                         </button>
                                     )
                                 })}
                             </div>
-                            {/* Sub-opciones de Oraciones */}
-                            {prayerSubMenuOpen && (() => {
-                                const prayerPrompt = quickPrompts.find(p => p.subOptions)
-                                if (!prayerPrompt?.subOptions) return null
+                            {/* Sub-opciones genéricas (Oraciones / Celebraciones) */}
+                            {openSubMenuLabel && (() => {
+                                const openPrompt = quickPrompts.find(p => p.label === openSubMenuLabel && p.subOptions)
+                                if (!openPrompt?.subOptions) return null
+                                const isOracion = openPrompt.intent.startsWith("ORACION")
                                 return (
                                     <div className="flex items-center justify-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                                        {prayerPrompt.subOptions.map((sub) => {
+                                        {openPrompt.subOptions.map((sub) => {
                                             const SubIcon = sub.icon
-                                            const isSubSelected = selectedPrayerType?.intent === sub.intent
+                                            const isSubSelected = selectedSubOption[openPrompt.label]?.intent === sub.intent
+                                            const selectedCls = isOracion
+                                                ? "border-violet-500 bg-violet-100 text-violet-800 dark:border-violet-500 dark:bg-violet-950/60 dark:text-violet-300"
+                                                : "border-pink-500 bg-pink-100 text-pink-800 dark:border-pink-500 dark:bg-pink-950/60 dark:text-pink-300"
+                                            const baseCls = isOracion
+                                                ? "border-violet-500/30 bg-transparent text-violet-700 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30"
+                                                : "border-pink-500/30 bg-transparent text-pink-700 dark:text-pink-400 hover:bg-pink-50 dark:hover:bg-pink-950/30"
                                             return (
                                                 <button
                                                     key={sub.intent}
                                                     type="button"
-                                                    onClick={() => handlePrayerSubOptionSelect(prayerPrompt, sub)}
+                                                    onClick={() => handleSubOptionSelect(openPrompt, sub)}
                                                     className={cn(
                                                         "flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition",
-                                                        isSubSelected
-                                                            ? "border-violet-500 bg-violet-100 text-violet-800 dark:border-violet-500 dark:bg-violet-950/60 dark:text-violet-300"
-                                                            : "border-violet-500/30 bg-transparent text-violet-700 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30"
+                                                        isSubSelected ? selectedCls : baseCls
                                                     )}
                                                 >
                                                     <SubIcon className="h-4 w-4" aria-hidden="true" />
