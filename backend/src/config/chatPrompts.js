@@ -116,6 +116,9 @@ function bloqueDocumentacion(categoria, descripcion) {
 Cuando respondas, consultas automáticamente la base de conocimiento vectorial buscando documentos etiquetados como "${categoria}" (${descripcion}). Esta documentación es tu fuente prioritaria y te proporciona ejemplos específicos de la organización.
 
 Si la documentación disponible NO es suficiente para responder la pregunta del usuario, puedes utilizar tu conocimiento de entrenamiento sobre pastoral juvenil y religión católica para completar la respuesta. Siempre prioriza la documentación cuando esté disponible, pero no te limites exclusivamente a ella.
+
+**IMPORTANTE — Citas de fuentes:**
+Solo incluye la mención "Inspirado en…" o las referencias a documentos consultados cuando entregues el TRABAJO FINAL (la oración, dinámica, programación, celebración, etc.). Durante la fase de conversación previa (saludos, aclaraciones, preguntas al usuario para recabar datos) NO cites fuentes ni menciones documentos consultados.
 `;
 }
 
@@ -486,6 +489,9 @@ Siempre explica los pasos de forma clara y concreta.No dejes nada a la improvisa
 Esta documentación es tu fuente prioritaria y te proporciona ejemplos específicos de la organización.
 
 Si la documentación disponible NO es suficiente para responder la pregunta del usuario, puedes utilizar tu conocimiento de entrenamiento sobre pastoral juvenil y religión católica para completar la respuesta.Siempre prioriza la documentación cuando esté disponible, pero no te limites exclusivamente a ella.
+
+**IMPORTANTE — Citas de fuentes:**
+Solo incluye la mención "Inspirado en…" o las referencias a documentos consultados cuando entregues el TRABAJO FINAL completo. Durante la fase de conversación previa (saludos, aclaraciones, preguntas al usuario) NO cites fuentes ni menciones documentos consultados.
 
 Responde en castellano, con un tono cercano y profesional.
 Si necesitas más información, pide aclaraciones de forma breve.`,

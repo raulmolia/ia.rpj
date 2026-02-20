@@ -79,9 +79,17 @@ export default function AcercaDePage() {
                         <h2 className="mt-12 mb-6 text-3xl font-bold tracking-tight text-foreground first:mt-0">
                             {t("section1Title")}
                         </h2>
-                        <p className="mb-6 leading-relaxed text-muted-foreground">
-                            {t("section1Content")}
-                        </p>
+                        <ul className="my-6 ml-6 space-y-3 list-disc marker:text-primary">
+                            <li className="pl-2 text-muted-foreground leading-relaxed">
+                                {t("section1List1")}
+                            </li>
+                            <li className="pl-2 text-muted-foreground leading-relaxed">
+                                {t("section1List2")}
+                            </li>
+                            <li className="pl-2 text-muted-foreground leading-relaxed">
+                                {t("section1List3")}
+                            </li>
+                        </ul>
 
                         {/* Section 2 - Por qué */}
                         <h2 className="mt-12 mb-6 text-3xl font-bold tracking-tight text-foreground">
@@ -122,23 +130,6 @@ export default function AcercaDePage() {
                             {t("section3Content4")}
                         </p>
 
-                        {/* Section 4 - Cómo utilizar */}
-                        <h2 className="mt-12 mb-6 text-3xl font-bold tracking-tight text-foreground">
-                            {t("section4Title")}
-                        </h2>
-                        <p className="mb-6 leading-relaxed text-muted-foreground">
-                            {t("section4Content1")}
-                        </p>
-                        <p className="mb-6 leading-relaxed text-muted-foreground">
-                            {t("section4Content2")}
-                        </p>
-                        <p className="mb-6 leading-relaxed text-muted-foreground">
-                            {t("section4Content3")}
-                        </p>
-                        <p className="mb-6 leading-relaxed text-muted-foreground">
-                            {t("section4Content4")}
-                        </p>
-
                         {/* Section 5 - Quiénes somos */}
                         <h2 className="mt-12 mb-6 text-3xl font-bold tracking-tight text-foreground">
                             {t("section5Title")}
@@ -160,11 +151,28 @@ export default function AcercaDePage() {
                         <p className="mb-4 leading-relaxed text-muted-foreground font-medium">
                             {t("section5Teams")}
                         </p>
-                        <p className="mb-6">
-                            <ExternalLinkStyled href="https://rpj.es/" highlighted>
-                                → rpj.es
-                            </ExternalLinkStyled>
-                        </p>
+                        <ul className="my-4 ml-6 space-y-3 list-disc marker:text-primary">
+                            <li className="pl-2">
+                                <ExternalLinkStyled href="https://rpj.es/">
+                                    rpj.es
+                                </ExternalLinkStyled>
+                            </li>
+                            <li className="pl-2">
+                                <ExternalLinkStyled href="https://www.facebook.com/rpjdigital">
+                                    facebook.com/rpjdigital
+                                </ExternalLinkStyled>
+                            </li>
+                            <li className="pl-2">
+                                <ExternalLinkStyled href="https://www.instagram.com/redpastoraljuvenil/">
+                                    instagram.com/redpastoraljuvenil
+                                </ExternalLinkStyled>
+                            </li>
+                            <li className="pl-2">
+                                <ExternalLinkStyled href="https://www.youtube.com/@redpastoraljuvenil">
+                                    youtube.com/@redpastoraljuvenil
+                                </ExternalLinkStyled>
+                            </li>
+                        </ul>
                         <p className="mb-6 leading-relaxed text-muted-foreground">
                             {t("section5Content3")}
                         </p>

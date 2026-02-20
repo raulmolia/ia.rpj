@@ -207,7 +207,9 @@
     "privacyDesc": "Kontroluj swoją prywatność i dane",
     "themeLight": "Jasny",
     "themeDark": "Ciemny",
-    "themeSystem": "Systemowy"
+    "themeSystem": "Systemowy",
+    "chatFont": "Czcionka czatu",
+    "chatFontDesc": "Wybierz czcionkę dla wiadomości czatu"
   },
   "profile": {
     "title": "Profil użytkownika",
@@ -240,11 +242,13 @@
     "settings": "Ustawienia",
     "documentation": "Dokumentacja",
     "administration": "Administracja",
+    "statistics": "Statystyki",
     "logout": "Wyloguj się"
   },
   "header": {
     "about": "O IA RPJ",
     "documentGuide": "Przewodnik dokumentacji",
+    "usageGuide": "Przewodnik użytkowania",
     "contact": "Kontakt",
     "backToChat": "Powrót do czatu",
     "aboutIARPJ": "O IA RPJ"
@@ -335,7 +339,9 @@
     "backToChat": "Powrót do czatu",
     "loading": "Ładowanie...",
     "section1Title": "Dla kogo jest IA RPJ?",
-    "section1Content": "Dla wszystkich odpowiedzialnych za duszpasterstwo w instytucjach kościelnych, które uczestniczą i umożliwiają działanie Sieci Duszpasterstwa Młodzieży RPJ. Dla katechetów, animatorów, agentów duszpasterskich i towarzyszácych nastolatkom i młodym ludziom we wspólnotach, grupach młodzieżowych, parafiach lub ruchach, którzy chcą ulepszać swoje narzędzia duszpasterskie. Dla innych osób zainteresowanych wykorzystaniem obecnych narzędzi oferowanych przez AI specjalizującą się w duszpasterstwie młodzieży, aby pomóc w przygotowaniu inicjatyw ewangelizacyjnych.",
+    "section1List1": "Dla wszystkich odpowiedzialnych za duszpasterstwo w instytucjach kościelnych, które uczestniczą i umożliwiają działanie Sieci Duszpasterstwa Młodzieży RPJ.",
+    "section1List2": "Dla katechetów, animatorów, agentów duszpasterskich i towarzyszących nastolatkom i młodym ludziom we wspólnotach, grupach młodzieżowych, parafiach lub ruchach, którzy chcą ulepszać swoje narzędzia duszpasterskie.",
+    "section1List3": "Dla innych osób zainteresowanych wykorzystaniem obecnych narzędzi oferowanych przez AI specjalizującą się w duszpasterstwie młodzieży, aby pomóc w przygotowaniu inicjatyw ewangelizacyjnych.",
     "section2Title": "Dlaczego powstała IA RPJ?",
     "section2Content1": "Cyfrowy kontynent i Sztuczna Inteligencja to realia współczesnej kultury, które możemy wykorzystać w służbie ewangelizacji i dobra wspólnego. W oparciu o ten cel, to narzędzie zostało zaprojektowane, aby uzupełniać i poprawiać dostępność do zasobów, których towarzysz nastolatków i młodych ludzi może potrzebować w swojej misji duszpasterskiej, według trzech podstawowych zasad odpowiedzialności moralnej w jego projektowaniu i użyciu:",
     "section2List1": "Zapewnienie wiarygodności źródeł, które IA RPJ priorytetowo konsultuje.",
@@ -363,6 +369,35 @@
     "title": "Kontakt",
     "backToChat": "Powrót do czatu",
     "description": "Skontaktuj się z nami w sprawie komentarzy, wkładu lub pytań pod adresem:"
+  },
+  "usageGuide": {
+    "title": "Przewodnik użytkowania",
+    "backToChat": "Powrót do czatu",
+    "mainTitle": "Jak korzystać z IA RPJ?",
+    "tip1": "Wierzymy, że będzie to użyteczne narzędzie w służbie duszpasterstwa, jeśli będą je wykorzystywać towarzyszący młodym z <bold>kryterium ewangelicznym</bold> wynikającym z otrzymanej formacji, praktycznego doświadczenia i określonego planu duszpasterstwa młodzieży z jego zasadami, wymiarami, etapami i celami, które kierują i dostosowują odpowiedzi oferowane przez IA RPJ.",
+    "tip2": "Odpowiedzi oferowane przez IA RPJ będą bardziej adekwatne, <bold>im lepiej wyjaśnione będzie zapytanie</bold> (kontekst duszpasterski, konkretne zadanie, cechy docelowych nastolatków lub młodych ludzi, cele propozycji, format potrzebny w odpowiedzi z przykładem…).",
+    "tip3": "IA RPJ ma możliwość wybrania <bold>jakiego typu zapytania potrzebujesz</bold> jako agent duszpasterstwa młodzieży (dynamiki, modlitwy, celebracje, programy lub konsultacje) i <bold>kilka opcji do wykorzystania</bold>: opcja \"Dołącz pliki\" do podsumowania lub zadania na podstawie pliku, opcja \"Tryb płótna\" do edycji i dostosowania odpowiedzi, opcja modelu \"Deep think\" do pogłębienia tematu, opcja \"Dyktowanie głosowe\" do rozmów i opcja \"Pobierz\" odpowiedzi w formacie PDF lub Word.",
+    "tip4": "IA RPJ ma ograniczoną liczbę rozmów i wiadomości dziennie dla każdej osoby z możliwością interakcji w <bold>wielu językach</bold> i opcją ich zmiany w interfejsie. Oraz email kontaktowy dla wszelkich pytań do zespołów RPJ:",
+    "mobileTitle": "Korzystanie na telefonie",
+    "mobileIntro": "Oto proste i jasne kroki, aby utworzyć skrót na ekranie głównym do strony www.ia.rpj.es, zarówno na Androidzie, jak i iOS (iPhone / iPad).",
+    "mobileAppNote": "Zapisz IA RPJ jako aplikację na swoim telefonie, aby mieć ją zawsze pod ręką. Będzie działać jak aplikacja.",
+    "androidTitle": "Android (Chrome, Edge lub podobna przeglądarka)",
+    "androidStep1": "Otwórz Chrome (lub inną kompatybilną przeglądarkę).",
+    "androidStep2": "Wejdź na ia.rpj.es",
+    "androidStep3": "Dotknij menu trzech kropek (⋮ w prawym górnym rogu).",
+    "androidStep4": "Naciśnij \"Dodaj do ekranu głównego\".",
+    "androidStep5": "Potwierdź nazwę (na przykład: IA RPJ).",
+    "androidStep6": "Naciśnij Dodaj.",
+    "androidNote": "Na ekranie głównym zostanie utworzona ikona. Po otwarciu zachowuje się jak aplikacja (bez paska przeglądarki). Jeśli włączysz format \"pulpit\", będzie lepiej wyświetlana w trzech kropkach.",
+    "iosTitle": "iOS (iPhone / iPad – tylko z Safari)",
+    "iosImportant": "Ważne: działa tylko z Safari, nie z Chrome.",
+    "iosStep1": "Otwórz Safari.",
+    "iosStep2": "Wejdź na ia.rpj.es",
+    "iosStep3": "Naciśnij ikonę udostępniania (kwadrat ze strzałką ↑).",
+    "iosStep4": "Przewiń i naciśnij \"Dodaj do ekranu głównego\".",
+    "iosStep5": "Dostosuj nazwę (na przykład: IA RPJ).",
+    "iosStep6": "Naciśnij Dodaj.",
+    "iosNote": "Ikona pojawi się obok aplikacji. Jeśli włączysz format \"pulpit\", będzie lepiej wyświetlana. iOS zachowuje niektóre paski Safari, ale dostęp jest bezpośredni."
   },
   "guide": {
     "title": "Przewodnik dokumentacji",

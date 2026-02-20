@@ -207,7 +207,9 @@
     "privacyDesc": "Adatvédelem és adatok kezelése",
     "themeLight": "Világos",
     "themeDark": "Sötét",
-    "themeSystem": "Rendszer"
+    "themeSystem": "Rendszer",
+    "chatFont": "Chat betűtípus",
+    "chatFontDesc": "Válassza ki a chat üzenetek betűtípusát"
   },
   "profile": {
     "title": "Felhasználói profil",
@@ -240,11 +242,13 @@
     "settings": "Beállítások",
     "documentation": "Dokumentáció",
     "administration": "Adminisztráció",
+    "statistics": "Statisztikák",
     "logout": "Kijelentkezés"
   },
   "header": {
     "about": "Az IA RPJ-ről",
     "documentGuide": "Dokumentációs útmutató",
+    "usageGuide": "Használati útmutató",
     "contact": "Kapcsolat",
     "backToChat": "Vissza a csevegéshez",
     "aboutIARPJ": "Az IA RPJ-ről"
@@ -335,7 +339,9 @@
     "backToChat": "Vissza a chathez",
     "loading": "Betöltés...",
     "section1Title": "Kinek szól az IA RPJ?",
-    "section1Content": "Az RPJ Ifjúsági Lelkipásztori Hálózatban részt vevő és azt lehetővé tevő egyházi intézmények minden lelkipásztori felelősének. Katekétáknak, animátoroknak, lelkipásztori munkatársaknak és serdülők és fiatalok kísérőinek közösségekben, ifjúsági csoportokban, plébániákon vagy mozgalmakban, akik fejleszteni szeretnék lelkipásztori eszközeiket. Más érdeklődőknek, akik ki szeretnék használni egy ifjúsági lelkipásztori munkára szakosodott MI által kínált jelenlegi eszközöket az evangelizációs kezdeményezések előkészítéséhez.",
+    "section1List1": "Az RPJ Ifjúsági Lelkipásztori Hálózatban részt vevő és azt lehetővé tevő egyházi intézmények minden lelkipásztori felelősének.",
+    "section1List2": "Katekétáknak, animátoroknak, lelkipásztori munkatársaknak és serdülők és fiatalok kísérőinek közösségekben, ifjúsági csoportokban, plébániákon vagy mozgalmakban, akik fejleszteni szeretnék lelkipásztori eszközeiket.",
+    "section1List3": "Más érdeklődőknek, akik ki szeretnék használni egy ifjúsági lelkipásztori munkára szakosodott MI által kínált jelenlegi eszközöket az evangelizációs kezdeményezések előkészítéséhez.",
     "section2Title": "Miért jött létre az IA RPJ?",
     "section2Content1": "A digitális kontinens és a Mesterséges Intelligencia a kortárs kultúra valóságai, amelyeket az evangelizáció és a közjó szolgálatában hasznosíthatunk. E célból ez az eszköz arra készült, hogy kiegészítse és javítsa a serdülők és fiatalok kísérőinek hozzáférését azokhoz az erőforrásokhoz, amelyekre lelkipásztori küldetésükben szükségük lehet, három alapvető erkölcsi felelősségi elv alapján a tervezésében és használatában:",
     "section2List1": "Biztosítani a megbízhatóságot az IA RPJ által elsősorban konzultált forrásokban.",
@@ -363,6 +369,35 @@
     "title": "Kapcsolat",
     "backToChat": "Vissza a chathez",
     "description": "Lépjen kapcsolatba velünk bármilyen megjegyzéssel, hozzájárulással vagy kérdéssel:"
+  },
+  "usageGuide": {
+    "title": "Használati útmutató",
+    "backToChat": "Vissza a csevegéshez",
+    "mainTitle": "Hogyan használd az IA RPJ-t?",
+    "tip1": "Úgy véljük, hogy hasznos eszköz lesz a lelkipásztori munka szolgálatában, ha olyan fiatalok kísérői használják, akik <bold>evangéliumi kritériummal</bold> rendelkeznek kapott képzésből, gyakorlati tapasztalatból és egy meghatározott ifjúsági lelkipásztori tervből, annak elveivel, dimenzióival, szakaszaival és céljaival, amelyek irányítják és adaptálják az IA RPJ által kínált válaszokat.",
+    "tip2": "Az IA RPJ által kínált válaszok annál megfelelőbbek lesznek, <bold>minél jobban el van magyarázva a kérés</bold> (lelkipásztori kontextus, konkrét feladat, a célzott serdülők vagy fiatalok jellemzői, a javaslat céljai, a válaszhoz szükséges formátum valamilyen példával…).",
+    "tip3": "Az IA RPJ lehetőséget ad kiválasztani, <bold>milyen típusú kérésre van szükséged</bold> ifjúsági lelkipásztori munkatársként (dinamikák, imák, ünneplések, programok vagy konzultációk) és <bold>több lehetőséget kínál</bold>: a \"Fájlok csatolása\" opciót összefoglaláshoz vagy feladathoz a fájl alapján, a \"Vászon mód\" opciót a válasz szerkesztéséhez és adaptálásához, a \"Deep think\" modell opciót egy téma elmélyítéséhez, a \"Hangdiktálás\" opciót a beszélgetésekhez és a \"Letöltés\" opciót a válaszokhoz PDF vagy Word formátumban.",
+    "tip4": "Az IA RPJ korlátozott számú beszélgetéssel és napi üzenettel rendelkezik minden személy számára, <bold>több nyelven</bold> való interakció lehetőségével és a felületen történő nyelvváltás opciójával. És egy kapcsolattartó emailcím az RPJ csapatokhoz intézett bármilyen kérdéshez:",
+    "mobileTitle": "Használat mobilon",
+    "mobileIntro": "Íme az egyszerű és világos lépések a www.ia.rpj.es webhely kezdőképernyő-parancsikonának létrehozásához Androidon és iOS-en (iPhone / iPad) egyaránt.",
+    "mobileAppNote": "Mentsd el az IA RPJ-t alkalmazásként a telefonodon, hogy mindig kéznél legyen. Úgy fog működni, mintha alkalmazás lenne.",
+    "androidTitle": "Android (Chrome, Edge vagy hasonló böngésző)",
+    "androidStep1": "Nyisd meg a Chrome-ot (vagy egy másik kompatibilis böngészőt).",
+    "androidStep2": "Lépj be az ia.rpj.es oldalra",
+    "androidStep3": "Koppints a három pont menüre (⋮ jobb felső sarokban).",
+    "androidStep4": "Koppints a \"Hozzáadás a kezdőképernyőhöz\"-re.",
+    "androidStep5": "Erősítsd meg a nevet (például: IA RPJ).",
+    "androidStep6": "Koppints a Hozzáadás gombra.",
+    "androidNote": "Egy ikon jelenik meg a kezdőképernyőn. Megnyitásakor alkalmazásként viselkedik (böngészősáv nélkül). Ha engedélyezed az \"asztali\" formátumot, jobban jelenik meg a három pontban.",
+    "iosTitle": "iOS (iPhone / iPad – csak Safarival)",
+    "iosImportant": "Fontos: csak Safarival működik, Chrome-mal nem.",
+    "iosStep1": "Nyisd meg a Safarit.",
+    "iosStep2": "Lépj be az ia.rpj.es oldalra",
+    "iosStep3": "Koppints a megosztás ikonra (négyzet nyíllal ↑).",
+    "iosStep4": "Görgess le és koppints a \"Hozzáadás a kezdőképernyőhöz\"-re.",
+    "iosStep5": "Állítsd be a nevet (például: IA RPJ).",
+    "iosStep6": "Koppints a Hozzáadás gombra.",
+    "iosNote": "Az ikon az alkalmazások mellett jelenik meg. Ha engedélyezed az \"asztali\" formátumot, jobban jelenik meg. Az iOS megőriz néhány Safari sávot, de a hozzáférés közvetlen."
   },
   "guide": {
     "title": "Dokumentációs útmutató",

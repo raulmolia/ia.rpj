@@ -207,7 +207,9 @@
     "privacyDesc": "Controla la teva privadesa i dades",
     "themeLight": "Clar",
     "themeDark": "Fosc",
-    "themeSystem": "Sistema"
+    "themeSystem": "Sistema",
+    "chatFont": "Font del xat",
+    "chatFontDesc": "Tria la tipografia per als missatges del xat"
   },
   "profile": {
     "title": "Perfil d'usuari",
@@ -240,11 +242,13 @@
     "settings": "Configuració",
     "documentation": "Documentació",
     "administration": "Administració",
+    "statistics": "Estadístiques",
     "logout": "Tancar sessió"
   },
   "header": {
     "about": "Sobre IA RPJ",
     "documentGuide": "Guia documental",
+    "usageGuide": "Guia d'ús",
     "contact": "Contacte",
     "backToChat": "Tornar al xat",
     "aboutIARPJ": "Sobre IA RPJ"
@@ -335,7 +339,9 @@
     "backToChat": "Tornar al xat",
     "loading": "Carregant...",
     "section1Title": "Per a qui és la IA RPJ?",
-    "section1Content": "Per a tots els responsables pastorals de les institucions eclesials que participen i fan possible la Xarxa de pastoral juvenil RPJ. Per a catequistes, animadors, agents de pastoral i acompanyants d'adolescents i joves en comunitats, grups juvenils, parròquies o moviments que volen millorar les seves eines de pastoral. Per a altres persones interessades a aprofitar les eines actuals que ofereix una IA especialitzada en pastoral juvenil per ajudar a preparar iniciatives d'evangelització.",
+    "section1List1": "Per a tots els responsables pastorals de les institucions eclesials que participen i fan possible la Xarxa de pastoral juvenil RPJ.",
+    "section1List2": "Per a catequistes, animadors, agents de pastoral i acompanyants d'adolescents i joves en comunitats, grups juvenils, parròquies o moviments que volen millorar les seves eines de pastoral.",
+    "section1List3": "Per a altres persones interessades a aprofitar les eines actuals que ofereix una IA especialitzada en pastoral juvenil per ajudar a preparar iniciatives d'evangelització.",
     "section2Title": "Per què es planteja la IA RPJ?",
     "section2Content1": "El continent digital i la Intel·ligència Artificial són realitats de la cultura contemporània que podem aprofitar al servei de l'evangelització i del bé comú. A partir d'aquest objectiu, aquesta eina està preparada per complementar i millorar l'accessibilitat a recursos que pugui necessitar un acompanyant d'adolescents i joves en la seva missió pastoral des de tres principis de responsabilitat moral bàsics en el seu disseny i ús:",
     "section2List1": "Assegurar la fiabilitat en les fonts que la IA RPJ consulta prioritàriament.",
@@ -363,6 +369,35 @@
     "title": "Contacte",
     "backToChat": "Tornar al xat",
     "description": "Contacta'ns per a qualsevol comentari, aportació o pregunta a:"
+  },
+  "usageGuide": {
+    "title": "Guia d'ús",
+    "backToChat": "Tornar al xat",
+    "mainTitle": "Com utilitzar la IA RPJ?",
+    "tip1": "Creiem que serà una eina útil i al servei de la pastoral si l'aprofiten acompanyants de joves amb <bold>criteri evangèlic</bold> des d'una formació rebuda, una experiència pràctica i un pla de pastoral juvenil definit amb els seus principis, dimensions, etapes i objectius que orientin i adaptin les respostes que ofereix la IA RPJ.",
+    "tip2": "Les respostes que ofereixi la IA RPJ seran més adequades <bold>com millor explicada sigui la demanda</bold> (context pastoral, tasca concreta que se li demana, característiques de les persones adolescents o joves destinatàries, objectius de la proposta, format que es necessita en la seva resposta amb algun exemple…).",
+    "tip3": "La IA RPJ té la possibilitat de seleccionar <bold>quin tipus de petició necessites</bold> com a agent de pastoral juvenil (dinàmiques, oracions, celebracions, programacions o consultes) i <bold>diverses opcions per fer servir</bold>: l'opció d'\"Adjuntar arxius\" per al resum o tasca a partir de l'arxiu, l'opció de \"Mode Llenç\" per editar la resposta i adaptar-la, l'opció d'un model \"Deep think\" per aprofundir en algun tema, l'opció de \"Dictar amb veu\" per utilitzar en les converses i l'opció de \"Descarregar\" les respostes en un arxiu PDF o Word.",
+    "tip4": "La IA RPJ té un nombre limitat de converses i de missatges al dia per a cada persona amb la possibilitat d'interactuar en <bold>diversos idiomes</bold> i l'opció de canviar-los en la seva interfície. I un email de contacte per a qualsevol consulta als equips de RPJ:",
+    "mobileTitle": "Utilitzar-la al mòbil",
+    "mobileIntro": "Aquí tens els passos clars i senzills per crear un accés directe a la pantalla d'inici del web www.ia.rpj.es, tant a Android com a iOS (iPhone / iPad).",
+    "mobileAppNote": "Desa la IA RPJ com a app al teu mòbil per tenir-la sempre a mà. Així funcionarà com si fos una app.",
+    "androidTitle": "Android (Chrome, Edge o navegador similar)",
+    "androidStep1": "Obre Chrome (o un altre navegador compatible).",
+    "androidStep2": "Entra a ia.rpj.es",
+    "androidStep3": "Toca el menú dels tres punts (⋮ a dalt a la dreta).",
+    "androidStep4": "Prem \"Afegir a la pantalla d'inici\".",
+    "androidStep5": "Confirma el nom (per exemple: IA RPJ).",
+    "androidStep6": "Toca Afegir.",
+    "androidNote": "Es crearà una icona a la pantalla d'inici. En obrir-la, es comporta com una app (sense barra del navegador). Si actives el format \"escriptori\" es podrà visualitzar millor als tres punts.",
+    "iosTitle": "iOS (iPhone / iPad – només amb Safari)",
+    "iosImportant": "Important: només funciona amb Safari, no amb Chrome.",
+    "iosStep1": "Obre Safari.",
+    "iosStep2": "Entra a ia.rpj.es",
+    "iosStep3": "Prem la icona de compartir (quadrat amb fletxa ↑).",
+    "iosStep4": "Llisca i toca \"Afegir a la pantalla d'inici\".",
+    "iosStep5": "Ajusta el nom (per exemple: IA RPJ).",
+    "iosStep6": "Prem Afegir.",
+    "iosNote": "La icona apareixerà al costat de les apps. Si actives el format \"escriptori\" es podrà visualitzar millor. iOS manté algunes barres de Safari, però l'accés és directe."
   },
   "guide": {
     "title": "Guia Documental",

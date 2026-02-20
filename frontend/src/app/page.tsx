@@ -26,6 +26,7 @@ import {
     Trash2,
     AlertTriangle,
     Plus,
+    PenSquare,
     PartyPopper,
     FileText,
     Download,
@@ -47,6 +48,13 @@ import {
     PenLine,
     Flame,
     BookMarked,
+    BarChart3,
+    Copy,
+    Check,
+    ThumbsUp,
+    ThumbsDown,
+    RotateCcw,
+    Type,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -89,6 +97,7 @@ import { downloadAsPDF, downloadAsWord } from "@/lib/document-generator"
 import { ChangePasswordModal } from "@/components/change-password-modal"
 import { CanvasDialog } from "@/components/canvas"
 import { useLocale, formatRelativeTime, type Locale } from "@/lib/locale-context"
+import { useToast } from "@/hooks/use-toast"
 
 type MessageRole = "usuario" | "asistente"
 
@@ -190,6 +199,21 @@ export default function ChatHomePage() {
     const { user, status, isAuthenticated, token, logout, updateProfile } = useAuth()
     const t = useTranslations()
     const { locale, setLocale, locales, localeNames } = useLocale()
+    const { toast } = useToast()
+
+    // Estado para feedback de mensajes (mensajeId -> 'POSITIVO' | 'NEGATIVO')
+    const [feedbackMap, setFeedbackMap] = useState<Record<string, string>>({})
+    // Estado para copiar al portapapeles
+    const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
+
+    // Fuente del chat
+    const chatFont = user?.fuenteChat || "inter"
+    const fontClassMap: Record<string, string> = {
+        "inter": "font-sans",
+        "dm-sans": "font-[family-name:var(--font-dm-sans)]",
+        "lora": "font-[family-name:var(--font-lora)]",
+        "lexend": "font-[family-name:var(--font-lexend)]",
+    }
 
     // Sync locale with user's language preference
     useEffect(() => {
@@ -206,7 +230,13 @@ export default function ChatHomePage() {
     const [isChatsListCollapsed, setIsChatsListCollapsed] = useState(false)
     const [loadingConversations, setLoadingConversations] = useState(false)
     const [hasInitialLoadCompleted, setHasInitialLoadCompleted] = useState(false)
-    const [chatError, setChatError] = useState<string | null>(null)
+    const [chatError, _setChatError] = useState<string | null>(null)
+    const setChatError = useCallback((msg: string | null) => {
+        _setChatError(msg)
+        if (msg) {
+            toast({ variant: "destructive", title: "Error", description: msg })
+        }
+    }, [toast])
     const [shareFeedback, setShareFeedback] = useState<string | null>(null)
     const [isUserDialogOpen, setIsUserDialogOpen] = useState(false)
     const [isArchivedDialogOpen, setIsArchivedDialogOpen] = useState(false)
@@ -1414,12 +1444,6 @@ export default function ChatHomePage() {
                 )}
             >
                 <div className="space-y-4">
-                    {chatError && (
-                        <div className="flex items-start gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                            <AlertTriangle className="mt-0.5 h-4 w-4" aria-hidden="true" />
-                            <span>{chatError}</span>
-                        </div>
-                    )}
                     <div
                         className={cn(
                             "flex flex-col gap-3 rounded-[32px] border border-border/40 px-4 py-3 backdrop-blur",
@@ -1854,7 +1878,7 @@ export default function ChatHomePage() {
                                         onClick={handleCreateNewChat}
                                         className="h-10 w-10 rounded-xl hover:bg-muted text-foreground"
                                     >
-                                        <Plus className="h-5 w-5" />
+                                        <PenSquare className="h-5 w-5" />
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent side="right">
@@ -1921,9 +1945,9 @@ export default function ChatHomePage() {
                         <button
                             type="button"
                             onClick={handleCreateNewChat}
-                            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
                         >
-                            <Plus className="h-5 w-5" aria-hidden="true" />
+                            <PenSquare className="h-4 w-4" aria-hidden="true" />
                             <span>{t("sidebar.newConversation")}</span>
                         </button>
 
@@ -1931,9 +1955,9 @@ export default function ChatHomePage() {
                         <button
                             type="button"
                             onClick={() => setIsSearchDialogOpen(true)}
-                            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
                         >
-                            <Search className="h-5 w-5" aria-hidden="true" />
+                            <Search className="h-4 w-4" aria-hidden="true" />
                             <span>{t("sidebar.searchConversations")}</span>
                         </button>
 
@@ -1945,10 +1969,10 @@ export default function ChatHomePage() {
                         {/* Título Conversaciones */}
                         <button
                             onClick={() => setIsChatsListCollapsed(!isChatsListCollapsed)}
-                            className="flex w-full items-center justify-between rounded-xl px-3 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                            className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
                         >
                             <div className="flex items-center gap-3">
-                                <MessageSquare className="h-5 w-5" aria-hidden="true" />
+                                <MessageSquare className="h-4 w-4" aria-hidden="true" />
                                 <span>{t("sidebar.conversations")}</span>
                             </div>
                             {isChatsListCollapsed ? (
@@ -1987,7 +2011,7 @@ export default function ChatHomePage() {
                                             onClick={() => handleSelectChat(chat.id)}
                                         >
                                             <div className="flex min-w-0 flex-1 items-center gap-2">
-                                                <span className="truncate text-sm font-medium">
+                                                <span className="truncate text-xs">
                                                     {truncatedTitle}
                                                 </span>
                                             </div>
@@ -2094,6 +2118,12 @@ export default function ChatHomePage() {
                                                                 {t("userMenu.administration")}
                                                             </DropdownMenuItem>
                                                         )}
+                                                        {canAccessAdministration && (
+                                                            <DropdownMenuItem onSelect={() => router.push("/estadisticas")}>
+                                                                <BarChart3 className="mr-2 h-4 w-4" />
+                                                                {t("userMenu.statistics")}
+                                                            </DropdownMenuItem>
+                                                        )}
                                                     </DropdownMenuSubContent>
                                                 </DropdownMenuSub>
                                             )}
@@ -2166,6 +2196,12 @@ export default function ChatHomePage() {
                                                         {t("userMenu.administration")}
                                                     </DropdownMenuItem>
                                                 )}
+                                                {canAccessAdministration && (
+                                                    <DropdownMenuItem onSelect={() => router.push("/estadisticas")}>
+                                                        <BarChart3 className="mr-2 h-4 w-4" />
+                                                        {t("userMenu.statistics")}
+                                                    </DropdownMenuItem>
+                                                )}
                                             </DropdownMenuSubContent>
                                         </DropdownMenuSub>
                                     )}
@@ -2195,6 +2231,14 @@ export default function ChatHomePage() {
                         >
                             <Info className="h-4 w-4" />
                             {t("header.aboutIARPJ")}
+                        </Link>
+                        <div className="h-5 w-px bg-border/60 mx-2" />
+                        <Link
+                            href="/guia-de-uso"
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all"
+                        >
+                            <BookOpen className="h-4 w-4" />
+                            {t("header.usageGuide")}
                         </Link>
                         <div className="h-5 w-px bg-border/60 mx-2" />
                         <Link
@@ -2232,7 +2276,8 @@ export default function ChatHomePage() {
                         </div>
                     ) : (
                         <div className="flex h-full flex-col overflow-hidden">
-                            <div ref={scrollRef} className="flex-1 space-y-6 overflow-y-auto px-8 py-8">
+                            <div ref={scrollRef} className="flex-1 overflow-y-auto py-10">
+                                <div className={cn("mx-auto w-full max-w-[60%] space-y-8 px-4", fontClassMap[chatFont] || "font-sans")}>
                                 {activeChat?.isLoading && activeChat.messages.length === 0 && (
                                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                         <Sparkles className="h-4 w-4 animate-pulse" aria-hidden="true" />
@@ -2240,10 +2285,10 @@ export default function ChatHomePage() {
                                     </div>
                                 )}
 
-                                {activeChat && activeChat.messages.map((message) => (
+                                {activeChat && activeChat.messages.map((message, messageIndex) => (
                                     <div
                                         key={message.id}
-                                        className={cn("flex gap-3", message.role === "usuario" ? "justify-end" : "justify-start")}
+                                        className={cn("flex gap-4", message.role === "usuario" ? "justify-end" : "justify-start")}
                                     >
                                         {message.role === "asistente" && (
                                             <Avatar className="h-9 w-9">
@@ -2252,14 +2297,14 @@ export default function ChatHomePage() {
                                         )}
                                         <div
                                             className={cn(
-                                                "relative max-w-[80%] rounded-2xl border px-4 py-3 text-sm leading-relaxed shadow-sm",
+                                                "relative max-w-[85%] text-sm leading-relaxed",
                                                 message.role === "usuario"
-                                                    ? "border-primary/10 bg-primary text-primary-foreground"
-                                                    : "border-border/60 bg-card text-foreground",
+                                                    ? "rounded-2xl border border-border/30 bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100 px-5 py-4 shadow-sm"
+                                                    : "text-foreground",
                                             )}
                                         >
-                                            {message.role === "asistente" && (
-                                                <div className="flex justify-end mb-2 pb-2 border-b border-border/40">
+                                            {message.role === "asistente" && message.content && message.content.length > 300 && /^#{1,3}\s/m.test(message.content) && (
+                                                <div className="flex justify-end mb-3 gap-2">
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>
                                                             <button type="button" className="focus:outline-none">
@@ -2322,21 +2367,24 @@ export default function ChatHomePage() {
                                                     <ReactMarkdown
                                                         remarkPlugins={[remarkGfm]}
                                                         components={{
-                                                            p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                                                            ul: ({ children }) => <ul className="mb-2 ml-4 list-disc">{children}</ul>,
-                                                            ol: ({ children }) => <ol className="mb-2 ml-4 list-decimal">{children}</ol>,
-                                                            li: ({ children }) => <li className="mb-1">{children}</li>,
+                                                            p: ({ children }) => <p className="mb-4 last:mb-0 leading-relaxed">{children}</p>,
+                                                            ul: ({ children }) => <ul className="mb-4 ml-6 list-disc space-y-1.5">{children}</ul>,
+                                                            ol: ({ children }) => <ol className="mb-4 ml-6 list-decimal space-y-1.5">{children}</ol>,
+                                                            li: ({ children }) => <li className="mb-1 pl-1 leading-relaxed">{children}</li>,
                                                             strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-                                                            em: ({ children }) => <em className="italic">{children}</em>,
-                                                            h1: ({ children }) => <h1 className="mb-2 text-xl font-bold">{children}</h1>,
-                                                            h2: ({ children }) => <h2 className="mb-2 text-lg font-bold">{children}</h2>,
-                                                            h3: ({ children }) => <h3 className="mb-2 text-base font-bold">{children}</h3>,
+                                                            em: ({ children }) => <em className="italic text-muted-foreground">{children}</em>,
+                                                            h1: ({ children }) => <h1 className="mt-6 mb-3 text-xl font-bold border-b border-border/40 pb-2">{children}</h1>,
+                                                            h2: ({ children }) => <h2 className="mt-5 mb-2.5 text-lg font-bold">{children}</h2>,
+                                                            h3: ({ children }) => <h3 className="mt-4 mb-2 text-base font-semibold">{children}</h3>,
+                                                            h4: ({ children }) => <h4 className="mt-3 mb-1.5 text-sm font-semibold">{children}</h4>,
+                                                            blockquote: ({ children }) => <blockquote className="border-l-4 border-primary/30 pl-4 my-4 italic text-muted-foreground">{children}</blockquote>,
+                                                            hr: () => <hr className="my-6 border-border/40" />,
                                                             code: ({ children, ...props }) => {
                                                                 const isInline = !props.className
                                                                 return isInline ? (
-                                                                    <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">{children}</code>
+                                                                    <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{children}</code>
                                                                 ) : (
-                                                                    <code className="block rounded bg-muted p-2 font-mono text-xs">{children}</code>
+                                                                    <code className="block rounded-lg bg-muted p-3 font-mono text-xs leading-relaxed">{children}</code>
                                                                 )
                                                             },
                                                         }}
@@ -2346,6 +2394,132 @@ export default function ChatHomePage() {
                                                 </div>
                                             ) : (
                                                 <div className="whitespace-pre-wrap">{message.content}</div>
+                                            )}
+
+                                            {/* Iconos de acción para trabajos finales */}
+                                            {message.role === "asistente" && message.content && message.content.length > 300 && /^#{1,3}\s/m.test(message.content) && (
+                                                <div className="flex items-center gap-1 mt-3 pt-3 border-t border-border/30">
+                                                    {/* Copiar */}
+                                                    <button
+                                                        type="button"
+                                                        className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                                                        onClick={async () => {
+                                                            try {
+                                                                await navigator.clipboard.writeText(message.content)
+                                                                setCopiedMessageId(message.id)
+                                                                setTimeout(() => setCopiedMessageId(null), 2000)
+                                                            } catch {
+                                                                console.error("Error al copiar")
+                                                            }
+                                                        }}
+                                                    >
+                                                        {copiedMessageId === message.id ? (
+                                                            <Check className="h-3.5 w-3.5 text-green-500" />
+                                                        ) : (
+                                                            <Copy className="h-3.5 w-3.5" />
+                                                        )}
+                                                    </button>
+
+                                                    {/* Feedback positivo */}
+                                                    <button
+                                                        type="button"
+                                                        className={cn(
+                                                            "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs transition-colors",
+                                                            feedbackMap[message.id] === "POSITIVO"
+                                                                ? "text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20"
+                                                                : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                                                        )}
+                                                        onClick={async () => {
+                                                            try {
+                                                                if (feedbackMap[message.id] === "POSITIVO") {
+                                                                    await fetch(buildApiUrl(`/api/feedback/${message.id}`), {
+                                                                        method: "DELETE",
+                                                                        headers: { Authorization: `Bearer ${token}` },
+                                                                    })
+                                                                    setFeedbackMap(prev => { const n = { ...prev }; delete n[message.id]; return n })
+                                                                } else {
+                                                                    await fetch(buildApiUrl("/api/feedback"), {
+                                                                        method: "POST",
+                                                                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                                                                        body: JSON.stringify({ mensajeId: message.id, tipo: "POSITIVO", intencion: activeChat?.intent || null }),
+                                                                    })
+                                                                    setFeedbackMap(prev => ({ ...prev, [message.id]: "POSITIVO" }))
+                                                                }
+                                                            } catch { console.error("Error al enviar feedback") }
+                                                        }}
+                                                    >
+                                                        <ThumbsUp className="h-3.5 w-3.5" />
+                                                    </button>
+
+                                                    {/* Feedback negativo */}
+                                                    <button
+                                                        type="button"
+                                                        className={cn(
+                                                            "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs transition-colors",
+                                                            feedbackMap[message.id] === "NEGATIVO"
+                                                                ? "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20"
+                                                                : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                                                        )}
+                                                        onClick={async () => {
+                                                            try {
+                                                                if (feedbackMap[message.id] === "NEGATIVO") {
+                                                                    await fetch(buildApiUrl(`/api/feedback/${message.id}`), {
+                                                                        method: "DELETE",
+                                                                        headers: { Authorization: `Bearer ${token}` },
+                                                                    })
+                                                                    setFeedbackMap(prev => { const n = { ...prev }; delete n[message.id]; return n })
+                                                                } else {
+                                                                    await fetch(buildApiUrl("/api/feedback"), {
+                                                                        method: "POST",
+                                                                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                                                                        body: JSON.stringify({ mensajeId: message.id, tipo: "NEGATIVO", intencion: activeChat?.intent || null }),
+                                                                    })
+                                                                    setFeedbackMap(prev => ({ ...prev, [message.id]: "NEGATIVO" }))
+                                                                }
+                                                            } catch { console.error("Error al enviar feedback") }
+                                                        }}
+                                                    >
+                                                        <ThumbsDown className="h-3.5 w-3.5" />
+                                                    </button>
+
+                                                    {/* Compartir por email */}
+                                                    <button
+                                                        type="button"
+                                                        className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                                                        onClick={() => {
+                                                            const subject = encodeURIComponent(activeChat?.title || "Contenido generado por IA RPJ")
+                                                            const body = encodeURIComponent(message.content)
+                                                            window.open(`mailto:?subject=${subject}&body=${body}`, "_blank")
+                                                        }}
+                                                    >
+                                                        <Share2 className="h-3.5 w-3.5" />
+                                                        <span>{t("sidebar.share")}</span>
+                                                    </button>
+
+                                                    {/* Regenerar */}
+                                                    <button
+                                                        type="button"
+                                                        className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                                                        disabled={isThinking}
+                                                        onClick={() => {
+                                                            // Encontrar el mensaje del usuario anterior a este del asistente
+                                                            const msgs = activeChat?.messages || []
+                                                            const prevUserMsg = msgs.slice(0, messageIndex).reverse().find(m => m.role === "usuario")
+                                                            if (prevUserMsg) {
+                                                                setInputValue(prevUserMsg.content)
+                                                                // Eliminar la respuesta actual y el mensaje del usuario para regenerar
+                                                                setChats(prevChats => prevChats.map(chat =>
+                                                                    chat.id === activeChat?.id
+                                                                        ? { ...chat, messages: msgs.filter((_, i) => i < messageIndex - 1) }
+                                                                        : chat
+                                                                ))
+                                                            }
+                                                        }}
+                                                    >
+                                                        <RotateCcw className="h-3.5 w-3.5" />
+                                                        <span>{t("common.retry")}</span>
+                                                    </button>
+                                                </div>
                                             )}
                                         </div>
                                         {message.role === "usuario" && (
@@ -2375,6 +2549,7 @@ export default function ChatHomePage() {
                                         Selecciona o crea un chat para comenzar.
                                     </div>
                                 )}
+                                </div>
                             </div>
                             {renderPromptComposer("bottom")}
                         </div>
@@ -2557,6 +2732,52 @@ export default function ChatHomePage() {
                                             </option>
                                         ))}
                                     </select>
+                                </div>
+
+                                {/* Fuente del chat */}
+                                <div className="space-y-3 pt-2">
+                                    <div className="space-y-0.5">
+                                        <Label className="text-sm font-medium flex items-center gap-2">
+                                            <Type className="h-4 w-4" />
+                                            {t("settings.chatFont")}
+                                        </Label>
+                                        <p className="text-xs text-muted-foreground">
+                                            {t("settings.chatFontDesc")}
+                                        </p>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {[
+                                            { id: "inter", label: "Predeterminada", fontClass: "font-sans" },
+                                            { id: "dm-sans", label: "Sans moderna", fontClass: "font-[family-name:var(--font-dm-sans)]" },
+                                            { id: "lora", label: "Serif clásica", fontClass: "font-[family-name:var(--font-lora)]" },
+                                            { id: "lexend", label: "Legible", fontClass: "font-[family-name:var(--font-lexend)]" },
+                                        ].map((font) => (
+                                            <button
+                                                key={font.id}
+                                                type="button"
+                                                onClick={async () => {
+                                                    if (isAuthenticated && token) {
+                                                        try {
+                                                            await updateProfile({ fuenteChat: font.id })
+                                                        } catch (error) {
+                                                            console.error("Error saving font preference:", error)
+                                                        }
+                                                    }
+                                                }}
+                                                className={cn(
+                                                    "flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all hover:border-primary/50",
+                                                    chatFont === font.id
+                                                        ? "border-primary bg-primary/5 shadow-sm"
+                                                        : "border-border/60 bg-card"
+                                                )}
+                                            >
+                                                <span className={cn("text-xs leading-relaxed text-center", font.fontClass)}>
+                                                    El veloz murciélago hindú comía...
+                                                </span>
+                                                <span className="text-[10px] font-medium text-muted-foreground">{font.label}</span>
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         </div>

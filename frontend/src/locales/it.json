@@ -207,7 +207,9 @@
     "privacyDesc": "Controlla la tua privacy e i tuoi dati",
     "themeLight": "Chiaro",
     "themeDark": "Scuro",
-    "themeSystem": "Sistema"
+    "themeSystem": "Sistema",
+    "chatFont": "Font della chat",
+    "chatFontDesc": "Scegli il carattere per i messaggi della chat"
   },
   "profile": {
     "title": "Profilo utente",
@@ -240,11 +242,13 @@
     "settings": "Impostazioni",
     "documentation": "Documentazione",
     "administration": "Amministrazione",
+    "statistics": "Statistiche",
     "logout": "Esci"
   },
   "header": {
     "about": "Informazioni su IA RPJ",
     "documentGuide": "Guida documentale",
+    "usageGuide": "Guida all'uso",
     "contact": "Contatto",
     "backToChat": "Torna alla chat",
     "aboutIARPJ": "Informazioni su IA RPJ"
@@ -335,7 +339,9 @@
     "backToChat": "Torna alla chat",
     "loading": "Caricamento...",
     "section1Title": "A chi è destinata l'IA RPJ?",
-    "section1Content": "A tutti i responsabili pastorali delle istituzioni ecclesiali che partecipano e rendono possibile la Rete di pastorale giovanile RPJ. Ai catechisti, animatori, agenti pastorali e accompagnatori di adolescenti e giovani in comunità, gruppi giovanili, parrocchie o movimenti che vogliono migliorare i loro strumenti pastorali. Ad altre persone interessate a sfruttare gli strumenti attuali offerti da un'IA specializzata in pastorale giovanile per aiutare a preparare iniziative di evangelizzazione.",
+    "section1List1": "A tutti i responsabili pastorali delle istituzioni ecclesiali che partecipano e rendono possibile la Rete di pastorale giovanile RPJ.",
+    "section1List2": "Ai catechisti, animatori, agenti pastorali e accompagnatori di adolescenti e giovani in comunità, gruppi giovanili, parrocchie o movimenti che vogliono migliorare i loro strumenti pastorali.",
+    "section1List3": "Ad altre persone interessate a sfruttare gli strumenti attuali offerti da un'IA specializzata in pastorale giovanile per aiutare a preparare iniziative di evangelizzazione.",
     "section2Title": "Perché è stata creata l'IA RPJ?",
     "section2Content1": "Il continente digitale e l'Intelligenza Artificiale sono realtà della cultura contemporanea che possiamo sfruttare al servizio dell'evangelizzazione e del bene comune. Partendo da questo obiettivo, questo strumento è progettato per completare e migliorare l'accessibilità alle risorse di cui un accompagnatore di adolescenti e giovani può aver bisogno nella sua missione pastorale, secondo tre principi di responsabilità morale fondamentali nella sua progettazione e utilizzo:",
     "section2List1": "Garantire l'affidabilità delle fonti che l'IA RPJ consulta prioritariamente.",
@@ -363,6 +369,35 @@
     "title": "Contatto",
     "backToChat": "Torna alla chat",
     "description": "Contattaci per qualsiasi commento, contributo o domanda a:"
+  },
+  "usageGuide": {
+    "title": "Guida all'uso",
+    "backToChat": "Torna alla chat",
+    "mainTitle": "Come utilizzare l'IA RPJ?",
+    "tip1": "Crediamo che sarà uno strumento utile al servizio della pastorale se utilizzato da accompagnatori di giovani con <bold>criterio evangelico</bold> derivante da una formazione ricevuta, un'esperienza pratica e un piano di pastorale giovanile definito con i suoi principi, dimensioni, tappe e obiettivi che orientino e adattino le risposte offerte dall'IA RPJ.",
+    "tip2": "Le risposte offerte dall'IA RPJ saranno più appropriate <bold>quanto meglio sarà spiegata la richiesta</bold> (contesto pastorale, compito concreto richiesto, caratteristiche degli adolescenti o giovani destinatari, obiettivi della proposta, formato necessario nella risposta con un esempio…).",
+    "tip3": "L'IA RPJ ha la possibilità di selezionare <bold>che tipo di richiesta necessiti</bold> come agente di pastorale giovanile (dinamiche, preghiere, celebrazioni, programmi o consulte) e <bold>diverse opzioni da utilizzare</bold>: l'opzione \"Allega file\" per riassunti o compiti a partire dal file, l'opzione \"Modalità Canvas\" per modificare e adattare la risposta, l'opzione del modello \"Deep think\" per approfondire un argomento, l'opzione \"Dettatura vocale\" per le conversazioni e l'opzione \"Scarica\" le risposte in formato PDF o Word.",
+    "tip4": "L'IA RPJ ha un numero limitato di conversazioni e messaggi al giorno per ogni persona con la possibilità di interagire in <bold>più lingue</bold> e l'opzione di cambiarle nell'interfaccia. E un'email di contatto per qualsiasi domanda ai team di RPJ:",
+    "mobileTitle": "Usarla sul cellulare",
+    "mobileIntro": "Ecco i passaggi chiari e semplici per creare un collegamento rapido nella schermata iniziale del sito www.ia.rpj.es, sia su Android che su iOS (iPhone / iPad).",
+    "mobileAppNote": "Salva l'IA RPJ come app sul tuo telefono per averla sempre a portata di mano. Funzionerà come se fosse un'app.",
+    "androidTitle": "Android (Chrome, Edge o browser simile)",
+    "androidStep1": "Apri Chrome (o un altro browser compatibile).",
+    "androidStep2": "Vai su ia.rpj.es",
+    "androidStep3": "Tocca il menu dei tre puntini (⋮ in alto a destra).",
+    "androidStep4": "Tocca \"Aggiungi a schermata Home\".",
+    "androidStep5": "Conferma il nome (ad esempio: IA RPJ).",
+    "androidStep6": "Tocca Aggiungi.",
+    "androidNote": "Verrà creata un'icona nella schermata iniziale. Aprendola, si comporta come un'app (senza la barra del browser). Se attivi il formato \"desktop\" si visualizzerà meglio nei tre puntini.",
+    "iosTitle": "iOS (iPhone / iPad – solo con Safari)",
+    "iosImportant": "Importante: funziona solo con Safari, non con Chrome.",
+    "iosStep1": "Apri Safari.",
+    "iosStep2": "Vai su ia.rpj.es",
+    "iosStep3": "Tocca l'icona di condivisione (quadrato con freccia ↑).",
+    "iosStep4": "Scorri e tocca \"Aggiungi a Home\".",
+    "iosStep5": "Regola il nome (ad esempio: IA RPJ).",
+    "iosStep6": "Tocca Aggiungi.",
+    "iosNote": "L'icona apparirà accanto alle app. Se attivi il formato \"desktop\" si visualizzerà meglio. iOS mantiene alcune barre di Safari, ma l'accesso è diretto."
   },
   "guide": {
     "title": "Guida documentale",

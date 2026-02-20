@@ -207,7 +207,9 @@
     "privacyDesc": "Kontrolatu zure pribatutasuna eta datuak",
     "themeLight": "Argia",
     "themeDark": "Iluna",
-    "themeSystem": "Sistema"
+    "themeSystem": "Sistema",
+    "chatFont": "Txateko letra-tipoa",
+    "chatFontDesc": "Aukeratu txat mezuentzako letra-tipoa"
   },
   "profile": {
     "title": "Erabiltzaile profila",
@@ -240,11 +242,13 @@
     "settings": "Ezarpenak",
     "documentation": "Dokumentazioa",
     "administration": "Administrazioa",
+    "statistics": "Estatistikak",
     "logout": "Amaitu saioa"
   },
   "header": {
     "about": "IA RPJ-ri buruz",
     "documentGuide": "Dokumentu gida",
+    "usageGuide": "Erabilera gida",
     "contact": "Kontaktua",
     "backToChat": "Txatera itzuli",
     "aboutIARPJ": "IA RPJ-ri buruz"
@@ -335,7 +339,9 @@
     "backToChat": "Txatera itzuli",
     "loading": "Kargatzen...",
     "section1Title": "Norentzat da IA RPJ?",
-    "section1Content": "RPJ Gazte Pastoral Sarean parte hartzen duten eta posible egiten duten erakunde eliztarretako pastoral arduradun guztientzat. Komunitateetan, gazte taldeetan, parrokietan edo mugimenduetan nerabeei eta gazteei laguntzen dieten katekistei, animatzaileei, pastoral eragileei eta laguntzaileei, beren pastoral tresnak hobetu nahi dituztenei. Ebanjelizazio ekimenak prestatzen laguntzeko gazte pastoralean espezializatutako AI batek eskaintzen dituen oraingo tresnak aprobetxatu nahi dituzten beste pertsonei.",
+    "section1List1": "RPJ Gazte Pastoral Sarean parte hartzen duten eta posible egiten duten erakunde eliztarretako pastoral arduradun guztientzat.",
+    "section1List2": "Komunitateetan, gazte taldeetan, parrokietan edo mugimenduetan nerabeei eta gazteei laguntzen dieten katekistei, animatzaileei, pastoral eragileei eta laguntzaileei, beren pastoral tresnak hobetu nahi dituztenei.",
+    "section1List3": "Ebanjelizazio ekimenak prestatzen laguntzeko gazte pastoralean espezializatutako AI batek eskaintzen dituen oraingo tresnak aprobetxatu nahi dituzten beste pertsonei.",
     "section2Title": "Zergatik sortu da IA RPJ?",
     "section2Content1": "Kontinente digitala eta Adimen Artifiziala gaur egungo kulturaren errealitate dira, ebanjelizazioaren eta ongizate erkidearen zerbitzura aprobetxa ditzakegunak. Helburu honetatik abiatuta, tresna hau nerabeei eta gazteei laguntzen dienek beren pastoral misioan behar ditzaketen baliabideetarako irisgarritasuna osatzeko eta hobetzeko dago prestatuta, bere diseinu eta erabileran hiru ardura moral oinarrizko printzipiotan oinarrituta:",
     "section2List1": "IA RPJ-k lehentasunez kontsultatzen dituen iturrien fidagarritasuna bermatzea.",
@@ -363,6 +369,35 @@
     "title": "Kontaktua",
     "backToChat": "Txatera itzuli",
     "description": "Jarri gurekin harremanetan edozein iruzkin, ekarpena edo galderetarako:"
+  },
+  "usageGuide": {
+    "title": "Erabilera gida",
+    "backToChat": "Txatera itzuli",
+    "mainTitle": "Nola erabili IA RPJ?",
+    "tip1": "Uste dugu tresna erabilgarria izango dela pastoralaren zerbitzura, gazteen laguntzaileek <bold>ebanjelio irizpidearekin</bold> aprobetxatzen badute jasotako formazio batetik, esperientzia praktiko batetik eta gazte pastoral plan definitu batetik bere printzipio, dimentsio, etapa eta helburuekin, IA RPJ-k eskaintzen dituen erantzunak orientatzen eta egokitzen dituztenak.",
+    "tip2": "IA RPJ-k eskaintzen dituen erantzunak egokiagoak izango dira <bold>zenbat eta hobeto azalduta dagoen eskaera</bold> (pastoral testuingurua, eskatutako zeregin zehatza, helburuko nerabe edo gazteen ezaugarriak, proposamenaren helburuak, erantzunean behar den formatua adibide batekin…).",
+    "tip3": "IA RPJ-k <bold>zein eskaera mota behar duzun</bold> hautatzeko aukera du gazte pastoral eragile gisa (dinamikak, otoitzak, ospakizunak, programazioak edo kontsultak) eta <bold>hainbat aukera erabiltzeko</bold>: \"Fitxategiak erantsi\" aukera laburpen edo zereginetarako fitxategitik abiatuta, \"Mihise Modua\" aukera erantzuna editatu eta egokitzeko, \"Deep think\" eredu aukera gai batean sakontzeko, \"Ahots diktadoa\" aukera elkarrizketetan erabiltzeko eta \"Deskargatu\" aukera erantzunak PDF edo Word fitxategian.",
+    "tip4": "IA RPJ-k eguneko elkarrizketa eta mezu kopuru mugatua du pertsona bakoitzeko <bold>hainbat hizkuntzatan</bold> elkarreragiteko aukerarekin eta interfazean aldatzeko aukerarekin. Eta kontaktu emaila RPJ taldeei edozein kontsulta egiteko:",
+    "mobileTitle": "Mugikorrean erabili",
+    "mobileIntro": "Hemen dituzu www.ia.rpj.es webgunearen hasierako pantailan zuzeneko sarbide bat sortzeko urrats argi eta sinpleak, bai Androiden bai iOS-en (iPhone / iPad).",
+    "mobileAppNote": "Gorde IA RPJ app gisa zure mugikorrean beti eskura izateko. App bat balitz bezala funtzionatuko du.",
+    "androidTitle": "Android (Chrome, Edge edo antzeko nabigatzailea)",
+    "androidStep1": "Ireki Chrome (edo beste nabigatzaile bateragarri bat).",
+    "androidStep2": "Sartu ia.rpj.es-en",
+    "androidStep3": "Sakatu hiru puntuen menua (⋮ goian eskuinean).",
+    "androidStep4": "Sakatu \"Gehitu hasierako pantailara\".",
+    "androidStep5": "Berretsi izena (adibidez: IA RPJ).",
+    "androidStep6": "Sakatu Gehitu.",
+    "androidNote": "Ikono bat sortuko da hasierako pantailan. Irekitzean, app bat bezala jokatzen du (nabigatzaile barrarik gabe). \"Mahaigain\" formatua aktibatzen baduzu, hobeto bistaratuko da hiru puntuetan.",
+    "iosTitle": "iOS (iPhone / iPad – Safariarekin soilik)",
+    "iosImportant": "Garrantzitsua: Safariarekin soilik funtzionatzen du, ez Chrome-rekin.",
+    "iosStep1": "Ireki Safari.",
+    "iosStep2": "Sartu ia.rpj.es-en",
+    "iosStep3": "Sakatu partekatzeko ikonoa (karratua geziarekin ↑).",
+    "iosStep4": "Irristatu eta sakatu \"Gehitu hasierako pantailara\".",
+    "iosStep5": "Doitu izena (adibidez: IA RPJ).",
+    "iosStep6": "Sakatu Gehitu.",
+    "iosNote": "Ikonoa aplikazioen ondoan agertuko da. \"Mahaigain\" formatua aktibatzen baduzu, hobeto bistaratuko da. iOS-ek Safari barra batzuk mantentzen ditu, baina sarbidea zuzena da."
   },
   "guide": {
     "title": "Dokumentu Gida",

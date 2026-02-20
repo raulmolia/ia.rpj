@@ -7,54 +7,56 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider          = "mysql"
+  url               = env("DATABASE_URL")
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 // Modelo de usuarios
 model Usuario {
-  id              String   @id @default(cuid())
-  email           String   @unique
+  id              String          @id @default(cuid())
+  email           String          @unique
   nombre          String
   apellidos       String?
-  nombreUsuario   String?  @unique
+  nombreUsuario   String?         @unique
   avatarUrl       String?
   telefono        String?
   fechaNacimiento DateTime?
   genero          Genero?
-  rol             Rol      @default(USUARIO)
+  rol             Rol             @default(USUARIO)
   tipoSuscripcion TipoSuscripcion @default(FREE)
-  
+
   // Autenticación
-  emailVerificado DateTime?
-  passwordHash    String?
-  debeCambiarPassword Boolean @default(false)
-  
+  emailVerificado     DateTime?
+  passwordHash        String?
+  debeCambiarPassword Boolean   @default(false)
+
   // Información de la organización/grupo
-  organizacion    String?
-  cargo           String?
-  experiencia     Int?     // años de experiencia
-  
+  organizacion String?
+  cargo        String?
+  experiencia  Int? // años de experiencia
+
   // Configuración del usuario
-  temaPreferido   String   @default("light")
-  idioma          String   @default("es")
-  notificaciones  Boolean  @default(true)
-  
+  temaPreferido  String  @default("light")
+  idioma         String  @default("es")
+  fuenteChat     String  @default("inter")
+  notificaciones Boolean @default(true)
+
   // Metadatos
-  fechaCreacion   DateTime @default(now())
+  fechaCreacion      DateTime @default(now())
   fechaActualizacion DateTime @updatedAt
-  activo          Boolean  @default(true)
-  
+  activo             Boolean  @default(true)
+
   // Relaciones
-  sesiones        Sesion[]
-  actividades     Actividad[]
-  configuraciones ConfiguracionUsuario[]
-  favoritos       ActividadFavorita[]
-  documentos      Documento[]
-  conversaciones  Conversacion[]
-  fuentesWeb      FuenteWeb[]
-  
+  sesiones          Sesion[]
+  actividades       Actividad[]
+  configuraciones   ConfiguracionUsuario[]
+  favoritos         ActividadFavorita[]
+  documentos        Documento[]
+  conversaciones    Conversacion[]
+  fuentesWeb        FuenteWeb[]
+  feedbacksMensajes FeedbackMensaje[]
+
   @@map("usuarios")
 }
 
@@ -83,62 +85,62 @@ enum Genero {
 
 // Modelo de sesiones de usuario
 model Sesion {
-  id            String   @id @default(cuid())
-  usuarioId     String
-  token         String   @unique
+  id              String   @id @default(cuid())
+  usuarioId       String
+  token           String   @unique
   tipoDispositivo String?
-  navegador     String?
-  ip            String?
-  ubicacion     String?
-  activa        Boolean  @default(true)
-  fechaCreacion DateTime @default(now())
+  navegador       String?
+  ip              String?
+  ubicacion       String?
+  activa          Boolean  @default(true)
+  fechaCreacion   DateTime @default(now())
   fechaExpiracion DateTime
-  ultimoAcceso  DateTime @default(now())
-  
+  ultimoAcceso    DateTime @default(now())
+
   // Relaciones
-  usuario       Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
   @@map("sesiones")
 }
 
 // Modelo para actividades generadas
 model Actividad {
-  id              String   @id @default(cuid())
-  usuarioId       String
-  titulo          String
-  descripcion     String
-  contenido       String   // JSON con la actividad completa
-  
+  id          String @id @default(cuid())
+  usuarioId   String
+  titulo      String
+  descripcion String
+  contenido   String // JSON con la actividad completa
+
   // Clasificación
-  tipoActividad   TipoActividad
-  edadMinima      Int
-  edadMaxima      Int
-  duracionMinutos Int
+  tipoActividad       TipoActividad
+  edadMinima          Int
+  edadMaxima          Int
+  duracionMinutos     Int
   numeroParticipantes Int
-  
+
   // Categorías y tags
-  categoria       String
-  subcategoria    String?
-  tags            String? // Tags separados por comas
-  dificultad      Dificultad
-  
+  categoria    String
+  subcategoria String?
+  tags         String? // Tags separados por comas
+  dificultad   Dificultad
+
   // Metadatos de generación IA
-  promptOriginal  String
-  modeloIA        String
-  parametrosIA    String   // JSON con parámetros usados
-  versionIA       String?
-  
+  promptOriginal String
+  modeloIA       String
+  parametrosIA   String // JSON con parámetros usados
+  versionIA      String?
+
   // Estado y métricas
-  estado          EstadoActividad @default(BORRADOR)
-  calificacion    Float?   // 1-5 estrellas
-  vecesUsada      Int      @default(0)
-  fechaCreacion   DateTime @default(now())
-  fechaActualizacion DateTime @updatedAt
-  
+  estado             EstadoActividad @default(BORRADOR)
+  calificacion       Float? // 1-5 estrellas
+  vecesUsada         Int             @default(0)
+  fechaCreacion      DateTime        @default(now())
+  fechaActualizacion DateTime        @updatedAt
+
   // Relaciones
-  usuario         Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  favoritos       ActividadFavorita[]
-  
+  usuario   Usuario             @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  favoritos ActividadFavorita[]
+
   @@map("actividades")
 }
 
@@ -173,128 +175,152 @@ enum EstadoActividad {
 
 // Modelo para favoritos
 model ActividadFavorita {
-  id           String    @id @default(cuid())
-  usuarioId    String
-  actividadId  String
+  id            String   @id @default(cuid())
+  usuarioId     String
+  actividadId   String
   fechaCreacion DateTime @default(now())
-  
+
   // Relaciones
-  usuario      Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  actividad    Actividad @relation(fields: [actividadId], references: [id], onDelete: Cascade)
-  
+  usuario   Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  actividad Actividad @relation(fields: [actividadId], references: [id], onDelete: Cascade)
+
   @@unique([usuarioId, actividadId])
   @@map("actividades_favoritas")
 }
 
 // Modelo para configuraciones personalizadas
 model ConfiguracionUsuario {
-  id            String   @id @default(cuid())
-  usuarioId     String
-  clave         String   // ej: "edad_preferida", "tipo_actividad_preferida"
-  valor         String   // valor serializado (JSON si es complejo)
-  tipo          String   // "string", "number", "boolean", "json"
-  fechaCreacion DateTime @default(now())
+  id                 String   @id @default(cuid())
+  usuarioId          String
+  clave              String // ej: "edad_preferida", "tipo_actividad_preferida"
+  valor              String // valor serializado (JSON si es complejo)
+  tipo               String // "string", "number", "boolean", "json"
+  fechaCreacion      DateTime @default(now())
   fechaActualizacion DateTime @updatedAt
-  
+
   // Relaciones
-  usuario       Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
   @@unique([usuarioId, clave])
   @@map("configuraciones_usuario")
 }
 
 // Modelo para el repositorio documental
 model Documento {
-  id                   String                 @id @default(cuid())
-  usuarioId            String?
-  titulo               String
-  nombreOriginal       String
-  rutaArchivo          String
-  tamanoBytes          Int
-  tipoMime             String
-  etiquetas            Json
-  descripcionGenerada  String?
-  estadoProcesamiento  EstadoProcesamiento    @default(PENDIENTE)
-  mensajeError         String?
-  fechaProcesamiento   DateTime?
-  contenidoExtraido    String?                @db.LongText
-  vectorDocumentoId    String?
-  coleccionVectorial   String?
-  fechaCreacion        DateTime               @default(now())
-  fechaActualizacion   DateTime               @updatedAt
+  id                  String              @id @default(cuid())
+  usuarioId           String?
+  titulo              String
+  nombreOriginal      String
+  rutaArchivo         String
+  tamanoBytes         Int
+  tipoMime            String
+  etiquetas           Json
+  descripcionGenerada String?
+  estadoProcesamiento EstadoProcesamiento @default(PENDIENTE)
+  mensajeError        String?
+  fechaProcesamiento  DateTime?
+  contenidoExtraido   String?             @db.LongText
+  vectorDocumentoId   String?
+  coleccionVectorial  String?
+  fechaCreacion       DateTime            @default(now())
+  fechaActualizacion  DateTime            @updatedAt
 
   // Relaciones
-  usuario              Usuario?               @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  usuario Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
 
-  @@map("documentos")
   @@index([fechaCreacion], name: "idx_documentos_fecha")
   @@index([estadoProcesamiento], name: "idx_documentos_estado")
+  @@map("documentos")
 }
 
 // Fuentes web para búsqueda y scraping
 model FuenteWeb {
-  id                   String                 @id @default(cuid())
-  usuarioId            String?
-  url                  String
-  dominio              String
-  titulo               String?
-  descripcion          String?
-  etiquetas            Json
-  tipoFuente           TipoFuenteWeb          @default(PAGINA)
-  estadoProcesamiento  EstadoProcesamiento    @default(PENDIENTE)
-  mensajeError         String?
-  fechaProcesamiento   DateTime?
-  contenidoExtraido    String?                @db.LongText
-  vectorDocumentoId    String?
-  coleccionVectorial   String?
-  activa               Boolean                @default(true)
-  fechaCreacion        DateTime               @default(now())
-  fechaActualizacion   DateTime               @updatedAt
-  fechaUltimaActualizacion DateTime?          // Para el sistema de actualización automática cada 24h
+  id                       String              @id @default(cuid())
+  usuarioId                String?
+  url                      String
+  dominio                  String
+  titulo                   String?
+  descripcion              String?
+  etiquetas                Json
+  tipoFuente               TipoFuenteWeb       @default(PAGINA)
+  estadoProcesamiento      EstadoProcesamiento @default(PENDIENTE)
+  mensajeError             String?
+  fechaProcesamiento       DateTime?
+  contenidoExtraido        String?             @db.LongText
+  vectorDocumentoId        String?
+  coleccionVectorial       String?
+  activa                   Boolean             @default(true)
+  fechaCreacion            DateTime            @default(now())
+  fechaActualizacion       DateTime            @updatedAt
+  fechaUltimaActualizacion DateTime? // Para el sistema de actualización automática cada 24h
 
   // Relaciones
-  usuario              Usuario?               @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  usuario Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
 
-  @@map("fuentes_web")
   @@index([dominio], name: "idx_fuentes_web_dominio")
   @@index([estadoProcesamiento], name: "idx_fuentes_web_estado")
   @@index([activa], name: "idx_fuentes_web_activa")
+  @@map("fuentes_web")
 }
 
 // Conversaciones del chat IA
 model Conversacion {
-  id                 String              @id @default(cuid())
+  id                 String   @id @default(cuid())
   usuarioId          String?
   titulo             String?
   descripcion        String?
   intencionPrincipal String?
-  fechaCreacion      DateTime            @default(now())
-  fechaActualizacion DateTime            @updatedAt
+  fechaCreacion      DateTime @default(now())
+  fechaActualizacion DateTime @updatedAt
 
-  usuario            Usuario?            @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
-  mensajes           MensajeConversacion[]
+  usuario  Usuario?              @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  mensajes MensajeConversacion[]
 
-  @@map("conversaciones")
   @@index([usuarioId], name: "idx_conversaciones_usuario")
+  @@map("conversaciones")
 }
 
 model MensajeConversacion {
-  id             String         @id @default(cuid())
+  id             String     @id @default(cuid())
   conversacionId String
   rol            RolMensaje
-  contenido      String         @db.LongText
-  canvasContent  String?        @db.LongText
+  contenido      String     @db.LongText
+  canvasContent  String?    @db.LongText
   intencion      String?
   tokensEntrada  Int?
   tokensSalida   Int?
   duracionMs     Int?
   metadatos      Json?
-  fechaCreacion  DateTime       @default(now())
+  fechaCreacion  DateTime   @default(now())
 
-  conversacion   Conversacion   @relation(fields: [conversacionId], references: [id], onDelete: Cascade)
+  conversacion Conversacion      @relation(fields: [conversacionId], references: [id], onDelete: Cascade)
+  feedbacks    FeedbackMensaje[]
 
-  @@map("mensajes_conversacion")
   @@index([conversacionId], name: "idx_mensajes_conversacion_conversacionId")
+  @@map("mensajes_conversacion")
+}
+
+// Feedback de usuarios sobre respuestas del asistente
+model FeedbackMensaje {
+  id            String       @id @default(cuid())
+  mensajeId     String
+  usuarioId     String?
+  tipo          TipoFeedback
+  intencion     String?
+  fechaCreacion DateTime     @default(now())
+
+  mensaje MensajeConversacion @relation(fields: [mensajeId], references: [id], onDelete: Cascade)
+  usuario Usuario?            @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  @@unique([mensajeId, usuarioId])
+  @@index([tipo], name: "idx_feedback_tipo")
+  @@index([intencion], name: "idx_feedback_intencion")
+  @@map("feedback_mensajes")
+}
+
+enum TipoFeedback {
+  POSITIVO
+  NEGATIVO
 }
 
 // Enum de estado de procesamiento documental
@@ -326,7 +352,7 @@ enum RolMensaje {
 
 // Enum de tipo de fuente web
 enum TipoFuenteWeb {
-  PAGINA      // URL específica
-  DOMINIO     // Dominio completo para scraping
-  SITEMAP     // URL de sitemap XML
+  PAGINA // URL específica
+  DOMINIO // Dominio completo para scraping
+  SITEMAP // URL de sitemap XML
 }

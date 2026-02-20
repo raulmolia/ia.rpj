@@ -361,10 +361,12 @@ router.patch('/me', authenticate, async (req, res) => {
         'experiencia',
         'avatarUrl',
         'idioma',
+        'fuenteChat',
     ]);
 
     // Valid language codes
     const VALID_LANGUAGES = ['es', 'en', 'fr', 'it', 'pt', 'hu', 'pl', 'ca', 'gl', 'eu'];
+    const VALID_FONTS = ['inter', 'dm-sans', 'lora', 'lexend'];
 
     try {
         const updates = Object.entries(req.body || {}).reduce((acc, [key, value]) => {
@@ -377,6 +379,10 @@ router.patch('/me', authenticate, async (req, res) => {
                 } else if (key === 'idioma') {
                     // Validate language code
                     if (VALID_LANGUAGES.includes(value)) {
+                        acc[key] = value;
+                    }
+                } else if (key === 'fuenteChat') {
+                    if (VALID_FONTS.includes(value)) {
                         acc[key] = value;
                     }
                 } else if (typeof value === 'string' || value === null) {

@@ -33,20 +33,20 @@ const DropdownMenuSubTrigger = React.forwardRef<
         {...props}
     >
         {children}
-        <DropdownMenuPrimitive.ItemIndicator className="ml-auto inline-flex h-4 w-4 items-center justify-center">
-            <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-4 w-4"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-            >
-                <path
-                    fillRule="evenodd"
-                    d="M5.23 7.21a.75.75 0 011.06.02L10 10.939l3.71-3.708a.75.75 0 111.06 1.06l-4.24 4.233a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z"
-                    clipRule="evenodd"
-                />
-            </svg>
-        </DropdownMenuPrimitive.ItemIndicator>
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="ml-auto h-4 w-4 opacity-60"
+        >
+            <path d="m9 18 6-6-6-6" />
+        </svg>
     </DropdownMenuPrimitive.SubTrigger>
 ))
 DropdownMenuSubTrigger.displayName = DropdownMenuPrimitive.SubTrigger.displayName
