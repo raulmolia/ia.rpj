@@ -1058,8 +1058,11 @@ export default function ChatHomePage() {
         try {
             const formData = new FormData()
             formData.append('audio', audioBlob, 'recording.webm')
+            // Enviar idioma del usuario para mejorar precisión de Whisper
+            const userLang = user?.idioma || locale || 'es'
+            formData.append('language', userLang)
 
-            console.log('📤 Enviando audio al servidor...')
+            console.log(`📤 Enviando audio al servidor... [idioma: ${userLang}]`)
             const response = await fetch(buildApiUrl('/api/files/transcribe'), {
                 method: 'POST',
                 headers: {
@@ -1090,7 +1093,7 @@ export default function ChatHomePage() {
             setIsTranscribing(false)
             console.log('🏁 Transcripción finalizada')
         }
-    }, [token])
+    }, [token, user?.idioma, locale])
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault()

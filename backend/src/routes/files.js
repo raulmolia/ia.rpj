@@ -191,10 +191,13 @@ router.post('/transcribe', authenticate, audioUpload.single('audio'), async (req
             });
         }
 
-        console.log(`🎤 Transcribiendo audio: ${req.file.originalname} (${(req.file.size / 1024).toFixed(2)} KB)`);
+        // Obtener idioma: del body, del usuario autenticado, o por defecto 'es'
+        const language = req.body?.language || req.user?.idioma || 'es';
 
-        // Transcribir el audio
-        const result = await whisperService.transcribeAudio(req.file.buffer);
+        console.log(`🎤 Transcribiendo audio: ${req.file.originalname} (${(req.file.size / 1024).toFixed(2)} KB) [idioma: ${language}]`);
+
+        // Transcribir el audio con el idioma del usuario
+        const result = await whisperService.transcribeAudio(req.file.buffer, language);
 
         console.log(`✅ Audio transcrito: ${result.text.substring(0, 100)}...`);
 

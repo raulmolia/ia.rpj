@@ -194,10 +194,10 @@ function buildContextFromChroma(results = []) {
         .filter(Boolean);
 
     const sourceHint = sourceNames.length > 0
-        ? `\n\n**CITA DE FUENTES:** Al final de tu respuesta, añade una línea en cursiva entre paréntesis que diga "Inspirado en" seguido de una mención natural y breve de las fuentes que hayas utilizado. No numeres las fuentes, no uses sus títulos íntegros, reformúlalas de forma natural. Ejemplo: *(Inspirado en materiales de pastoral juvenil y recursos de animación comunitaria)*. Si no has utilizado ninguna fuente del contexto, no añadas esta línea.`
+        ? `\n\n**CITA DE FUENTES (OBLIGATORIO):** Al final de tu respuesta SIEMPRE añade una sección "📚 Fuentes consultadas:" seguida de una lista breve y natural de las fuentes documentales que hayas utilizado para elaborar tu respuesta. Menciona el título o descripción resumida de cada fuente. Si son fuentes web, indica el dominio. Ejemplo:\n\n📚 *Fuentes consultadas: Manual de dinámicas juveniles, Guía de pastoral de confirmación, materiales de pastoraljuvenil.es*\n\nEsta sección es OBLIGATORIA siempre que se te proporcione contexto documental. NO omitas las fuentes.`
         : '';
 
-    return `Contexto documental relevante:\n\n${sections.join('\n\n')}\n\nUsa estas referencias para complementar la respuesta sin copiar literalmente. No inventes datos.${sourceHint}`;
+    return `Contexto documental relevante (DEBES basar tu respuesta en estos documentos y citarlos al final):\n\n${sections.join('\n\n')}\n\nUsa estas referencias como base principal de tu respuesta. Puedes complementar con tu conocimiento pero SIEMPRE prioriza y cita el contenido documental proporcionado.${sourceHint}`;
 }
 
 function logChatEvent(level = 'info', payload = {}) {

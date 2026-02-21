@@ -5,15 +5,31 @@
 const CHUTES_API_TOKEN = process.env.CHUTES_API_TOKEN;
 const WHISPER_API_URL = 'https://chutes-whisper-large-v3.chutes.ai/transcribe';
 
+// Mapa de códigos de idioma de la app a códigos ISO 639-1 para Whisper
+const LANGUAGE_MAP = {
+    es: 'es', en: 'en', fr: 'fr', it: 'it', pt: 'pt',
+    hu: 'hu', pl: 'pl', ca: 'ca', gl: 'gl', eu: 'eu',
+};
+
 /**
  * Transcribe audio a texto usando Whisper Large V3
  * @param {Buffer} audioBuffer - Buffer del audio a transcribir
+ * @param {string} [language='es'] - Código de idioma (es, en, fr, etc.)
  * @returns {Promise<{text: string}>} - Texto transcrito
  */
-export async function transcribeAudio(audioBuffer) {
+export async function transcribeAudio(audioBuffer, language = 'es') {
     try {
         // Convertir el buffer a base64
         const audioB64 = audioBuffer.toString('base64');
+
+        // Construir payload con idioma para mejorar la detección
+        const payload = {
+            audio_b64: audioB64,
+        };
+
+        // Enviar el idioma si está mapeado (Whisper acepta códigos ISO 639-1)
+        const whisperLang = LANGUAGE_MAP[language] || 'es';
+        payload.language = whisperLang;
 
         const response = await fetch(WHISPER_API_URL, {
             method: 'POST',
@@ -21,9 +37,7 @@ export async function transcribeAudio(audioBuffer) {
                 'Authorization': `Bearer ${CHUTES_API_TOKEN}`,
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                audio_b64: audioB64,
-            }),
+            body: JSON.stringify(payload),
         });
 
         if (!response.ok) {
