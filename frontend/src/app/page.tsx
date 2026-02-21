@@ -1009,42 +1009,6 @@ export default function ChatHomePage() {
         setAttachedFiles(prev => prev.filter(file => file.fileName !== fileName))
     }, [])
 
-    const handleStartRecording = useCallback(async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-            const mediaRecorder = new MediaRecorder(stream)
-            mediaRecorderRef.current = mediaRecorder
-            audioChunksRef.current = []
-
-            mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0) {
-                    audioChunksRef.current.push(event.data)
-                }
-            }
-
-            mediaRecorder.onstop = async () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
-                stream.getTracks().forEach(track => track.stop())
-
-                // Transcribir el audio
-                await transcribeAudio(audioBlob)
-            }
-
-            mediaRecorder.start()
-            setIsRecording(true)
-        } catch (error) {
-            console.error('Error al iniciar la grabación:', error)
-            setChatError('No se pudo acceder al micrófono')
-        }
-    }, [])
-
-    const handleStopRecording = useCallback(() => {
-        if (mediaRecorderRef.current && isRecording) {
-            mediaRecorderRef.current.stop()
-            setIsRecording(false)
-        }
-    }, [isRecording])
-
     const transcribeAudio = useCallback(async (audioBlob: Blob) => {
         if (!token) {
             console.error('❌ No hay token disponible para transcripción')
@@ -1094,6 +1058,42 @@ export default function ChatHomePage() {
             console.log('🏁 Transcripción finalizada')
         }
     }, [token, user?.idioma, locale])
+
+    const handleStartRecording = useCallback(async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+            const mediaRecorder = new MediaRecorder(stream)
+            mediaRecorderRef.current = mediaRecorder
+            audioChunksRef.current = []
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunksRef.current.push(event.data)
+                }
+            }
+
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+                stream.getTracks().forEach(track => track.stop())
+
+                // Transcribir el audio
+                await transcribeAudio(audioBlob)
+            }
+
+            mediaRecorder.start()
+            setIsRecording(true)
+        } catch (error) {
+            console.error('Error al iniciar la grabación:', error)
+            setChatError('No se pudo acceder al micrófono')
+        }
+    }, [transcribeAudio])
+
+    const handleStopRecording = useCallback(() => {
+        if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop()
+            setIsRecording(false)
+        }
+    }, [isRecording])
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault()
