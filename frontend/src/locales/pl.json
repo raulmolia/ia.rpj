@@ -162,7 +162,8 @@
     "thinkingMode": "Tryb myślenia",
     "thinkingModeTooltip": "Aktywuj model głębokiego rozumowania",
     "canvasMode": "Tryb płótna",
-    "canvasModeTooltip": "Edytuj i przekształć odpowiedź w edytorze wizualnym"
+    "canvasModeTooltip": "Edytuj i przekształć odpowiedź w edytorze wizualnym",
+    "stopGeneration": "Zatrzymaj generowanie"
   },
   "download": {
     "download": "Pobierz",

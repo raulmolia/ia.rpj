@@ -356,6 +356,8 @@ export default function ChatHomePage() {
     const mediaRecorderRef = useRef<MediaRecorder | null>(null)
     const audioChunksRef = useRef<Blob[]>([])
     const initialChatCreatedRef = useRef(false)
+    const abortControllerRef = useRef<AbortController | null>(null)
+    const lastPromptRef = useRef<string>("")
 
     const selectedQuickPromptItems = useMemo(() => {
         const labelSet = new Set(selectedQuickPrompts)
@@ -703,8 +705,13 @@ export default function ChatHomePage() {
         }
 
         const prompt = inputValue.trim()
+        lastPromptRef.current = prompt
         setInputValue("")
         setChatError(null)
+
+        // Crear AbortController para poder cancelar la petición
+        const abortController = new AbortController()
+        abortControllerRef.current = abortController
 
         const chatId = activeChat.id
         let currentConversationId = activeChat.conversationId
@@ -763,6 +770,7 @@ export default function ChatHomePage() {
                         tags: tagsToSend.length > 0 ? tagsToSend : undefined,
                         useThinkingModel: isThinkingMode,
                     }),
+                    signal: abortController.signal,
                 })
 
                 const initialData = await initialResponse.json().catch(() => null)
@@ -807,6 +815,7 @@ export default function ChatHomePage() {
                             Authorization: `Bearer ${token}`,
                         },
                         body: formData,
+                        signal: abortController.signal,
                     })
 
                     const uploadData = await uploadResponse.json()
@@ -848,6 +857,7 @@ export default function ChatHomePage() {
                     tags: tagsToSend.length > 0 ? tagsToSend : undefined,
                     useThinkingModel: isThinkingMode,
                 }),
+                signal: abortController.signal,
             })
 
             const data = await response.json().catch(() => null)
@@ -898,10 +908,25 @@ export default function ChatHomePage() {
                 setIsCanvasMode(false) // Reset after opening
             }
         } catch (error) {
+            // Si fue cancelado por el usuario, restaurar el prompt y eliminar mensaje pendiente
+            if (error instanceof DOMException && error.name === "AbortError") {
+                setInputValue(lastPromptRef.current)
+                // Eliminar el mensaje del usuario que se añadió al chat antes de enviar
+                setChats((prevChats) =>
+                    prevChats.map((chat) =>
+                        chat.id === chatId
+                            ? { ...chat, messages: chat.messages.filter((m) => m.id !== userMessage.id) }
+                            : chat,
+                    ),
+                )
+                setIsUploadingFiles(false)
+                return
+            }
             const message = error instanceof Error ? error.message : "No se pudo generar la respuesta"
             setChatError(message)
         } finally {
             setIsThinking(false)
+            abortControllerRef.current = null
         }
     }, [activeChat, fetchConversations, inputValue, isThinking, token, selectedQuickPromptItems, isThinkingMode, isCanvasMode, attachedFiles, isUploadingFiles, loadConversationMessages])
 
@@ -917,6 +942,13 @@ export default function ChatHomePage() {
         event.preventDefault()
         void submitPrompt()
     }, [submitPrompt])
+
+    const handleStopGeneration = useCallback(() => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort()
+            abortControllerRef.current = null
+        }
+    }, [])
 
     const handleQuickPromptToggle = useCallback((prompt: QuickPrompt) => {
         // Si es un prompt con sub-opciones, toggle sub-menú
@@ -1467,7 +1499,7 @@ export default function ChatHomePage() {
                                 "focus-visible:ring-0 focus-visible:ring-offset-0",
                             )}
                             rows={1}
-                            disabled={isThinking || !activeChat}
+                            disabled={!activeChat}
                         />
 
                         {/* Badges de etiquetas seleccionadas */}
@@ -1721,15 +1753,36 @@ export default function ChatHomePage() {
                                     </Tooltip>
                                 </TooltipProvider>
 
-                                <Button
-                                    type="submit"
-                                    size="icon"
-                                    className="h-8 w-8 shrink-0 rounded-full"
-                                    disabled={isThinking || inputValue.trim().length === 0 || !activeChat}
-                                    aria-label={t("tooltips.send")}
-                                >
-                                    <Send className="h-4 w-4" aria-hidden="true" />
-                                </Button>
+                                {isThinking ? (
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    type="button"
+                                                    size="icon"
+                                                    className="h-8 w-8 shrink-0 rounded-full bg-destructive hover:bg-destructive/90 text-destructive-foreground transition-all"
+                                                    onClick={handleStopGeneration}
+                                                    aria-label={t("tooltips.stopGeneration")}
+                                                >
+                                                    <Square className="h-3 w-3 fill-current" aria-hidden="true" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top">
+                                                <p>{t("tooltips.stopGeneration")}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                ) : (
+                                    <Button
+                                        type="submit"
+                                        size="icon"
+                                        className="h-8 w-8 shrink-0 rounded-full"
+                                        disabled={inputValue.trim().length === 0 || !activeChat}
+                                        aria-label={t("tooltips.send")}
+                                    >
+                                        <Send className="h-4 w-4" aria-hidden="true" />
+                                    </Button>
+                                )}
                             </div>
                         </div>
                     </div>

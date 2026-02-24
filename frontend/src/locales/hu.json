@@ -162,7 +162,8 @@
     "thinkingMode": "Gondolkodási mód",
     "thinkingModeTooltip": "Mély érvelési modell aktiválása",
     "canvasMode": "Vászon mód",
-    "canvasModeTooltip": "A válasz szerkesztése és átalakítása vizuális szerkesztőben"
+    "canvasModeTooltip": "A válasz szerkesztése és átalakítása vizuális szerkesztőben",
+    "stopGeneration": "Generálás leállítása"
   },
   "download": {
     "download": "Letöltés",

@@ -162,7 +162,8 @@
     "thinkingMode": "Modo reflexão",
     "thinkingModeTooltip": "Ativar modelo de raciocínio profundo",
     "canvasMode": "Modo Tela",
-    "canvasModeTooltip": "Editar e transformar a resposta num editor visual"
+    "canvasModeTooltip": "Editar e transformar a resposta num editor visual",
+    "stopGeneration": "Parar geração"
   },
   "download": {
     "download": "Descarregar",

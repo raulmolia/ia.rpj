@@ -162,7 +162,8 @@
     "thinkingMode": "Mode reflexió",
     "thinkingModeTooltip": "Activar model de raonament profund",
     "canvasMode": "Mode Llenç",
-    "canvasModeTooltip": "Edita i transforma la resposta en un editor visual"
+    "canvasModeTooltip": "Edita i transforma la resposta en un editor visual",
+    "stopGeneration": "Aturar la generació"
   },
   "download": {
     "download": "Descarregar",

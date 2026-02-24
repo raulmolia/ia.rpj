@@ -162,7 +162,8 @@
     "thinkingMode": "Pentsamendu modua",
     "thinkingModeTooltip": "Arrazoiketa sakoneko eredua aktibatu",
     "canvasMode": "Mihise modua",
-    "canvasModeTooltip": "Erantzuna editatu eta eraldatu ikusizko editore batean"
+    "canvasModeTooltip": "Erantzuna editatu eta eraldatu ikusizko editore batean",
+    "stopGeneration": "Sorrera gelditu"
   },
   "download": {
     "download": "Deskargatu",

@@ -162,7 +162,8 @@
     "thinkingMode": "Thinking Mode",
     "thinkingModeTooltip": "Activate deep reasoning model",
     "canvasMode": "Canvas Mode",
-    "canvasModeTooltip": "Edit and transform the response in a visual editor"
+    "canvasModeTooltip": "Edit and transform the response in a visual editor",
+    "stopGeneration": "Stop generation"
   },
   "download": {
     "download": "Download",

@@ -162,7 +162,8 @@
     "thinkingMode": "Modo Thinking",
     "thinkingModeTooltip": "Activa el modelo de razonamiento profundo",
     "canvasMode": "Modo Lienzo",
-    "canvasModeTooltip": "Edita y transforma la respuesta en un editor visual"
+    "canvasModeTooltip": "Edita y transforma la respuesta en un editor visual",
+    "stopGeneration": "Detener generación"
   },
   "download": {
     "download": "Descargar",
