@@ -526,6 +526,22 @@
     "sendInstruction": "Utasítás küldése",
     "originalVersion": "Eredeti"
   },
+  "share": {
+    "title": "Tartalom megosztása",
+    "description": "Válaszd ki, hogyan szeretnéd megosztani ezt a tartalmat",
+    "modeUser": "Alkalmazás felhasználó",
+    "modeEmail": "E-mail",
+    "modeUserDesc": "A beszélgetés közvetlenül hozzáadásra kerül a címzett felhasználó paneljéhez egy megosztott tartalom jelzővel.",
+    "modeEmailDesc": "Egy formázott e-mail lesz elküldve a tartalommal a címzettnek.",
+    "emailLabel": "Címzett e-mail címe",
+    "emailPlaceholder": "felhasznalo@pelda.hu",
+    "contentLabel": "Megosztandó tartalom",
+    "sending": "Küldés...",
+    "sendToUser": "Megosztás felhasználóval",
+    "sendEmail": "Küldés e-mailben",
+    "sharedBy": "Megosztotta: {name} ({email})",
+    "errorGeneric": "Hiba a megosztás során. Próbáld újra."
+  },
   "languages": {
     "es": "Español",
     "en": "English",

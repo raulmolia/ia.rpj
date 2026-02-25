@@ -526,6 +526,22 @@
     "sendInstruction": "Wyślij instrukcję",
     "originalVersion": "Oryginał"
   },
+  "share": {
+    "title": "Udostępnij treść",
+    "description": "Wybierz, jak chcesz udostępnić tę treść",
+    "modeUser": "Użytkownik aplikacji",
+    "modeEmail": "E-mail",
+    "modeUserDesc": "Rozmowa zostanie dodana bezpośrednio do panelu użytkownika odbiorcy ze wskaźnikiem udostępnionej treści.",
+    "modeEmailDesc": "Do odbiorcy zostanie wysłany sformatowany e-mail z treścią.",
+    "emailLabel": "Adres e-mail odbiorcy",
+    "emailPlaceholder": "uzytkownik@przyklad.pl",
+    "contentLabel": "Treść do udostępnienia",
+    "sending": "Wysyłanie...",
+    "sendToUser": "Udostępnij użytkownikowi",
+    "sendEmail": "Wyślij e-mailem",
+    "sharedBy": "Udostępnione przez {name} ({email})",
+    "errorGeneric": "Błąd podczas udostępniania. Spróbuj ponownie."
+  },
   "languages": {
     "es": "Español",
     "en": "English",

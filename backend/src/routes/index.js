@@ -11,6 +11,7 @@ import filesRoutes from './files.js';
 import canvasRoutes from './canvas.js';
 import statsRoutes from './stats.js';
 import feedbackRoutes from './feedback.js';
+import shareRoutes from './share.js';
 
 const { PrismaClient } = prismaPackage;
 
@@ -27,6 +28,7 @@ router.use('/files', filesRoutes);
 router.use('/canvas', canvasRoutes);
 router.use('/stats', statsRoutes);
 router.use('/feedback', feedbackRoutes);
+router.use('/share', shareRoutes);
 
 // Ruta de health check
 router.get('/health', async (req, res) => {

@@ -96,6 +96,7 @@ import { UsageStats } from "@/components/usage-stats"
 import { downloadAsPDF, downloadAsWord } from "@/lib/document-generator"
 import { ChangePasswordModal } from "@/components/change-password-modal"
 import { CanvasDialog } from "@/components/canvas"
+import { ShareDialog } from "@/components/share-dialog"
 import { useLocale, formatRelativeTime, type Locale } from "@/lib/locale-context"
 import { useToast } from "@/hooks/use-toast"
 
@@ -119,6 +120,9 @@ type Chat = {
     intent?: string | null
     hasLoaded?: boolean
     isLoading?: boolean
+    esCompartida?: boolean
+    compartidaDesde?: string | null
+    compartidaNombre?: string | null
 }
 
 type QuickPrompt = {
@@ -238,6 +242,9 @@ export default function ChatHomePage() {
         }
     }, [toast])
     const [shareFeedback, setShareFeedback] = useState<string | null>(null)
+    const [shareDialogOpen, setShareDialogOpen] = useState(false)
+    const [shareMessageContent, setShareMessageContent] = useState("")
+    const [shareConversationTitle, setShareConversationTitle] = useState("")
     const [isUserDialogOpen, setIsUserDialogOpen] = useState(false)
     const [isArchivedDialogOpen, setIsArchivedDialogOpen] = useState(false)
     const [profileForm, setProfileForm] = useState<ProfileFormState>({
@@ -592,6 +599,9 @@ export default function ChatHomePage() {
                             conversationId: conversation.id,
                             title: conversation.titulo ?? existing.title,
                             intent: conversation.intencionPrincipal ?? existing.intent,
+                            esCompartida: conversation.esCompartida ?? false,
+                            compartidaDesde: conversation.compartidaDesde ?? null,
+                            compartidaNombre: conversation.compartidaNombre ?? null,
                             createdAt,
                         }
                     }
@@ -604,6 +614,9 @@ export default function ChatHomePage() {
                         messages: [],
                         hasLoaded: false,
                         intent: conversation.intencionPrincipal ?? null,
+                        esCompartida: conversation.esCompartida ?? false,
+                        compartidaDesde: conversation.compartidaDesde ?? null,
+                        compartidaNombre: conversation.compartidaNombre ?? null,
                     } satisfies Chat
                 })
 
@@ -856,6 +869,7 @@ export default function ChatHomePage() {
                     intent: intentToSend,
                     tags: tagsToSend.length > 0 ? tagsToSend : undefined,
                     useThinkingModel: isThinkingMode,
+                    canvasMode: isCanvasMode || undefined,
                 }),
                 signal: abortController.signal,
             })
@@ -2067,6 +2081,21 @@ export default function ChatHomePage() {
                                             onClick={() => handleSelectChat(chat.id)}
                                         >
                                             <div className="flex min-w-0 flex-1 items-center gap-2">
+                                                {chat.esCompartida && (
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Mail className="h-3.5 w-3.5 flex-shrink-0 text-primary/70" />
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="right" className="max-w-xs">
+                                                            <p className="text-xs">
+                                                                {t("share.sharedBy", {
+                                                                    name: chat.compartidaNombre || "",
+                                                                    email: chat.compartidaDesde || "",
+                                                                })}
+                                                            </p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                )}
                                                 <span className="truncate text-xs">
                                                     {truncatedTitle}
                                                 </span>
@@ -2538,14 +2567,14 @@ export default function ChatHomePage() {
                                                         <ThumbsDown className="h-3.5 w-3.5" />
                                                     </button>
 
-                                                    {/* Compartir por email */}
+                                                    {/* Compartir */}
                                                     <button
                                                         type="button"
                                                         className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
                                                         onClick={() => {
-                                                            const subject = encodeURIComponent(activeChat?.title || "Contenido generado por IA RPJ")
-                                                            const body = encodeURIComponent(message.content)
-                                                            window.open(`mailto:?subject=${subject}&body=${body}`, "_blank")
+                                                            setShareMessageContent(message.content)
+                                                            setShareConversationTitle(activeChat?.title || "Contenido generado por IA RPJ")
+                                                            setShareDialogOpen(true)
                                                         }}
                                                     >
                                                         <Share2 className="h-3.5 w-3.5" />
@@ -2977,6 +3006,15 @@ export default function ChatHomePage() {
                 token={token ?? ""}
                 userInitials={initials}
                 userLanguage={user?.idioma ?? "es"}
+            />
+
+            {/* Share Dialog */}
+            <ShareDialog
+                open={shareDialogOpen}
+                onClose={() => setShareDialogOpen(false)}
+                messageContent={shareMessageContent}
+                conversationTitle={shareConversationTitle}
+                token={token ?? ""}
             />
         </div>
     )

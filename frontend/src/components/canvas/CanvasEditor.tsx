@@ -169,6 +169,120 @@ export interface CanvasVersion {
     label?: string
 }
 
+/**
+ * Convert TipTap editor HTML to clean Markdown.
+ * Handles headings, lists, bold, italic, underline, blockquotes, code, and paragraphs.
+ */
+export function convertHtmlToMarkdown(html: string): string {
+    if (!html) return ""
+
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(html, "text/html")
+
+    function processNode(node: Node): string {
+        if (node.nodeType === Node.TEXT_NODE) {
+            return node.textContent || ""
+        }
+
+        if (node.nodeType !== Node.ELEMENT_NODE) return ""
+
+        const el = node as HTMLElement
+        const tag = el.tagName.toLowerCase()
+        const childContent = Array.from(el.childNodes).map(processNode).join("")
+
+        switch (tag) {
+            case "h1":
+                return `# ${childContent.trim()}\n\n`
+            case "h2":
+                return `## ${childContent.trim()}\n\n`
+            case "h3":
+                return `### ${childContent.trim()}\n\n`
+            case "h4":
+                return `#### ${childContent.trim()}\n\n`
+            case "h5":
+                return `##### ${childContent.trim()}\n\n`
+            case "h6":
+                return `###### ${childContent.trim()}\n\n`
+            case "p":
+                return childContent.trim() ? `${childContent.trim()}\n\n` : "\n"
+            case "strong":
+            case "b":
+                return `**${childContent}**`
+            case "em":
+            case "i":
+                return `*${childContent}*`
+            case "u":
+                return `__${childContent}__`
+            case "s":
+            case "del":
+                return `~~${childContent}~~`
+            case "code": {
+                // Check if inside a <pre>
+                if (el.parentElement?.tagName.toLowerCase() === "pre") {
+                    return childContent
+                }
+                return `\`${childContent}\``
+            }
+            case "pre":
+                return `\`\`\`\n${childContent.trim()}\n\`\`\`\n\n`
+            case "blockquote":
+                return childContent
+                    .trim()
+                    .split("\n")
+                    .filter((l) => l.trim())
+                    .map((line) => `> ${line}`)
+                    .join("\n") + "\n\n"
+            case "ul": {
+                const items = Array.from(el.children)
+                    .filter((c) => c.tagName.toLowerCase() === "li")
+                    .map((li) => {
+                        const liContent = Array.from(li.childNodes).map(processNode).join("").trim()
+                        // Remove trailing newlines from nested paragraphs inside li
+                        return `- ${liContent.replace(/\n{2,}$/g, "")}`
+                    })
+                    .join("\n")
+                return items + "\n\n"
+            }
+            case "ol": {
+                const items = Array.from(el.children)
+                    .filter((c) => c.tagName.toLowerCase() === "li")
+                    .map((li, i) => {
+                        const liContent = Array.from(li.childNodes).map(processNode).join("").trim()
+                        return `${i + 1}. ${liContent.replace(/\n{2,}$/g, "")}`
+                    })
+                    .join("\n")
+                return items + "\n\n"
+            }
+            case "li":
+                return childContent
+            case "br":
+                return "\n"
+            case "hr":
+                return "---\n\n"
+            case "mark":
+                return childContent // Ignore highlight marks
+            case "a": {
+                const href = el.getAttribute("href") || ""
+                return `[${childContent}](${href})`
+            }
+            default:
+                return childContent
+        }
+    }
+
+    const result = Array.from(doc.body.childNodes).map(processNode).join("")
+    // Clean up excessive newlines (max 2 consecutive)
+    return result.replace(/\n{3,}/g, "\n\n").trim()
+}
+
+/**
+ * Helper to get Markdown content from the TipTap editor.
+ */
+function getEditorMarkdown(editor: ReturnType<typeof useEditor>): string {
+    if (!editor) return ""
+    return convertHtmlToMarkdown(editor.getHTML())
+}
+
 interface CanvasEditorProps {
     initialContent: string
     onContentChange?: (content: string) => void
@@ -216,7 +330,7 @@ export default function CanvasEditor({
         content: convertMarkdownToHtml(initialContent), // FIX Bug 1: convert markdown to HTML
         editorProps: {
             attributes: {
-                class: "prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[300px] px-16 py-8",
+                class: "prose prose-base dark:prose-invert max-w-none focus:outline-none min-h-[300px] px-8 sm:px-16 lg:px-24 py-10",
             },
         },
         onUpdate: ({ editor }) => {
@@ -228,7 +342,7 @@ export default function CanvasEditor({
             // Mark this as a user-initiated edit so the initialContent sync effect
             // doesn't reset the editor when the parent feeds the value back.
             isUserEditRef.current = true
-            onContentChange?.(editor.getText())
+            onContentChange?.(getEditorMarkdown(editor))
         },
     })
 
@@ -264,7 +378,7 @@ export default function CanvasEditor({
     useEffect(() => {
         if (!editor) return
         const versionContent = versions[currentVersionIndex]?.content ?? ""
-        const currentEditorContent = editor.getText()
+        const currentEditorContent = getEditorMarkdown(editor)
         if (currentEditorContent !== versionContent) {
             isExternalUpdateRef.current = true
             editor.commands.setContent(convertMarkdownToHtml(versionContent))
@@ -349,7 +463,7 @@ export default function CanvasEditor({
     const handleSelectionTransform = useCallback(
         async (instruction: string) => {
             if (!editor) return
-            const fullContent = editor.getText()
+            const fullContent = getEditorMarkdown(editor)
             try {
                 const result = await onTransformRequest(fullContent, selectedText, instruction)
                 isExternalUpdateRef.current = true
@@ -367,12 +481,12 @@ export default function CanvasEditor({
     const handleCopy = useCallback(async () => {
         if (!editor) return
         try {
-            await navigator.clipboard.writeText(editor.getText())
+            await navigator.clipboard.writeText(getEditorMarkdown(editor))
             setIsCopied(true)
             setTimeout(() => setIsCopied(false), 2000)
         } catch {
             const textArea = document.createElement("textarea")
-            textArea.value = editor.getText()
+            textArea.value = getEditorMarkdown(editor)
             document.body.appendChild(textArea)
             textArea.select()
             document.execCommand("copy")
@@ -384,12 +498,12 @@ export default function CanvasEditor({
 
     const handleExportPdf = useCallback(() => {
         if (!editor) return
-        downloadAsPDF(editor.getText(), `lienzo-${Date.now()}.pdf`)
+        downloadAsPDF(getEditorMarkdown(editor), `lienzo-${Date.now()}.pdf`)
     }, [editor])
 
     const handleExportWord = useCallback(() => {
         if (!editor) return
-        downloadAsWord(editor.getText(), `lienzo-${Date.now()}.docx`)
+        downloadAsWord(getEditorMarkdown(editor), `lienzo-${Date.now()}.docx`)
     }, [editor])
 
     // Diff view rendering using inline word-diff (no external dependency)
@@ -454,15 +568,117 @@ export default function CanvasEditor({
                     .canvas-editor-container .ProseMirror:focus ::selection {
                         background-color: rgba(141, 198, 63, 0.45) !important;
                     }
-                    /* Keep selection visible even when input in popover has focus */
+                    /* Keep selection visible even when popover input has focus */
                     .canvas-editor-container .ProseMirror {
                         caret-color: currentColor;
                     }
-                    .canvas-editor-container .ProseMirror h4 {
-                        font-size: 1rem;
-                        font-weight: 600;
-                        margin-top: 1.25em;
+                    .canvas-editor-container .ProseMirror *::selection {
+                        background-color: rgba(141, 198, 63, 0.35) !important;
+                    }
+                    /* Headings */
+                    .canvas-editor-container .ProseMirror h1 {
+                        font-size: 2rem;
+                        font-weight: 800;
+                        line-height: 1.2;
+                        margin-top: 1.5em;
+                        margin-bottom: 0.6em;
+                        letter-spacing: -0.02em;
+                        border-bottom: 2px solid rgba(141, 198, 63, 0.3);
+                        padding-bottom: 0.3em;
+                    }
+                    .canvas-editor-container .ProseMirror h2 {
+                        font-size: 1.55rem;
+                        font-weight: 700;
+                        line-height: 1.25;
+                        margin-top: 1.4em;
                         margin-bottom: 0.5em;
+                        letter-spacing: -0.01em;
+                        color: hsl(var(--foreground) / 0.9);
+                    }
+                    .canvas-editor-container .ProseMirror h3 {
+                        font-size: 1.25rem;
+                        font-weight: 650;
+                        line-height: 1.3;
+                        margin-top: 1.3em;
+                        margin-bottom: 0.45em;
+                    }
+                    .canvas-editor-container .ProseMirror h4 {
+                        font-size: 1.05rem;
+                        font-weight: 600;
+                        line-height: 1.35;
+                        margin-top: 1.25em;
+                        margin-bottom: 0.4em;
+                        color: hsl(var(--foreground) / 0.8);
+                    }
+                    .canvas-editor-container .ProseMirror h1:first-child {
+                        margin-top: 0;
+                    }
+                    /* Paragraphs */
+                    .canvas-editor-container .ProseMirror p {
+                        margin-bottom: 0.85em;
+                        line-height: 1.75;
+                        color: hsl(var(--foreground) / 0.88);
+                    }
+                    /* Lists */
+                    .canvas-editor-container .ProseMirror ul {
+                        margin-left: 1.25em;
+                        margin-bottom: 1em;
+                        list-style-type: disc;
+                    }
+                    .canvas-editor-container .ProseMirror ol {
+                        margin-left: 1.25em;
+                        margin-bottom: 1em;
+                        list-style-type: decimal;
+                    }
+                    .canvas-editor-container .ProseMirror li {
+                        margin-bottom: 0.35em;
+                        line-height: 1.7;
+                        padding-left: 0.25em;
+                    }
+                    .canvas-editor-container .ProseMirror li p {
+                        margin-bottom: 0.2em;
+                    }
+                    /* Strong and emphasis */
+                    .canvas-editor-container .ProseMirror strong {
+                        font-weight: 650;
+                        color: hsl(var(--foreground));
+                    }
+                    .canvas-editor-container .ProseMirror em {
+                        font-style: italic;
+                        color: hsl(var(--foreground) / 0.85);
+                    }
+                    /* Blockquotes */
+                    .canvas-editor-container .ProseMirror blockquote {
+                        border-left: 3px solid rgba(141, 198, 63, 0.5);
+                        padding-left: 1em;
+                        margin-left: 0;
+                        margin-bottom: 1em;
+                        color: hsl(var(--foreground) / 0.75);
+                        font-style: italic;
+                    }
+                    /* Horizontal rule */
+                    .canvas-editor-container .ProseMirror hr {
+                        border: none;
+                        border-top: 1px solid hsl(var(--border));
+                        margin: 1.5em 0;
+                    }
+                    /* Code */
+                    .canvas-editor-container .ProseMirror code {
+                        background: hsl(var(--muted));
+                        padding: 0.2em 0.4em;
+                        border-radius: 0.25em;
+                        font-size: 0.9em;
+                    }
+                    .canvas-editor-container .ProseMirror pre {
+                        background: hsl(var(--muted));
+                        padding: 1em;
+                        border-radius: 0.5em;
+                        overflow-x: auto;
+                        margin-bottom: 1em;
+                    }
+                    .canvas-editor-container .ProseMirror pre code {
+                        background: none;
+                        padding: 0;
                     }
                 `}</style>
                 {showDiff && diffHtml ? (

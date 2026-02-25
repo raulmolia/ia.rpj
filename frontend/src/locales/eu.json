@@ -526,6 +526,22 @@
     "sendInstruction": "Instrukzioa bidali",
     "originalVersion": "Jatorrizkoa"
   },
+  "share": {
+    "title": "Edukia partekatu",
+    "description": "Aukeratu nola partekatu nahi duzun eduki hau",
+    "modeUser": "Aplikazioaren erabiltzailea",
+    "modeEmail": "Posta elektronikoa",
+    "modeUserDesc": "Elkarrizketa zuzenean gehituko da hartzailearen erabiltzaile-panelean partekatutako edukiaren adierazle batekin.",
+    "modeEmailDesc": "Formateatutako mezu elektroniko bat bidaliko zaio hartzaileari edukiarekin.",
+    "emailLabel": "Hartzailearen helbide elektronikoa",
+    "emailPlaceholder": "erabiltzailea@adibidea.eus",
+    "contentLabel": "Partekatzeko edukia",
+    "sending": "Bidaltzen...",
+    "sendToUser": "Erabiltzailearekin partekatu",
+    "sendEmail": "Posta elektronikoz bidali",
+    "sharedBy": "{name} erabiltzaileak partekatu du ({email})",
+    "errorGeneric": "Errorea partekatzean. Saiatu berriro."
+  },
   "languages": {
     "es": "Español",
     "en": "English",

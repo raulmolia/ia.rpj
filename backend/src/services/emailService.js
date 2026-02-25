@@ -460,9 +460,246 @@ export async function verifyEmailService() {
     }
 }
 
+// ────────────────────────────────────────────────
+// Compartir conversación por email (formateado)
+// ────────────────────────────────────────────────
+
+/**
+ * Convierte Markdown a HTML para emails
+ * @param {string} md - Texto en Markdown
+ * @returns {string} HTML formateado
+ */
+function markdownToEmailHtml(md) {
+    if (!md) return '';
+    let html = md;
+
+    // Code blocks (antes de inline code)
+    html = html.replace(/```[\s\S]*?```/g, (match) => {
+        const code = match.replace(/^```\w*\n?/, '').replace(/\n?```$/, '');
+        return `<pre style="font-family:'Courier New',monospace;background-color:#f3f4f6;padding:16px;border:1px solid #d1d5db;border-radius:8px;white-space:pre-wrap;word-wrap:break-word;font-size:13px;color:#374151;margin:12px 0;line-height:1.5;">${escapeHtmlEmail(code)}</pre>`;
+    });
+
+    // Inline code
+    html = html.replace(/`([^`]+)`/g, '<code style="font-family:\'Courier New\',monospace;background-color:#f0f0f0;padding:2px 6px;border-radius:4px;font-size:0.9em;">$1</code>');
+
+    // Headers (h1-h4)
+    html = html.replace(/^#### (.+)$/gm, '<h4 style="font-size:14px;font-weight:600;color:#64748b;margin:16px 0 8px 0;">$1</h4>');
+    html = html.replace(/^### (.+)$/gm, '<h3 style="font-size:16px;font-weight:600;color:#475569;margin:18px 0 8px 0;">$1</h3>');
+    html = html.replace(/^## (.+)$/gm, '<h2 style="font-size:18px;font-weight:700;color:#334155;margin:20px 0 10px 0;">$1</h2>');
+    html = html.replace(/^# (.+)$/gm, '<h1 style="font-size:22px;font-weight:700;color:#1e293b;margin:24px 0 12px 0;border-bottom:1px solid #e2e8f0;padding-bottom:8px;">$1</h1>');
+
+    // Bold, italic
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    html = html.replace(/__(.+?)__/g, '<u>$1</u>');
+    html = html.replace(/~~(.+?)~~/g, '<del style="color:#94a3b8;">$1</del>');
+
+    // Blockquotes
+    html = html.replace(/^>\s*(.+)$/gm, '<blockquote style="margin:12px 0;padding:10px 16px;border-left:4px solid #6366f1;background-color:#f8fafc;color:#475569;font-style:italic;border-radius:0 8px 8px 0;">$1</blockquote>');
+
+    // Horizontal rules
+    html = html.replace(/^---$/gm, '<hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">');
+
+    // Bullets: agrupar líneas consecutivas de `- ` en un solo <ul>
+    html = html.replace(/((?:^- .+\n?)+)/gm, (block) => {
+        const items = block.trim().split('\n').map(line => {
+            const content = line.replace(/^- /, '');
+            return `<li style="margin-bottom:6px;line-height:1.6;">${content}</li>`;
+        }).join('');
+        return `<ul style="margin:10px 0;padding-left:24px;color:#1e293b;">${items}</ul>`;
+    });
+
+    // Numbered lists
+    html = html.replace(/((?:^\d+\. .+\n?)+)/gm, (block) => {
+        const items = block.trim().split('\n').map(line => {
+            const content = line.replace(/^\d+\. /, '');
+            return `<li style="margin-bottom:6px;line-height:1.6;">${content}</li>`;
+        }).join('');
+        return `<ol style="margin:10px 0;padding-left:24px;color:#1e293b;">${items}</ol>`;
+    });
+
+    // Paragraphs: wrap remaining lines that aren't already HTML tags
+    html = html.split('\n').map(line => {
+        const trimmed = line.trim();
+        if (!trimmed) return '';
+        if (trimmed.startsWith('<')) return line;
+        return `<p style="margin:8px 0;line-height:1.7;color:#1e293b;">${trimmed}</p>`;
+    }).join('\n');
+
+    return html;
+}
+
+/**
+ * Escapa caracteres HTML
+ */
+function escapeHtmlEmail(text) {
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+/**
+ * Genera el template HTML para compartir conversación
+ */
+function getSharedConversationTemplate({ fromName, fromEmail, title, htmlContent }) {
+    const logoUrl = getLogoUrl();
+    const currentYear = new Date().getFullYear();
+
+    return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title} - IA RPJ</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f5f5f5;">
+        <tr>
+            <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" style="width: 100%; max-width: 700px; border-collapse: collapse; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);">
+                    
+                    <!-- Header con logo -->
+                    <tr>
+                        <td align="center" style="padding: 40px 40px 20px 40px;">
+                            <img src="${logoUrl}" alt="Red Pastoral Juvenil" style="width: 180px; height: auto; border-radius: 8px;">
+                        </td>
+                    </tr>
+                    
+                    <!-- Info de compartido -->
+                    <tr>
+                        <td style="padding: 10px 40px 20px 40px;">
+                            <div style="background-color: #f0fdf4; border-left: 4px solid #8DC63F; padding: 14px 18px; border-radius: 0 10px 10px 0;">
+                                <p style="margin: 0; font-size: 14px; color: #166534; line-height: 1.5;">
+                                    📩 <strong>${fromName}</strong> (${fromEmail}) ha compartido contigo el siguiente contenido:
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                    
+                    <!-- Título -->
+                    <tr>
+                        <td style="padding: 0 40px 10px 40px;">
+                            <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #1e293b; line-height: 1.3;">
+                                ${title}
+                            </h1>
+                        </td>
+                    </tr>
+                    
+                    <!-- Separador -->
+                    <tr>
+                        <td style="padding: 0 40px;">
+                            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 0;">
+                        </td>
+                    </tr>
+                    
+                    <!-- Contenido formateado -->
+                    <tr>
+                        <td style="padding: 20px 40px 30px 40px; font-size: 15px; line-height: 1.7; color: #1e293b;">
+                            ${htmlContent}
+                        </td>
+                    </tr>
+                    
+                    <!-- Separador -->
+                    <tr>
+                        <td style="padding: 0 40px;">
+                            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 0;">
+                        </td>
+                    </tr>
+                    
+                    <!-- CTA -->
+                    <tr>
+                        <td align="center" style="padding: 30px 40px;">
+                            <p style="margin: 0 0 16px; font-size: 14px; color: #64748b;">
+                                Generado con el asistente de IA de la Red de Pastoral Juvenil
+                            </p>
+                            <a href="https://ia.rpj.es" style="display: inline-block; padding: 12px 36px; background-color: #8DC63F; color: #ffffff; text-decoration: none; border-radius: 10px; font-size: 14px; font-weight: 600; box-shadow: 0 4px 12px rgba(141, 198, 63, 0.3);">
+                                Visitar IA RPJ →
+                            </a>
+                        </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 24px 40px; background-color: #f8f9fa; border-bottom-left-radius: 16px; border-bottom-right-radius: 16px;">
+                            <p style="margin: 0; font-size: 12px; color: #a0aec0; text-align: center; line-height: 1.6;">
+                                © ${currentYear} Red de Pastoral Juvenil (RPJ). Todos los derechos reservados.<br>
+                                Este contenido fue compartido por un usuario de IA RPJ.
+                            </p>
+                        </td>
+                    </tr>
+                    
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+    `.trim();
+}
+
+/**
+ * Envía una conversación compartida por email con formato HTML
+ * @param {Object} params
+ * @param {string} params.to - Email del destinatario
+ * @param {string} params.fromName - Nombre del remitente
+ * @param {string} params.fromEmail - Email del remitente
+ * @param {string} params.title - Título de la conversación
+ * @param {string} params.markdownContent - Contenido en Markdown
+ * @returns {Promise<Object>} Resultado del envío
+ */
+export async function sendSharedConversationEmail({ to, fromName, fromEmail, title, markdownContent }) {
+    try {
+        const htmlContent = markdownToEmailHtml(markdownContent);
+
+        const html = getSharedConversationTemplate({
+            fromName,
+            fromEmail,
+            title,
+            htmlContent,
+        });
+
+        // Texto plano como fallback
+        const plainText = `
+${fromName} (${fromEmail}) ha compartido contigo el siguiente contenido:
+
+${title}
+${'─'.repeat(40)}
+
+${markdownContent}
+
+${'─'.repeat(40)}
+Generado con IA RPJ - https://ia.rpj.es
+© ${new Date().getFullYear()} Red de Pastoral Juvenil (RPJ).
+        `.trim();
+
+        const info = await transporter.sendMail({
+            from: `"${process.env.EMAIL_FROM_NAME || 'IA RPJ - Asistente de Pastoral Juvenil'}" <${process.env.EMAIL_USER || 'noreply@rpj.es'}>`,
+            replyTo: fromEmail,
+            to,
+            subject: `📩 ${fromName} ha compartido: ${title}`,
+            html,
+            text: plainText,
+        });
+
+        console.log('✅ Email de conversación compartida enviado:', info.messageId);
+
+        return {
+            success: true,
+            messageId: info.messageId,
+        };
+    } catch (error) {
+        console.error('❌ Error al enviar email de conversación compartida:', error);
+        throw new Error(`Error al enviar email: ${error.message}`);
+    }
+}
+
 export default {
     sendWelcomeEmail,
     sendPasswordResetEmail,
+    sendSharedConversationEmail,
     generateRandomPassword,
     verifyEmailService,
 };

@@ -526,6 +526,22 @@
     "sendInstruction": "Invia istruzione",
     "originalVersion": "Originale"
   },
+  "share": {
+    "title": "Condividi contenuto",
+    "description": "Scegli come vuoi condividere questo contenuto",
+    "modeUser": "Utente dell'app",
+    "modeEmail": "E-mail",
+    "modeUserDesc": "La conversazione verrà aggiunta direttamente al pannello dell'utente destinatario con un indicatore di contenuto condiviso.",
+    "modeEmailDesc": "Verrà inviata un'e-mail formattata con il contenuto al destinatario.",
+    "emailLabel": "Indirizzo e-mail del destinatario",
+    "emailPlaceholder": "utente@esempio.com",
+    "contentLabel": "Contenuto da condividere",
+    "sending": "Invio in corso...",
+    "sendToUser": "Condividi con l'utente",
+    "sendEmail": "Invia per e-mail",
+    "sharedBy": "Condiviso da {name} ({email})",
+    "errorGeneric": "Errore durante la condivisione. Riprova."
+  },
   "languages": {
     "es": "Español",
     "en": "English",

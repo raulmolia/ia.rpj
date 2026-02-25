@@ -245,7 +245,31 @@ export default function CanvasDialog({
     )
 
     return (
-        <div className="fixed inset-0 z-50 flex flex-col bg-background">
+        <>
+            {/* Backdrop overlay with fade-in */}
+            <div className="fixed inset-0 z-[49] bg-black/20 backdrop-blur-[2px] animate-[canvas-backdrop-in_0.3s_ease-out_forwards]" />
+            
+            <div className="fixed inset-0 z-50 flex flex-col bg-background animate-[canvas-slide-in_0.4s_cubic-bezier(0.16,1,0.3,1)_forwards]">
+                <style>{`
+                    @keyframes canvas-slide-in {
+                        from {
+                            transform: translateX(40px);
+                            opacity: 0;
+                        }
+                        to {
+                            transform: translateX(0);
+                            opacity: 1;
+                        }
+                    }
+                    @keyframes canvas-backdrop-in {
+                        from {
+                            opacity: 0;
+                        }
+                        to {
+                            opacity: 1;
+                        }
+                    }
+                `}</style>
             {/* Mobile: tab bar */}
             <div className="flex items-center justify-between border-b px-4 py-2 md:hidden">
                 <div className="flex gap-1">
@@ -299,5 +323,6 @@ export default function CanvasDialog({
                 </div>
             </div>
         </div>
+        </>
     )
 }

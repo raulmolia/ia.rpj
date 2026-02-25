@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState, useCallback } from "react"
+import { useRef, useState, useCallback, useEffect } from "react"
 import { useTranslations } from "next-intl"
 import { Send, Bold, Italic, Underline } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -28,20 +28,49 @@ export default function SelectionPopover({
     const [instruction, setInstruction] = useState("")
     const inputRef = useRef<HTMLInputElement>(null)
     const popoverRef = useRef<HTMLDivElement>(null)
+    const [isHighlighted, setIsHighlighted] = useState(false)
 
-    // NOTE: We intentionally do NOT auto-focus the input on open.
-    // Keeping focus on the editor preserves the visible text selection (green highlight)
-    // so the user can immediately click formatting buttons on the selected text.
+    // When the input receives focus, apply a highlight mark to the selected text
+    // so it stays visually marked even when editor loses browser focus
+    const applySelectionHighlight = useCallback(() => {
+        if (!editor || isHighlighted) return
+        const { from, to } = editor.state.selection
+        if (from === to) return
+        editor.chain().setMark("highlight", { color: "rgba(141, 198, 63, 0.35)" }).run()
+        setIsHighlighted(true)
+    }, [editor, isHighlighted])
+
+    // Remove highlight when popover closes or submits
+    const removeSelectionHighlight = useCallback(() => {
+        if (!editor || !isHighlighted) return
+        editor.chain().focus().unsetHighlight().run()
+        setIsHighlighted(false)
+    }, [editor, isHighlighted])
+
+    // Cleanup highlight on unmount or when popover hides
+    useEffect(() => {
+        if (!position && isHighlighted && editor) {
+            editor.chain().focus().unsetHighlight().run()
+            setIsHighlighted(false)
+        }
+    }, [position, isHighlighted, editor])
 
     const handleSubmit = useCallback(() => {
         if (!instruction.trim() || isTransforming) return
+        removeSelectionHighlight()
         onSubmit(instruction.trim())
         setInstruction("")
-    }, [instruction, isTransforming, onSubmit])
+    }, [instruction, isTransforming, onSubmit, removeSelectionHighlight])
 
     const applyFormat = useCallback(
-        (format: "bold" | "italic" | "underline" | "h1" | "h2" | "h3" | "h4") => {
+        (format: "bold" | "italic" | "underline" | "h1" | "h2" | "h3" | "h4", e: React.MouseEvent) => {
+            // Prevent focus loss from the editor so the selection stays
+            e.preventDefault()
+            e.stopPropagation()
             if (!editor) return
+            
+            // For headings, we need to ensure the editor selection is restored first
+            // then apply the heading toggle on the selected block(s)
             switch (format) {
                 case "bold":
                     editor.chain().focus().toggleBold().run()
@@ -70,9 +99,9 @@ export default function SelectionPopover({
     )
 
     // Prevents the button mousedown from stealing focus away from the TipTap editor.
-    // e.preventDefault() keeps focus on the editor so the selection is preserved.
     const preventFocusLoss = useCallback((e: React.MouseEvent) => {
         e.preventDefault()
+        e.stopPropagation()
     }, [])
 
     if (!position || !selectedText) return null
@@ -92,8 +121,7 @@ export default function SelectionPopover({
                     variant={editor?.isActive("bold") ? "secondary" : "ghost"}
                     size="icon"
                     className="h-7 w-7"
-                    onMouseDown={preventFocusLoss}
-                    onClick={() => applyFormat("bold")}
+                    onMouseDown={(e) => applyFormat("bold", e)}
                     title="Negrita"
                 >
                     <Bold className="h-3.5 w-3.5" />
@@ -102,8 +130,7 @@ export default function SelectionPopover({
                     variant={editor?.isActive("italic") ? "secondary" : "ghost"}
                     size="icon"
                     className="h-7 w-7"
-                    onMouseDown={preventFocusLoss}
-                    onClick={() => applyFormat("italic")}
+                    onMouseDown={(e) => applyFormat("italic", e)}
                     title="Cursiva"
                 >
                     <Italic className="h-3.5 w-3.5" />
@@ -112,8 +139,7 @@ export default function SelectionPopover({
                     variant={editor?.isActive("underline") ? "secondary" : "ghost"}
                     size="icon"
                     className="h-7 w-7"
-                    onMouseDown={preventFocusLoss}
-                    onClick={() => applyFormat("underline")}
+                    onMouseDown={(e) => applyFormat("underline", e)}
                     title="Subrayado"
                 >
                     <Underline className="h-3.5 w-3.5" />
@@ -127,8 +153,7 @@ export default function SelectionPopover({
                         variant={editor?.isActive("heading", { level }) ? "secondary" : "ghost"}
                         size="sm"
                         className="h-7 px-1.5 text-xs font-bold"
-                        onMouseDown={preventFocusLoss}
-                        onClick={() => applyFormat(`h${level}` as "h1" | "h2" | "h3" | "h4")}
+                        onMouseDown={(e) => applyFormat(`h${level}` as "h1" | "h2" | "h3" | "h4", e)}
                         title={`Encabezado ${level}`}
                     >
                         H{level}
@@ -144,12 +169,14 @@ export default function SelectionPopover({
                     ref={inputRef}
                     value={instruction}
                     onChange={(e) => setInstruction(e.target.value)}
+                    onFocus={applySelectionHighlight}
                     onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                             e.preventDefault()
                             handleSubmit()
                         }
                         if (e.key === "Escape") {
+                            removeSelectionHighlight()
                             onClose()
                         }
                     }}

@@ -526,6 +526,22 @@
     "sendInstruction": "Send instruction",
     "originalVersion": "Original"
   },
+  "share": {
+    "title": "Share content",
+    "description": "Choose how you want to share this content",
+    "modeUser": "App user",
+    "modeEmail": "Email",
+    "modeUserDesc": "The conversation will be added directly to the recipient user's panel with a shared content indicator.",
+    "modeEmailDesc": "A formatted email with the content will be sent to the recipient.",
+    "emailLabel": "Recipient email address",
+    "emailPlaceholder": "user@example.com",
+    "contentLabel": "Content to share",
+    "sending": "Sending...",
+    "sendToUser": "Share with user",
+    "sendEmail": "Send by email",
+    "sharedBy": "Shared by {name} ({email})",
+    "errorGeneric": "Error sharing. Please try again."
+  },
   "languages": {
     "es": "Español",
     "en": "English",

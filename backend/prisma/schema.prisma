@@ -270,6 +270,10 @@ model Conversacion {
   titulo             String?
   descripcion        String?
   intencionPrincipal String?
+  compartidaPor      String?  // ID del usuario que compartió esta conversación
+  compartidaDesde    String?  // Email del usuario que compartió
+  compartidaNombre   String?  // Nombre del usuario que compartió
+  esCompartida       Boolean  @default(false)
   fechaCreacion      DateTime @default(now())
   fechaActualizacion DateTime @updatedAt
 

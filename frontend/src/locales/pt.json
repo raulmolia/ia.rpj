@@ -526,6 +526,22 @@
     "sendInstruction": "Enviar instrução",
     "originalVersion": "Original"
   },
+  "share": {
+    "title": "Partilhar conteúdo",
+    "description": "Escolha como pretende partilhar este conteúdo",
+    "modeUser": "Utilizador da aplicação",
+    "modeEmail": "Correio eletrónico",
+    "modeUserDesc": "A conversa será adicionada diretamente ao painel do utilizador destinatário com um indicador de conteúdo partilhado.",
+    "modeEmailDesc": "Será enviado um e-mail formatado com o conteúdo ao destinatário.",
+    "emailLabel": "Endereço de e-mail do destinatário",
+    "emailPlaceholder": "utilizador@exemplo.com",
+    "contentLabel": "Conteúdo a partilhar",
+    "sending": "A enviar...",
+    "sendToUser": "Partilhar com utilizador",
+    "sendEmail": "Enviar por e-mail",
+    "sharedBy": "Partilhado por {name} ({email})",
+    "errorGeneric": "Erro ao partilhar. Tente novamente."
+  },
   "languages": {
     "es": "Español",
     "en": "English",

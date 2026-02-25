@@ -140,6 +140,9 @@ function sanitizeConversation(conversation) {
         titulo: buildConversationTitle(conversation),
         descripcion: conversation.descripcion,
         intencionPrincipal: conversation.intencionPrincipal || DEFAULT_INTENT.id,
+        esCompartida: conversation.esCompartida || false,
+        compartidaDesde: conversation.compartidaDesde || null,
+        compartidaNombre: conversation.compartidaNombre || null,
         fechaCreacion: conversation.fechaCreacion,
         fechaActualizacion: conversation.fechaActualizacion,
     };
@@ -486,7 +489,7 @@ router.get('/:id', authenticate, async (req, res) => {
 });
 
 router.post('/', authenticate, async (req, res) => {
-    const { message, conversationId, intent: rawIntent, tags: clientTags, useThinkingModel, attachments } = req.body || {};
+    const { message, conversationId, intent: rawIntent, tags: clientTags, useThinkingModel, attachments, canvasMode } = req.body || {};
 
     let conversation = null;
     let detectedIntent = DEFAULT_INTENT;
@@ -618,8 +621,32 @@ router.post('/', authenticate, async (req, res) => {
         const userLanguage = req.user?.idioma || 'es';
         const languageInstruction = getLanguageInstruction(userLanguage);
 
+        // Si es modo canvas, usar prompt especial que genera contenido directo sin conversación
+        let finalSystemPrompt;
+        if (canvasMode) {
+            const langName = { es: 'español', en: 'English', fr: 'français', it: 'italiano', pt: 'português', hu: 'magyar', pl: 'polski', ca: 'català', gl: 'galego', eu: 'euskara' }[userLanguage] || 'español';
+            finalSystemPrompt = `Eres un redactor profesional especializado en pastoral juvenil y contenido religioso católico.
+
+REGLAS ABSOLUTAS:
+1. Responde ÚNICAMENTE en ${langName}.
+2. Genera DIRECTAMENTE el contenido solicitado. NUNCA incluyas frases conversacionales como "¡Claro!", "Aquí tienes", "Con mucho gusto", "Por supuesto", saludos, despedidas ni comentarios dirigidos al usuario.
+3. El texto debe comenzar INMEDIATAMENTE con el contenido (título, encabezado o primer párrafo del documento).
+4. Usa formato Markdown rico y profesional:
+   - Encabezados jerárquicos (# ## ### ####)
+   - Listas ordenadas y desordenadas cuando sea apropiado
+   - **Negrita** para conceptos clave
+   - *Cursiva* para énfasis o citas
+   - Separaciones claras entre secciones
+5. El contenido debe ser completo, detallado, bien estructurado y estéticamente cuidado.
+6. Incluye introducciones, desarrollo y conclusiones cuando corresponda.
+7. Si se pide una actividad, dinámica, oración o programación, incluye todos los detalles necesarios: objetivos, materiales, desarrollo paso a paso, tiempos, reflexiones, etc.
+8. NO incluyas metadatos, explicaciones sobre el formato ni comentarios finales.`;
+        } else {
+            finalSystemPrompt = detectedIntent.systemPrompt;
+        }
+
         const llmMessages = [
-            { role: 'system', content: detectedIntent.systemPrompt + languageInstruction },
+            { role: 'system', content: finalSystemPrompt + languageInstruction },
         ];
 
         if (contextPrompt) {
