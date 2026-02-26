@@ -307,7 +307,7 @@ export async function callChatCompletion({
                     maxTokens,
                     stream,
                     timeoutMs,
-                    maxRetries: 1, // 2 intentos por modelo de fallback
+                    maxRetries: 0, // sin reintentos en fallback para no superar timeout del proxy
                     extraBody,
                 });
                 console.log(`[ChutesAI] ✅ Modelo de fallback ${fallbackModel} respondió correctamente`);
