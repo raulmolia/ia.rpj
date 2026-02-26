@@ -383,8 +383,9 @@ export default function CanvasEditor({
             isExternalUpdateRef.current = true
             editor.commands.setContent(convertMarkdownToHtml(versionContent))
         }
-        // Propagate to CanvasDialog so currentContent stays in sync regardless of nav
-        onContentChange?.(versionContent)
+        // NOTE: do NOT call onContentChange here — this effect fires on mount and
+        // on every version addition, which would overwrite CanvasDialog's currentContent.
+        // Propagation is handled explicitly in handleNavigateVersion and handleRestoreVersion.
     }, [currentVersionIndex, versions, editor])
 
     // Ref to the popover wrapper so we can check containment without querying the DOM
@@ -461,6 +462,16 @@ export default function CanvasEditor({
             })
         },
         [currentVersionIndex],
+    )
+
+    // Navigate to a specific version index AND immediately propagate content to CanvasDialog
+    const handleNavigateVersion = useCallback(
+        (newIndex: number) => {
+            const bounded = Math.max(0, Math.min(versions.length - 1, newIndex))
+            setCurrentVersionIndex(bounded)
+            onContentChange?.(versions[bounded]?.content ?? "")
+        },
+        [versions, onContentChange],
     )
 
     const handleRestoreVersion = useCallback(() => {
@@ -561,9 +572,9 @@ export default function CanvasEditor({
                 totalVersions={versions.length}
                 versions={versions}
                 showDiff={showDiff}
-                onPrevVersion={() => setCurrentVersionIndex((i) => Math.max(0, i - 1))}
-                onNextVersion={() => setCurrentVersionIndex((i) => Math.min(versions.length - 1, i + 1))}
-                onJumpToVersion={setCurrentVersionIndex}
+                onPrevVersion={() => handleNavigateVersion(currentVersionIndex - 1)}
+                onNextVersion={() => handleNavigateVersion(currentVersionIndex + 1)}
+                onJumpToVersion={handleNavigateVersion}
                 onRestoreVersion={handleRestoreVersion}
                 onToggleDiff={() => setShowDiff((s) => !s)}
                 onExportPdf={handleExportPdf}
