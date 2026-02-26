@@ -814,13 +814,37 @@ REGLAS ABSOLUTAS:
                     model: useThinkingModel === true ? 'tngtech/DeepSeek-R1T-Chimera' : 'Qwen/Qwen2.5-72B-Instruct',
                     // Fallback a Qwen3 (compatible con tool_calls en historial), evitar DeepSeek
                     toolFallbackModel: 'Qwen/Qwen3-235B-A22B-Instruct-2507-TEE',
+                    // Timeout reducido para no superar el timeout del proxy (60s total)
+                    timeoutMs: 20000,
                     // Solo mantener tools activas si no es el último pase
                     ...(!isLastPass && activeTools.length > 0
                         ? { extraBody: { tools: activeTools, tool_choice: 'auto', parallel_tool_calls: true } }
                         : {}),
                 });
             } catch (error) {
-                throw new Error(`Error en llamada tras tools (pase ${toolPasses}): ${error.message}`);
+                // Si el LLM no puede responder después de ejecutar las tools,
+                // construir una respuesta útil directamente desde los resultados de las tools
+                console.warn(`[Tools] ⚠️ LLM no disponible tras tools (pase ${toolPasses}). Generando respuesta desde resultados.`);
+                const toolMessages = llmMessages.filter(m => m.role === 'tool');
+                const toolResultsText = toolMessages.map(m => {
+                    try {
+                        const result = JSON.parse(m.content);
+                        if (result.edit_url) {
+                            return `- **${result.title || result.type || 'Diseño'}**: [Abrir en Canva](${result.edit_url})`;
+                        }
+                        if (result.error) return `- Error: ${result.error}`;
+                        return `- ${JSON.stringify(result)}`;
+                    } catch { return `- ${m.content}`; }
+                }).join('\n');
+                if (toolResultsText) {
+                    llmResponse = {
+                        content: `He creado los diseños en Canva. Aquí tienes los enlaces:\n\n${toolResultsText}`,
+                        finishReason: 'stop',
+                        usage: null,
+                    };
+                } else {
+                    throw new Error(`Error en llamada tras tools (pase ${toolPasses}): ${error.message}`);
+                }
             }
         }
 
