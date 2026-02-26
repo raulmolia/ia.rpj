@@ -730,12 +730,13 @@ REGLAS ABSOLUTAS:
                         content:
                             'Tienes acceso a las herramientas de Canva del usuario. ' +
                             'IMPORTANTE: Cuando el usuario pida crear un diseño en Canva, DEBES llamar a ' +
-                            '"canva_create_design" EXACTAMENTE TRES VECES seguidas con distintos tipos de diseño ' +
-                            '(por ejemplo: "poster", "doc" y "presentation") para ofrecer 3 opciones. ' +
-                            'Cada llamada devuelve un objeto con los campos "url" y "edit_url" con el enlace directo. ' +
-                            'Tras recibir los 3 resultados, presenta los diseños en Markdown con el formato: ' +
-                            '"### \uD83C\uDFA8 [Opción N — Tipo] (URL)" y una descripción breve de cada uno. ' +
-                            'NUNCA escribas texto tipo <tool_call>; usa directamente las funciones disponibles.',
+                            '"canva_create_design" EXACTAMENTE TRES VECES, una por cada tipo válido: ' +
+                            '"doc" (documento), "whiteboard" (pizarra) y "presentation" (presentación). ' +
+                            'Estos son los UNICOS tipos que acepta la API. NO uses "poster", "flyer" ni ningún otro. ' +
+                            'Cada llamada devuelve un objeto con el campo "edit_url" que es el enlace real. ' +
+                            'NUNCA modifiques ni construyas URLs manualmente; usa siempre el edit_url devuelto. ' +
+                            'Tras recibir los 3 resultados, muestra cada opción con su edit_url como enlace Markdown. ' +
+                            'NUNCA escribas texto tipo <tool_call>. Usa directamente las funciones disponibles.',
                     });
                 }
             } catch { /* no bloquear si falla */ }
@@ -750,9 +751,11 @@ REGLAS ABSOLUTAS:
                 : {}),
         };
 
-        // Forzar Qwen cuando hay tools activas (es el modelo más compatible con function calling)
+        // Para tool-calling: usar Qwen2.5 (mejor soporte); si falla, Qwen3 como respaldo.
+        // Ambos son compatibles con function calling y el historial de tool_calls.
         if (activeTools.length > 0 && !useThinkingModel) {
             llmCallOptions.model = 'Qwen/Qwen2.5-72B-Instruct';
+            llmCallOptions.toolFallbackModel = 'Qwen/Qwen3-235B-A22B-Instruct-2507-TEE';
         }
 
         let llmResponse;

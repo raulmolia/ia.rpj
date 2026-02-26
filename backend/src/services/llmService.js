@@ -264,6 +264,7 @@ export async function callChatCompletion({
     maxRetries = DEFAULT_MAX_RETRIES,
     extraBody = {},
     noFallback = false,
+    toolFallbackModel = null,
 }) {
     ensureApiToken();
 
@@ -271,6 +272,16 @@ export async function callChatCompletion({
     try {
         return await tryModelCompletion({ messages, model, temperature, maxTokens, stream, timeoutMs, maxRetries, extraBody });
     } catch (primaryError) {
+        // Si hay un modelo de fallback específico para tools (compatible con tool_calls en historial), usarlo primero
+        if (toolFallbackModel && toolFallbackModel !== model) {
+            try {
+                console.log(`[ChutesAI] Intentando con toolFallbackModel: ${toolFallbackModel}`);
+                return await tryModelCompletion({ messages, model: toolFallbackModel, temperature, maxTokens, stream, timeoutMs, maxRetries: 1, extraBody });
+            } catch (toolFallbackError) {
+                console.warn(`[ChutesAI] toolFallbackModel ${toolFallbackModel} también falló: ${toolFallbackError.message}`);
+                // Continuar con la lógica normal de fallback
+            }
+        }
         // Si no hay fallback permitido (p.ej. cuando hay tool_calls en el historial)
         if (noFallback) {
             throw new Error(`El modelo ${model} no pudo responder: ${primaryError.message}`);

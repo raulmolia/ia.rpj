@@ -147,22 +147,22 @@ export async function getDesign(usuarioId, designId) {
 
 /**
  * Crea un nuevo diseño en blanco.
- * designTypeId: p.ej. "presentation", "social_media_post", "poster", "flyer", "doc", "whiteboard"
+ * Tipos válidos según la API de Canva Connect: "doc", "whiteboard", "presentation"
  */
-export async function createDesign(usuarioId, { designTypeId = 'presentation', title = '' } = {}) {
+export async function createDesign(usuarioId, { designTypeId = 'doc', title = '' } = {}) {
     const token = await getValidAccessToken(usuarioId);
     const body = {
         design_type: { type: 'preset', name: designTypeId },
     };
     if (title) body.title = title;
     const result = await canvaRequest('POST', '/designs', token, body);
-    // Normalizar la respuesta para que la URL sea clara para el LLM
+    // La URL real está en design.urls.edit_url (JWT temporal generado por Canva)
     const design = result.design || result;
+    const editUrl = design.urls?.edit_url || design.url || `https://www.canva.com/design/${design.id}/edit`;
     return {
         id: design.id,
         title: design.title || title,
-        url: design.url || `https://www.canva.com/design/${design.id}/edit`,
-        edit_url: design.url || `https://www.canva.com/design/${design.id}/edit`,
+        edit_url: editUrl,
         type: designTypeId,
         created_at: design.created_at,
     };
@@ -255,29 +255,23 @@ export const CANVA_TOOLS = [
         type: 'function',
         function: {
             name: 'canva_create_design',
-            description: 'Crea un nuevo diseño en blanco en Canva y devuelve su URL. ' +
-                'Cuando el usuario pida crear algo en Canva, llama a esta función TRES VECES con distintos ' +
-                'tipos de diseño para ofrecerle 3 opciones diferentes. La respuesta incluirá la URL directa ' +
-                'para editar el diseño en Canva.',
+            description: 'Crea un nuevo diseño en blanco en Canva y devuelve el enlace directo (edit_url) para editarlo. ' +
+                'Cuando el usuario pida crear algo en Canva, llama a esta función TRES VECES con los 3 tipos disponibles: ' +
+                '"doc", "whiteboard" y "presentation". Cada respuesta incluye "edit_url" con el enlace real y funcional.',
             parameters: {
                 type: 'object',
                 properties: {
                     design_type: {
                         type: 'string',
-                        description: 'Tipo de diseño. Valores válidos: ' +
-                            '"presentation" (presentación de diapositivas), ' +
-                            '"poster" (cartel/póster vertical), ' +
-                            '"flyer" (flyer/tríptico), ' +
-                            '"doc" (documento/hoja de papel), ' +
-                            '"whiteboard" (pizarra colaborativa), ' +
-                            '"social_media_post" (publicación redes sociales cuadrada), ' +
-                            '"instagram_post" (post Instagram cuadrado), ' +
-                            '"instagram_story" (historia Instagram vertical)',
-                        enum: ['presentation', 'poster', 'flyer', 'doc', 'whiteboard', 'social_media_post', 'instagram_post', 'instagram_story'],
+                        description: 'Tipo de diseño. Únicos valores válidos aceptados por la API de Canva: ' +
+                            '"doc" (documento de texto, ideal para hojas impresas y contenido escrito), ' +
+                            '"whiteboard" (pizarra colaborativa, ideal para mapas mentales y lluvia de ideas), ' +
+                            '"presentation" (presentación de diapositivas, ideal para proyectar)',
+                        enum: ['doc', 'whiteboard', 'presentation'],
                     },
                     title: {
                         type: 'string',
-                        description: 'Título o nombre para el nuevo diseño',
+                        description: 'Título o nombre para el nuevo diseño (entre 1 y 255 caracteres)',
                     },
                 },
                 required: ['design_type'],
