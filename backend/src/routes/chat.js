@@ -713,27 +713,22 @@ REGLAS ABSOLUTAS:
             llmMessages.push(...previousHistory);
         }
 
-        llmMessages.push({ role: 'user', content: trimmedMessage });
-
-        // ── Conectores: inyectar tools + system message si el usuario es PRO y tiene Canva activo ──
+        // ── Conectores: ejecutar Canva ANTES de añadir el mensaje del usuario ──
         // useCanvaTools puede ser false explícitamente para desactivarlas desde el frontend
         const userIsPro = tipoSuscripcion === 'PRO' || USER_LIMITS[userRole]?.hasTools;
-        let activeTools = [];
-        let canvaModelOverride = null; // Modelo a usar cuando Canva está activo
+        let canvaModelOverride = null;
+        let canvaLinksContext = ''; // Se añadirá al mensaje del usuario si hay resultados
         if (userIsPro && req.user?.id && useCanvaTools !== false) {
             try {
                 const canvaActive = await hasActiveCanvaConnector(req.user.id);
                 if (canvaActive) {
                     canvaModelOverride = 'MiniMaxAI/MiniMax-M2.5-TEE';
 
-                    // Detectar cualquier solicitud creativa que implique usar Canva
-                    // Incluye: diseño, portada, cartel, imagen, banner, flyer, folleto, presentación, etc.
                     const isCanvaCreativeRequest =
                         /\bcanva\b/i.test(trimmedMessage) ||
                         /\b(crea[r]?|haz|genera[r]?|hacer|diseña[r]?|elabora[r]?|prepara[r]?|utiliza[r]?|usa[r]?)\b.{0,60}\b(diseño|portada|cartel|banner|flyer|folleto|presentación|presentacion|imagen|póster|poster|invitación|invitacion|afiche|infografía|infografia)\b/i.test(trimmedMessage);
 
                     if (isCanvaCreativeRequest) {
-                        // Llamar directamente a la API de Canva sin depender de tool_calls del LLM
                         console.log('[Canva] Creando 3 diseños directamente vía API...');
                         const DESIGN_TYPES = [
                             { type: 'doc', label: 'Documento' },
@@ -749,40 +744,40 @@ REGLAS ABSOLUTAS:
                             const r = results[i];
                             if (r.status === 'fulfilled' && r.value?.edit_url) {
                                 console.log(`[Canva] ✅ ${label} (${type}): ${r.value.edit_url}`);
-                                return `- **${label}** \`${type}\`: [Abrir en Canva ↗](${r.value.edit_url})`;
+                                return `- **${label}**: [Abrir en Canva ↗](${r.value.edit_url})`;
                             }
                             console.error(`[Canva] ❌ ${label}: ${r.reason?.message}`);
                             return null;
                         }).filter(Boolean).join('\n');
 
                         if (linksText) {
-                            llmMessages.push({
-                                role: 'system',
-                                content:
-                                    'El sistema ya ha creado automáticamente 3 diseños en Canva para el usuario. ' +
-                                    'Muéstraselos de forma amigable con los enlaces exactos que aparecen abajo. ' +
-                                    'USA EXACTAMENTE estas URLs, nunca las modifiques ni construyas otras:\n\n' + linksText,
-                            });
+                            canvaLinksContext =
+                                '\n\n---\n[SISTEMA: El backend ya ha creado automáticamente 3 diseños en Canva. ' +
+                                'DEBES mostrar estos enlaces al usuario. USA EXACTAMENTE estas URLs sin modificarlas:]\n' +
+                                linksText;
                         }
                     } else {
-                        // Canva activo pero el usuario no pide crear algo concreto:
-                        // informar al LLM de que SÍ tiene acceso a Canva para que no lo niegue
+                        // Canva activo pero sin solicitud creativa: avisar al LLM para que no lo niegue
                         llmMessages.push({
                             role: 'system',
                             content:
                                 'El usuario tiene la herramienta Canva conectada y activa. ' +
                                 'Cuando pida crear portadas, carteles, presentaciones, diseños, banners, ' +
-                                'folletos, imágenes o cualquier recurso visual, el sistema creará automáticamente ' +
-                                'los diseños en Canva y te proporcionará los enlaces. ' +
-                                'NUNCA digas que no tienes acceso a Canva ni a herramientas externas; sí tienes acceso.',
+                                'folletos, imágenes o cualquier recurso visual, el sistema los creará en Canva. ' +
+                                'NUNCA digas que no tienes acceso a Canva ni a herramientas externas.',
                         });
                     }
-                    // No usamos tool_calls para Canva — la API se llama directamente
                 }
             } catch (e) {
                 console.error('[Canva] Error en activación directa:', e.message);
             }
         }
+
+        // Añadir mensaje del usuario (con contexto Canva embebido si aplica)
+        llmMessages.push({ role: 'user', content: trimmedMessage + canvaLinksContext });
+
+        // ── activeTools vacío — Canva se ejecuta directamente arriba ──
+        let activeTools = [];
 
         const llmCallOptions = {
             messages: llmMessages,
