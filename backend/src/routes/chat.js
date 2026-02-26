@@ -5,7 +5,7 @@ import chromaService from '../services/chromaService.js';
 import { callChatCompletion } from '../services/llmService.js';
 import gemmaService from '../services/gemmaService.js';
 import logService from '../services/logService.js';
-import { hasActiveCanvaConnector, CANVA_TOOLS, executeCanvaTool, createDesign } from '../services/canvaConnectorService.js';
+import { hasActiveCanvaConnector, CANVA_TOOLS, executeCanvaTool, createDesign, findTemplates } from '../services/canvaConnectorService.js';
 import {
     detectIntentFromText,
     resolveIntent,
@@ -729,32 +729,64 @@ REGLAS ABSOLUTAS:
                         /\b(crea[r]?|haz|genera[r]?|hacer|diseña[r]?|elabora[r]?|prepara[r]?|utiliza[r]?|usa[r]?)\b.{0,60}\b(diseño|portada|cartel|banner|flyer|folleto|presentación|presentacion|imagen|póster|poster|invitación|invitacion|afiche|infografía|infografia)\b/i.test(trimmedMessage);
 
                     if (isCanvaCreativeRequest) {
-                        console.log('[Canva] Creando 3 diseños directamente vía API...');
-                        const DESIGN_TYPES = [
-                            { type: 'doc', label: 'Documento' },
-                            { type: 'whiteboard', label: 'Pizarra colaborativa' },
-                            { type: 'presentation', label: 'Presentación' },
-                        ];
-                        const results = await Promise.allSettled(
-                            DESIGN_TYPES.map(({ type }) =>
-                                createDesign(req.user.id, { designTypeId: type, title: trimmedMessage.substring(0, 60) })
-                            )
-                        );
-                        const linksText = DESIGN_TYPES.map(({ type, label }, i) => {
-                            const r = results[i];
-                            if (r.status === 'fulfilled' && r.value?.edit_url) {
-                                console.log(`[Canva] ✅ ${label} (${type}): ${r.value.edit_url}`);
-                                return `- **${label}**: [Abrir en Canva ↗](${r.value.edit_url})`;
-                            }
-                            console.error(`[Canva] ❌ ${label}: ${r.reason?.message}`);
-                            return null;
-                        }).filter(Boolean).join('\n');
+                        console.log('[Canva] Buscando plantillas relacionadas...');
 
-                        if (linksText) {
+                        // Extraer palabras clave eliminando verbos y términos genéricos de diseño
+                        const stopWords = /\b(crea[r]?|haz|genera[r]?|hacer|diseña[r]?|elabora[r]?|prepara[r]?|utiliza[r]?|usa[r]?|un|una|el|la|los|las|de|del|para|con|que|en|al|por|me|mi|mis|nuestro|nuestra|canva|diseño|portada|cartel|banner|flyer|folleto|presentación|presentacion|imagen|póster|poster|invitación|invitacion|afiche|infografía|infografia|necesito|quiero|puedes|por favor)\b/gi;
+                        const keywords = trimmedMessage.replace(stopWords, ' ').replace(/\s+/g, ' ').trim().substring(0, 100);
+                        const searchQuery = keywords || trimmedMessage.substring(0, 60);
+                        console.log(`[Canva] Búsqueda de plantillas: "${searchQuery}"`);
+
+                        try {
+                            const templates = await findTemplates(req.user.id, searchQuery, 5);
+                            console.log(`[Canva] Plantillas encontradas: ${templates.length}`);
+
+                            if (templates.length > 0) {
+                                const templateList = templates.map(t => {
+                                    const url = t.urls?.view_url || t.urls?.edit_url || t.url
+                                        || `https://www.canva.com/search/templates?q=${encodeURIComponent(searchQuery)}`;
+                                    return `- **${t.title || 'Plantilla'}**: [Ver plantilla ↗](${url})`;
+                                }).join('\n');
+
+                                canvaLinksContext =
+                                    '\n\n---\n[SISTEMA CANVA — El backend ha encontrado plantillas relacionadas. ' +
+                                    'DEBES incluir en tu respuesta DOS secciones claramente separadas:\n\n' +
+                                    'SECCIÓN 1 — PLANTILLAS DE CANVA:\n' +
+                                    'Muestra estas plantillas con sus enlaces EXACTOS sin modificarlos:\n' +
+                                    templateList + '\n\n' +
+                                    'SECCIÓN 2 — CONTENIDO LISTO PARA COPIAR:\n' +
+                                    'Genera el contenido completo del diseño para que el usuario lo pegue en Canva:\n' +
+                                    '• TÍTULO principal (breve, impactante, máx. 10 palabras)\n' +
+                                    '• SUBTÍTULO o eslogan (opcional, máx. 1 frase)\n' +
+                                    '• TEXTO PRINCIPAL (párrafo central o puntos clave del mensaje)\n' +
+                                    '• PALETA DE COLORES (3-5 colores con códigos HEX y descripción: ej. Azul cielo #87CEEB)\n' +
+                                    '• TIPOGRAFÍA sugerida (fuente para título + fuente para cuerpo)\n' +
+                                    '• COMPOSICIÓN (cómo disponer los elementos en el diseño)\n' +
+                                    'Termina invitando al usuario a abrir una plantilla de arriba y pegar el contenido.]';
+                            } else {
+                                // Sin resultados de templates: genera contenido + enlace de búsqueda manual
+                                const searchUrl = `https://www.canva.com/search/templates?q=${encodeURIComponent(searchQuery)}`;
+                                canvaLinksContext =
+                                    '\n\n---\n[SISTEMA CANVA — No se encontraron plantillas específicas para la búsqueda. ' +
+                                    'DEBES responder con DOS secciones:\n\n' +
+                                    'SECCIÓN 1 — BUSCAR EN CANVA:\n' +
+                                    `Indica al usuario que puede buscar plantillas en: [Buscar plantillas en Canva ↗](${searchUrl})\n\n` +
+                                    'SECCIÓN 2 — CONTENIDO LISTO PARA COPIAR:\n' +
+                                    'Genera el contenido completo del diseño:\n' +
+                                    '• TÍTULO principal\n' +
+                                    '• SUBTÍTULO o eslogan\n' +
+                                    '• TEXTO PRINCIPAL\n' +
+                                    '• PALETA DE COLORES (con HEX)\n' +
+                                    '• TIPOGRAFÍA sugerida\n' +
+                                    '• COMPOSICIÓN del diseño]';
+                            }
+                        } catch (templateError) {
+                            console.error('[Canva] Error buscando plantillas:', templateError.message);
                             canvaLinksContext =
-                                '\n\n---\n[SISTEMA: El backend ya ha creado automáticamente 3 diseños en Canva. ' +
-                                'DEBES mostrar estos enlaces al usuario. USA EXACTAMENTE estas URLs sin modificarlas:]\n' +
-                                linksText;
+                                '\n\n---\n[SISTEMA CANVA — Genera el contenido del diseño en dos partes: ' +
+                                '1) Enlace de búsqueda: https://www.canva.com/templates ' +
+                                '2) Contenido completo: título, subtítulo, texto principal, paleta de colores (HEX), ' +
+                                'tipografía y descripción del layout para que el usuario lo cree en Canva.]';
                         }
                     } else {
                         // Canva activo pero sin solicitud creativa: avisar al LLM para que no lo niegue
