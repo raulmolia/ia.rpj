@@ -5,7 +5,7 @@ import chromaService from '../services/chromaService.js';
 import { callChatCompletion } from '../services/llmService.js';
 import gemmaService from '../services/gemmaService.js';
 import logService from '../services/logService.js';
-import { hasActiveCanvaConnector, CANVA_TOOLS, executeCanvaTool } from '../services/canvaConnectorService.js';
+import { hasActiveCanvaConnector, CANVA_TOOLS, executeCanvaTool, createDesign } from '../services/canvaConnectorService.js';
 import {
     detectIntentFromText,
     resolveIntent,
@@ -723,23 +723,46 @@ REGLAS ABSOLUTAS:
             try {
                 const canvaActive = await hasActiveCanvaConnector(req.user.id);
                 if (canvaActive) {
-                    activeTools = [...CANVA_TOOLS];
-                    // Inyectar instrucciones explícitas sobre cómo usar las tools de Canva
-                    llmMessages.push({
-                        role: 'system',
-                        content:
-                            'Tienes acceso a las herramientas de Canva del usuario. ' +
-                            'IMPORTANTE: Cuando el usuario pida crear un diseño en Canva, DEBES llamar a ' +
-                            '"canva_create_design" EXACTAMENTE TRES VECES, una por cada tipo válido: ' +
-                            '"doc" (documento), "whiteboard" (pizarra) y "presentation" (presentación). ' +
-                            'Estos son los UNICOS tipos que acepta la API. NO uses "poster", "flyer" ni ningún otro. ' +
-                            'Cada llamada devuelve un objeto con el campo "edit_url" que es el enlace real. ' +
-                            'NUNCA modifiques ni construyas URLs manualmente; usa siempre el edit_url devuelto. ' +
-                            'Tras recibir los 3 resultados, muestra cada opción con su edit_url como enlace Markdown. ' +
-                            'NUNCA escribas texto tipo <tool_call>. Usa directamente las funciones disponibles.',
-                    });
+                    // Detectar si el usuario pide crear un diseño en Canva
+                    const isCanvaDesignRequest = /\b(crea[r]?|haz|genera[r]?|hacer|diseña[r]?)\b.*\bdiseño\b|\bdiseño.*\bcanva\b|\bcanva.*\bdiseño\b/i.test(trimmedMessage);
+                    if (isCanvaDesignRequest) {
+                        // Llamar directamente a la API de Canva sin depender de tool_calls del LLM
+                        console.log('[Canva] Creando 3 diseños directamente vía API...');
+                        const DESIGN_TYPES = [
+                            { type: 'doc', label: 'Documento' },
+                            { type: 'whiteboard', label: 'Pizarra colaborativa' },
+                            { type: 'presentation', label: 'Presentación' },
+                        ];
+                        const results = await Promise.allSettled(
+                            DESIGN_TYPES.map(({ type }) =>
+                                createDesign(req.user.id, { designTypeId: type, title: trimmedMessage.substring(0, 60) })
+                            )
+                        );
+                        const linksText = DESIGN_TYPES.map(({ type, label }, i) => {
+                            const r = results[i];
+                            if (r.status === 'fulfilled' && r.value?.edit_url) {
+                                console.log(`[Canva] ✅ ${label} (${type}): ${r.value.edit_url}`);
+                                return `- **${label}** \`${type}\`: [Abrir en Canva ↗](${r.value.edit_url})`;
+                            }
+                            console.error(`[Canva] ❌ ${label}: ${r.reason?.message}`);
+                            return null;
+                        }).filter(Boolean).join('\n');
+
+                        if (linksText) {
+                            llmMessages.push({
+                                role: 'system',
+                                content:
+                                    'El sistema ya ha creado automáticamente 3 diseños en Canva para el usuario. ' +
+                                    'Muéstraselos de forma amigable con los enlaces exactos que aparecen abajo. ' +
+                                    'USA EXACTAMENTE estas URLs, nunca las modifiques ni construyas otras:\n\n' + linksText,
+                            });
+                        }
+                    }
+                    // No usamos tool_calls para Canva — la API se llama directamente
                 }
-            } catch { /* no bloquear si falla */ }
+            } catch (e) {
+                console.error('[Canva] Error en activación directa:', e.message);
+            }
         }
 
         const llmCallOptions = {
@@ -751,12 +774,8 @@ REGLAS ABSOLUTAS:
                 : {}),
         };
 
-        // Para tool-calling: usar Qwen2.5 (mejor soporte); si falla, Qwen3 como respaldo.
-        // Ambos son compatibles con function calling y el historial de tool_calls.
-        if (activeTools.length > 0 && !useThinkingModel) {
-            llmCallOptions.model = 'Qwen/Qwen2.5-72B-Instruct';
-            llmCallOptions.toolFallbackModel = 'Qwen/Qwen3-235B-A22B-Instruct-2507-TEE';
-        }
+        // Nota: tool_calls de Canva se ejecutan directamente (ver bloque anterior).
+        // activeTools queda vacío salvo otras herramientas futuras.
 
         let llmResponse;
         try {
