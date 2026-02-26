@@ -3,6 +3,18 @@ const nextConfig = {
     // Configuración experimental
     experimental: {
         serverComponentsExternalPackages: ['@prisma/client'],
+        serverActions: {
+            // Permitir orígenes reenviados por el proxy de Plesk/nginx.
+            // Sin esto, Next.js rechaza las Server Actions internas (next-intl)
+            // porque el proxy elimina el header `origin`, devuelve null y
+            // el runtime lanza "Cannot read properties of null (reading 'message')".
+            allowedOrigins: [
+                'ia.rpj.es',
+                'www.ia.rpj.es',
+                'localhost:3000',
+                '127.0.0.1:3000',
+            ],
+        },
     },
 
     // Configuración de imágenes
