@@ -5,6 +5,7 @@ import { ThemeProvider } from "next-themes"
 import { NextIntlClientProvider } from "next-intl"
 import { AuthProvider } from "@/lib/auth-context"
 import { LocaleProvider, useLocale, defaultLocale } from "@/lib/locale-context"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
 // Import all locale messages
 import esMessages from "@/locales/es.json"
@@ -50,7 +51,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <LocaleProvider>
                 <IntlProviderWrapper>
-                    <AuthProvider>{children}</AuthProvider>
+                    <AuthProvider>
+                        <TooltipProvider delayDuration={300}>
+                            {children}
+                        </TooltipProvider>
+                    </AuthProvider>
                 </IntlProviderWrapper>
             </LocaleProvider>
         </ThemeProvider>

@@ -1,5 +1,6 @@
 import './config/env.js'; // PRIMERO: cargar .env antes que cualquier otro módulo
 import express from 'express';
+import logService from './services/logService.js';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -30,13 +31,32 @@ app.use(helmet({
 }));
 
 // Rate limiting
+// IMPORTANTE: el servidor está detrás de Apache (proxy inverso). Cuando Apache
+// hace proxy, todos los requests llegan con remoteAddress=127.0.0.1. Apache
+// añade la IP real del cliente en X-Forwarded-For. Usamos keyGenerator para
+// leer ese header directamente y que el límite aplique por usuario real, no
+// por el loopback compartido.
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 100, // máximo 100 requests por ventana de tiempo
+    max: 500, // máximo 500 requests por ventana (usuarios reales hacen ~30 req/min en uso intenso)
     message: {
         error: 'Demasiadas solicitudes desde esta IP, inténtalo de nuevo más tarde.',
     },
-    trustProxy: true,
+    keyGenerator: (req) => {
+        // Leer la IP real del cliente desde X-Forwarded-For (Apache la añade)
+        const forwarded = req.headers['x-forwarded-for'];
+        if (forwarded) {
+            return forwarded.split(',')[0].trim();
+        }
+        return req.socket?.remoteAddress || req.ip || '127.0.0.1';
+    },
+    skip: (req) => {
+        // Excluir los polling internos de stats que el propio frontend hace
+        // cada 30s (GET /api/chat/stats) — no cuentan como tráfico de usuario
+        return req.method === 'GET' && req.path === '/chat/stats';
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
 });
 app.use('/api/', limiter);
 
@@ -120,8 +140,10 @@ async function initializeServices() {
 
     if (chromaInitialized) {
         console.log('📚 Base vectorial ChromaDB lista');
+        logService.logInfo('SISTEMA', 'ChromaDB inicializado correctamente');
     } else {
         console.log('⚠️ Funcionando sin base vectorial');
+        logService.logWarn('SISTEMA', 'ChromaDB no disponible al arrancar');
     }
 }
 
@@ -135,6 +157,7 @@ app.listen(PORT, async () => {
     // Inicializar servicios después de que el servidor esté en marcha
     await initializeServices();
     console.log('✅ Todos los servicios inicializados');
+    logService.logInfo('SISTEMA', `Servidor arrancado en puerto ${PORT}`, { detalles: { entorno: process.env.NODE_ENV || 'development' } });
 });
 
 export default app;

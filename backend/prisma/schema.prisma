@@ -56,6 +56,7 @@ model Usuario {
   conversaciones    Conversacion[]
   fuentesWeb        FuenteWeb[]
   feedbacksMensajes FeedbackMensaje[]
+  logs              LogSistema[]
 
   @@map("usuarios")
 }
@@ -270,9 +271,9 @@ model Conversacion {
   titulo             String?
   descripcion        String?
   intencionPrincipal String?
-  compartidaPor      String?  // ID del usuario que compartió esta conversación
-  compartidaDesde    String?  // Email del usuario que compartió
-  compartidaNombre   String?  // Nombre del usuario que compartió
+  compartidaPor      String? // ID del usuario que compartió esta conversación
+  compartidaDesde    String? // Email del usuario que compartió
+  compartidaNombre   String? // Nombre del usuario que compartió
   esCompartida       Boolean  @default(false)
   fechaCreacion      DateTime @default(now())
   fechaActualizacion DateTime @updatedAt
@@ -360,3 +361,44 @@ enum TipoFuenteWeb {
   DOMINIO // Dominio completo para scraping
   SITEMAP // URL de sitemap XML
 }
+
+// ===== LOGS DEL SISTEMA =====
+
+model LogSistema {
+  id           String      @id @default(cuid())
+  nivel        NivelLog
+  categoria    CategoriaLog
+  mensaje      String      @db.Text
+  detalles     Json?
+  usuarioId    String?
+  ip           String?
+  duracionMs   Int?
+  fechaCreacion DateTime   @default(now())
+
+  usuario Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  @@index([nivel],          name: "idx_logs_nivel")
+  @@index([categoria],      name: "idx_logs_categoria")
+  @@index([usuarioId],      name: "idx_logs_usuario")
+  @@index([fechaCreacion],  name: "idx_logs_fecha")
+  @@map("logs_sistema")
+}
+
+enum NivelLog {
+  INFO
+  WARN
+  ERROR
+}
+
+enum CategoriaLog {
+  AUTH
+  CHAT
+  LLM
+  DOCUMENTO
+  WEB
+  CANVAS
+  SISTEMA
+  API
+}
+
+

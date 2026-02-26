@@ -1,5 +1,6 @@
 // Servicio de integración con Chutes AI (chat completions)
 // Encapsula la llamada HTTP, gestión de errores y fallback automático de modelos
+import logService from './logService.js';
 
 const CHUTES_API_URL = process.env.CHUTES_API_URL || "https://llm.chutes.ai/v1/chat/completions";
 const CHUTES_API_TOKEN = process.env.CHUTES_API_TOKEN || "";
@@ -224,6 +225,7 @@ export async function callChatCompletion({
         }
 
         console.warn(`[ChutesAI] Modelo principal ${model} no disponible. Probando modelos de fallback...`);
+        logService.logWarn('LLM', `Modelo principal no disponible, activando fallback`, { detalles: { modelo: model, error: primaryError.message } });
 
         // Intentar con cada modelo de fallback en orden
         for (const fallbackModel of FALLBACK_MODELS) {
@@ -242,6 +244,7 @@ export async function callChatCompletion({
                     extraBody,
                 });
                 console.log(`[ChutesAI] ✅ Modelo de fallback ${fallbackModel} respondió correctamente`);
+                logService.logInfo('LLM', `Fallback exitoso con modelo ${fallbackModel}`, { detalles: { modelo: fallbackModel, intento: result.attempts, duracionMs: result.durationMs } });
                 return result;
             } catch (fallbackError) {
                 console.warn(`[ChutesAI] Modelo de fallback ${fallbackModel} también falló: ${fallbackError.message}`);
@@ -250,6 +253,8 @@ export async function callChatCompletion({
         }
 
         // Todos los modelos fallaron
-        throw new Error(`Ningún modelo disponible. Principal (${model}) y fallbacks (${FALLBACK_MODELS.join(', ')}) fallaron.`);
+        const allModelsError = `Ningún modelo disponible. Principal (${model}) y fallbacks (${FALLBACK_MODELS.join(', ')}) fallaron.`;
+        logService.logError('LLM', allModelsError, { detalles: { modelo: model, fallbacks: FALLBACK_MODELS } });
+        throw new Error(allModelsError);
     }
 }

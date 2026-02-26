@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import prismaPackage from '@prisma/client';
 import { authenticate, authorize, getRolePriority } from '../middleware/auth.js';
 import { sendWelcomeEmail, sendPasswordResetEmail, generateRandomPassword } from '../services/emailService.js';
+import logService from '../services/logService.js';
 
 const { PrismaClient } = prismaPackage;
 const PrismaEnums = prismaPackage.$Enums || {};
@@ -94,6 +95,8 @@ router.post('/login', async (req, res) => {
         const user = await prisma.usuario.findUnique({ where: { email } });
 
         if (!user || !user.passwordHash) {
+            const ipFail = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null;
+            logService.logWarn('AUTH', 'Login fallido: usuario no encontrado', { ip: ipFail, detalles: { email } });
             return res.status(401).json({
                 error: 'Credenciales inválidas',
                 message: 'Email o contraseña incorrectos',
@@ -101,6 +104,8 @@ router.post('/login', async (req, res) => {
         }
 
         if (!user.activo) {
+            const ipInact = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null;
+            logService.logWarn('AUTH', 'Login bloqueado: usuario inactivo', { usuarioId: user.id, ip: ipInact, detalles: { email } });
             return res.status(403).json({
                 error: 'Usuario inactivo',
                 message: 'Contacta con un administrador',
@@ -110,6 +115,8 @@ router.post('/login', async (req, res) => {
         const validPassword = await bcrypt.compare(password, user.passwordHash);
 
         if (!validPassword) {
+            const ipWrong = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null;
+            logService.logWarn('AUTH', 'Login fallido: contraseña incorrecta', { usuarioId: user.id, ip: ipWrong, detalles: { email } });
             return res.status(401).json({
                 error: 'Credenciales inválidas',
                 message: 'Email o contraseña incorrectos',
@@ -143,6 +150,9 @@ router.post('/login', async (req, res) => {
             { expiresIn: JWT_EXPIRES_IN },
         );
 
+        const ipLogin = Array.isArray(ipHeader) ? ipHeader[0] : (ipHeader || req.socket?.remoteAddress || null);
+        logService.logInfo('AUTH', 'Login correcto', { usuarioId: user.id, ip: ipLogin, detalles: { email, rol: user.rol } });
+
         return res.json({
             token: jwtToken,
             expiresIn: JWT_EXPIRES_IN,
@@ -151,6 +161,7 @@ router.post('/login', async (req, res) => {
         });
     } catch (error) {
         console.error('Error en login:', error);
+        logService.logError('AUTH', `Error interno en login: ${error.message}`, { detalles: { stack: error.stack?.slice(0, 500) } });
         return res.status(500).json({
             error: 'Error interno',
             message: error.message,
@@ -498,6 +509,7 @@ router.post('/users', authenticate, authorize(['ADMINISTRADOR']), async (req, re
                     loginUrl: process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/auth/login` : 'https://ia.rpj.es/auth/login',
                 });
 
+                logService.logInfo('AUTH', 'Usuario creado (con email)', { usuarioId: req.user?.id, detalles: { nuevoUsuario: newUser.email, rol: newUser.rol } });
                 return res.status(201).json({
                     message: 'Usuario creado correctamente. Se ha enviado un email con las credenciales.',
                     user: sanitizeUser(newUser),
@@ -505,6 +517,7 @@ router.post('/users', authenticate, authorize(['ADMINISTRADOR']), async (req, re
                 });
             } catch (emailError) {
                 console.error('Error enviando email de bienvenida:', emailError);
+                logService.logWarn('AUTH', 'Usuario creado pero fallo de email', { usuarioId: req.user?.id, detalles: { nuevoUsuario: newUser.email, error: emailError.message } });
 
                 // Usuario creado pero email falló - devolver contraseña en respuesta
                 return res.status(201).json({
@@ -517,6 +530,7 @@ router.post('/users', authenticate, authorize(['ADMINISTRADOR']), async (req, re
             }
         }
 
+        logService.logInfo('AUTH', 'Usuario creado', { usuarioId: req.user?.id, detalles: { nuevoUsuario: newUser.email, rol: newUser.rol } });
         return res.status(201).json({
             message: 'Usuario creado correctamente',
             user: sanitizeUser(newUser),
@@ -762,10 +776,13 @@ router.delete('/users/:id', authenticate, authorize(['ADMINISTRADOR']), async (r
 
         await prisma.usuario.delete({ where: { id } });
 
+        logService.logWarn('AUTH', 'Usuario eliminado', { usuarioId: req.user?.id, detalles: { eliminadoId: id, eliminadoEmail: targetUser.email, rol: targetUser.rol } });
+
         return res.json({
             message: 'Usuario eliminado correctamente',
         });
     } catch (error) {
+        logService.logError('AUTH', `Error eliminando usuario: ${error.message}`, { usuarioId: req.user?.id, detalles: { eliminadoId: id } });
         return res.status(500).json({
             error: 'Error eliminando usuario',
             message: error.message,

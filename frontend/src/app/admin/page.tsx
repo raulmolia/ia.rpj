@@ -2,7 +2,7 @@
 
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Loader2, MoreHorizontal, Pencil, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react"
+import { Activity, ArrowLeft, Loader2, MoreHorizontal, Pencil, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -444,6 +444,12 @@ export default function AdminPage() {
                     </div>
                     <div className="flex items-center gap-2">
                         <ThemeToggleButton />
+                        {user?.rol === "SUPERADMIN" && (
+                            <Button variant="outline" onClick={() => router.push("/admin/logs")}>
+                                <Activity className="mr-2 h-4 w-4" aria-hidden="true" />
+                                Logs del sistema
+                            </Button>
+                        )}
                         <Button variant="outline" onClick={() => router.push("/")}>
                             <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
                             Volver al chat

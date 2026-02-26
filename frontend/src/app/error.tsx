@@ -18,19 +18,36 @@ export default function Error({
         }
     }, [error])
 
-    // "Failed to find Server Action" → JS cacheado antiguo → recarga forzada
-    const isStaleDeployment =
-        error?.message?.includes("Server Action") ||
-        error?.message?.includes("deployment") ||
-        (typeof window !== "undefined" &&
-            document.referrer === "" &&
-            navigator.onLine)
+    const msg = error?.message ?? ""
+    const name = (error as Error & { name?: string })?.name ?? ""
 
-    if (isStaleDeployment) {
-        if (typeof window !== "undefined") {
-            // Borrar la caché del service worker y recargar
+    // Detectar errores causados por caché de JS desactualizada tras un nuevo deploy:
+    // - ChunkLoadError: el navegador tiene chunks del build anterior que ya no existen
+    // - "Failed to find Server Action": ID de acción no coincide con el build actual
+    // - "Loading chunk X failed": otro formato del ChunkLoadError
+    const isStaleDeployment =
+        name === "ChunkLoadError" ||
+        msg.includes("ChunkLoadError") ||
+        msg.includes("Loading chunk") ||
+        msg.includes("Failed to fetch dynamically imported module") ||
+        msg.includes("Server Action") ||
+        msg.includes("deployment") ||
+        msg.includes("Unexpected token") ||
+        msg.includes("is not a function") && msg.includes("undefined")
+
+    useEffect(() => {
+        if (!isStaleDeployment) return
+        // Evitar bucle infinito: solo recargar una vez cada 10 segundos
+        const RELOAD_KEY = "last_error_reload"
+        const lastReload = parseInt(sessionStorage.getItem(RELOAD_KEY) ?? "0", 10)
+        const now = Date.now()
+        if (now - lastReload > 10_000) {
+            sessionStorage.setItem(RELOAD_KEY, String(now))
             window.location.reload()
         }
+    }, [isStaleDeployment])
+
+    if (isStaleDeployment) {
         return null
     }
 

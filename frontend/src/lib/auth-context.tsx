@@ -192,7 +192,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             if (!response.ok) {
                 const errorBody = await response.json().catch(() => ({ message: "No se pudo iniciar sesión" }))
-                const errorMessage = errorBody?.message || "Credenciales inválidas"
+                // Leer tanto .message como .error — el rate limiter devuelve { error: '...' }
+                // sin campo 'message', lo que causaba que se leyera el fallback "Credenciales inválidas"
+                const errorMessage = errorBody?.message || errorBody?.error || "Credenciales inválidas"
                 setStatus("unauthenticated")
                 return { success: false, error: errorMessage }
             }

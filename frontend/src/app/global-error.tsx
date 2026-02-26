@@ -15,8 +15,13 @@ export default function GlobalError({
         }
 
         const msg = error instanceof Error ? error.message : String(error ?? "")
+        const name = error instanceof Error ? (error.name ?? "") : ""
 
         const isStale =
+            name === "ChunkLoadError" ||
+            msg.includes("ChunkLoadError") ||
+            msg.includes("Loading chunk") ||
+            msg.includes("Failed to fetch dynamically imported module") ||
             msg.includes("Server Action") ||
             msg.includes("deployment") ||
             msg.includes("Minified React error")
@@ -29,7 +34,14 @@ export default function GlobalError({
             msg.includes("'message'")
 
         if (isStale || isNullServerActionCrash) {
-            window.location.reload()
+            // Evitar bucle infinito: solo recargar una vez cada 10 segundos
+            const RELOAD_KEY = "last_global_error_reload"
+            const lastReload = parseInt(sessionStorage.getItem(RELOAD_KEY) ?? "0", 10)
+            const now = Date.now()
+            if (now - lastReload > 10_000) {
+                sessionStorage.setItem(RELOAD_KEY, String(now))
+                window.location.reload()
+            }
         }
     }, [error])
 

@@ -4,6 +4,7 @@ import { authenticate } from '../middleware/auth.js';
 import chromaService from '../services/chromaService.js';
 import { callChatCompletion } from '../services/llmService.js';
 import gemmaService from '../services/gemmaService.js';
+import logService from '../services/logService.js';
 import {
     detectIntentFromText,
     resolveIntent,
@@ -255,6 +256,14 @@ function logChatEvent(level = 'info', payload = {}) {
         source: 'chat-api',
         ...payload,
     };
+
+    // Escribir en BD de logs (además de consola)
+    const nivel = level === 'error' ? 'ERROR' : level === 'warn' ? 'WARN' : 'INFO';
+    const { userId, conversationId, ...resto } = payload;
+    logService.log(nivel, 'CHAT', payload.event || 'chat.event', {
+        usuarioId: userId || undefined,
+        detalles: { conversationId, ...resto },
+    });
 
     if (level === 'error') {
         console.error(entry);

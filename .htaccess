@@ -1,5 +1,12 @@
 RewriteEngine On
 
+# Reconstruir header Origin eliminado por Apache al hacer proxy inverso.
+# Next.js 14 lanza error si origin es null cuando hay Server Actions (next-intl).
+# Se usa mod_headers (RequestHeader) para añadirlo solo si no viene ya.
+<IfModule mod_headers.c>
+    RequestHeader setifempty Origin "https://ia.rpj.es"
+</IfModule>
+
 # Permite verificación de Google sin pasar por el proxy
 RewriteCond %{REQUEST_URI} ^/google2f50d5d3b185d060\.html$ [NC]
 RewriteRule ^ - [L]
