@@ -812,8 +812,8 @@ REGLAS ABSOLUTAS:
                     messages: llmMessages,
                     // Siempre Qwen para tool-calling (más compatible)
                     model: useThinkingModel === true ? 'tngtech/DeepSeek-R1T-Chimera' : 'Qwen/Qwen2.5-72B-Instruct',
-                    // No usar fallback cuando hay tool_calls en el historial (los fallbacks no soportan tool_calls)
-                    noFallback: true,
+                    // Fallback a Qwen3 (compatible con tool_calls en historial), evitar DeepSeek
+                    toolFallbackModel: 'Qwen/Qwen3-235B-A22B-Instruct-2507-TEE',
                     // Solo mantener tools activas si no es el último pase
                     ...(!isLastPass && activeTools.length > 0
                         ? { extraBody: { tools: activeTools, tool_choice: 'auto', parallel_tool_calls: true } }
