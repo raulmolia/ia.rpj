@@ -524,7 +524,16 @@
     "fullDocument": "Documento completo",
     "selectedText": "Texto seleccionado",
     "sendInstruction": "Enviar instrucción",
-    "originalVersion": "Original"
+    "originalVersion": "Original",
+    "versionHistory": "Historial de versiones",
+    "useThisVersion": "Usar esta versión",
+    "useThisVersionTooltip": "Establece esta versión como el contenido final a guardar en el chat",
+    "currentVersionBadge": "activa",
+    "justNow": "ahora mismo",
+    "minsAgo": "hace {n} min",
+    "hoursAgo": "hace {n}h",
+    "versionN": "Versión {n}",
+    "versionRestored": "Restauración de v{n}"
   },
   "share": {
     "title": "Compartir contenido",

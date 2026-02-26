@@ -524,7 +524,16 @@
     "fullDocument": "Dokumentu osoa",
     "selectedText": "Hautatutako testua",
     "sendInstruction": "Instrukzioa bidali",
-    "originalVersion": "Jatorrizkoa"
+    "originalVersion": "Jatorrizkoa",
+    "versionHistory": "Bertsio historia",
+    "useThisVersion": "Bertsio hau erabili",
+    "useThisVersionTooltip": "Ezarri bertsio hau txatean gordetzeko azken edukitzat",
+    "currentVersionBadge": "aktibo",
+    "justNow": "orain bertan",
+    "minsAgo": "duela {n} min",
+    "hoursAgo": "duela {n}h",
+    "versionN": "{n}. bertsioa",
+    "versionRestored": "v{n}tik leheneratua"
   },
   "share": {
     "title": "Edukia partekatu",

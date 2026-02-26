@@ -524,7 +524,16 @@
     "fullDocument": "Teljes dokumentum",
     "selectedText": "Kijelölt szöveg",
     "sendInstruction": "Utasítás küldése",
-    "originalVersion": "Eredeti"
+    "originalVersion": "Eredeti",
+    "versionHistory": "Verzióelőzmény",
+    "useThisVersion": "Ezt a verziót használom",
+    "useThisVersionTooltip": "Ezt a verziót állítja be a chatbe mentendő végleges tartalomként",
+    "currentVersionBadge": "aktív",
+    "justNow": "éppen most",
+    "minsAgo": "{n} perce",
+    "hoursAgo": "{n} órája",
+    "versionN": "{n}. verzió",
+    "versionRestored": "v{n} visszaállítva"
   },
   "share": {
     "title": "Tartalom megosztása",

@@ -524,7 +524,16 @@
     "fullDocument": "Document complet",
     "selectedText": "Text seleccionat",
     "sendInstruction": "Enviar instrucció",
-    "originalVersion": "Original"
+    "originalVersion": "Original",
+    "versionHistory": "Historial de versions",
+    "useThisVersion": "Usar aquesta versió",
+    "useThisVersionTooltip": "Estableix aquesta versió com el contingut final a desar al xat",
+    "currentVersionBadge": "activa",
+    "justNow": "ara mateix",
+    "minsAgo": "fa {n} min",
+    "hoursAgo": "fa {n}h",
+    "versionN": "Versió {n}",
+    "versionRestored": "Restaurada de v{n}"
   },
   "share": {
     "title": "Compartir contingut",

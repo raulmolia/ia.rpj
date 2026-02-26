@@ -524,7 +524,16 @@
     "fullDocument": "Cały dokument",
     "selectedText": "Zaznaczony tekst",
     "sendInstruction": "Wyślij instrukcję",
-    "originalVersion": "Oryginał"
+    "originalVersion": "Oryginał",
+    "versionHistory": "Historia wersji",
+    "useThisVersion": "Użyj tej wersji",
+    "useThisVersionTooltip": "Ustaw tę wersję jako ostateczną treść do zapisania w czacie",
+    "currentVersionBadge": "aktywna",
+    "justNow": "właśnie teraz",
+    "minsAgo": "{n} min temu",
+    "hoursAgo": "{n}h temu",
+    "versionN": "Wersja {n}",
+    "versionRestored": "Przywrócona z v{n}"
   },
   "share": {
     "title": "Udostępnij treść",

@@ -383,6 +383,8 @@ export default function CanvasEditor({
             isExternalUpdateRef.current = true
             editor.commands.setContent(convertMarkdownToHtml(versionContent))
         }
+        // Propagate to CanvasDialog so currentContent stays in sync regardless of nav
+        onContentChange?.(versionContent)
     }, [currentVersionIndex, versions, editor])
 
     // Ref to the popover wrapper so we can check containment without querying the DOM
@@ -446,10 +448,11 @@ export default function CanvasEditor({
     }, [popoverPosition])
 
     const addVersion = useCallback(
-        (content: string) => {
+        (content: string, label?: string) => {
             const newVersion: CanvasVersion = {
                 content,
                 timestamp: Date.now(),
+                label,
             }
             setVersions((prev) => {
                 const next = [...prev.slice(0, currentVersionIndex + 1), newVersion]
@@ -460,6 +463,21 @@ export default function CanvasEditor({
         [currentVersionIndex],
     )
 
+    const handleRestoreVersion = useCallback(() => {
+        if (!editor || currentVersionIndex >= versions.length - 1) return
+        const content = versions[currentVersionIndex].content
+        const restoredLabel = t("versionRestored", { n: currentVersionIndex + 1 })
+        isExternalUpdateRef.current = true
+        editor.commands.setContent(convertMarkdownToHtml(content))
+        setVersions((prev) => {
+            const newVersion: CanvasVersion = { content, timestamp: Date.now(), label: restoredLabel }
+            const next = [...prev, newVersion]
+            setCurrentVersionIndex(next.length - 1)
+            return next
+        })
+        onContentChange?.(content)
+    }, [editor, currentVersionIndex, versions, t, onContentChange])
+
     const handleSelectionTransform = useCallback(
         async (instruction: string) => {
             if (!editor) return
@@ -468,7 +486,8 @@ export default function CanvasEditor({
                 const result = await onTransformRequest(fullContent, selectedText, instruction)
                 isExternalUpdateRef.current = true
                 editor.commands.setContent(convertMarkdownToHtml(result))
-                addVersion(result)
+                const versionLabel = instruction.length > 40 ? instruction.slice(0, 40) + "\u2026" : instruction
+                addVersion(result, versionLabel)
                 setPopoverPosition(null)
                 setSelectedText("")
             } catch {
@@ -540,9 +559,12 @@ export default function CanvasEditor({
             <CanvasToolbar
                 currentVersion={currentVersionIndex + 1}
                 totalVersions={versions.length}
+                versions={versions}
                 showDiff={showDiff}
                 onPrevVersion={() => setCurrentVersionIndex((i) => Math.max(0, i - 1))}
                 onNextVersion={() => setCurrentVersionIndex((i) => Math.min(versions.length - 1, i + 1))}
+                onJumpToVersion={setCurrentVersionIndex}
+                onRestoreVersion={handleRestoreVersion}
                 onToggleDiff={() => setShowDiff((s) => !s)}
                 onExportPdf={handleExportPdf}
                 onExportWord={handleExportWord}
