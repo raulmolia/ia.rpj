@@ -725,9 +725,14 @@ REGLAS ABSOLUTAS:
                 const canvaActive = await hasActiveCanvaConnector(req.user.id);
                 if (canvaActive) {
                     canvaModelOverride = 'MiniMaxAI/MiniMax-M2.5-TEE';
-                    // Detectar si el usuario pide crear un diseño en Canva
-                    const isCanvaDesignRequest = /\b(crea[r]?|haz|genera[r]?|hacer|diseña[r]?)\b.*\bdiseño\b|\bdiseño.*\bcanva\b|\bcanva.*\bdiseño\b/i.test(trimmedMessage);
-                    if (isCanvaDesignRequest) {
+
+                    // Detectar cualquier solicitud creativa que implique usar Canva
+                    // Incluye: diseño, portada, cartel, imagen, banner, flyer, folleto, presentación, etc.
+                    const isCanvaCreativeRequest =
+                        /\bcanva\b/i.test(trimmedMessage) ||
+                        /\b(crea[r]?|haz|genera[r]?|hacer|diseña[r]?|elabora[r]?|prepara[r]?|utiliza[r]?|usa[r]?)\b.{0,60}\b(diseño|portada|cartel|banner|flyer|folleto|presentación|presentacion|imagen|póster|poster|invitación|invitacion|afiche|infografía|infografia)\b/i.test(trimmedMessage);
+
+                    if (isCanvaCreativeRequest) {
                         // Llamar directamente a la API de Canva sin depender de tool_calls del LLM
                         console.log('[Canva] Creando 3 diseños directamente vía API...');
                         const DESIGN_TYPES = [
@@ -759,6 +764,18 @@ REGLAS ABSOLUTAS:
                                     'USA EXACTAMENTE estas URLs, nunca las modifiques ni construyas otras:\n\n' + linksText,
                             });
                         }
+                    } else {
+                        // Canva activo pero el usuario no pide crear algo concreto:
+                        // informar al LLM de que SÍ tiene acceso a Canva para que no lo niegue
+                        llmMessages.push({
+                            role: 'system',
+                            content:
+                                'El usuario tiene la herramienta Canva conectada y activa. ' +
+                                'Cuando pida crear portadas, carteles, presentaciones, diseños, banners, ' +
+                                'folletos, imágenes o cualquier recurso visual, el sistema creará automáticamente ' +
+                                'los diseños en Canva y te proporcionará los enlaces. ' +
+                                'NUNCA digas que no tienes acceso a Canva ni a herramientas externas; sí tienes acceso.',
+                        });
                     }
                     // No usamos tool_calls para Canva — la API se llama directamente
                 }
