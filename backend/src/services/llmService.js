@@ -143,6 +143,41 @@ async function tryModelCompletion({
                 content = content.replace(/<\/?think>/gi, '').trim();
             }
 
+            // Detectar <tool_call> XML que Qwen emite en el contenido en lugar de finish_reason:tool_calls
+            // Formato Qwen: <tool_call>\n{"name":"...","arguments":{...}}\n</tool_call>
+            if (content && content.includes('<tool_call>')) {
+                const toolCallRegex = /<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/g;
+                const xmlToolCalls = [];
+                let xmlMatch;
+                while ((xmlMatch = toolCallRegex.exec(content)) !== null) {
+                    try {
+                        const parsed = JSON.parse(xmlMatch[1]);
+                        if (parsed.name) {
+                            xmlToolCalls.push({
+                                id: `call_xml_${Date.now()}_${xmlToolCalls.length}`,
+                                type: 'function',
+                                function: {
+                                    name: parsed.name,
+                                    arguments: JSON.stringify(parsed.arguments || {}),
+                                },
+                            });
+                        }
+                    } catch { /* ignorar XML malformado */ }
+                }
+                if (xmlToolCalls.length > 0) {
+                    return {
+                        content: '',
+                        toolCalls: xmlToolCalls,
+                        finishReason: 'tool_calls',
+                        raw: data,
+                        usage: data?.usage ?? null,
+                        attempts: attempt,
+                        durationMs: Date.now() - startedAt,
+                        model,
+                    };
+                }
+            }
+
             // Si content está vacío, intentar extraer de reasoning_content (modelos thinking)
             if (!content && message?.reasoning_content) {
                 content = message.reasoning_content.trim();
@@ -228,6 +263,7 @@ export async function callChatCompletion({
     timeoutMs = DEFAULT_TIMEOUT_MS,
     maxRetries = DEFAULT_MAX_RETRIES,
     extraBody = {},
+    noFallback = false,
 }) {
     ensureApiToken();
 
@@ -235,6 +271,10 @@ export async function callChatCompletion({
     try {
         return await tryModelCompletion({ messages, model, temperature, maxTokens, stream, timeoutMs, maxRetries, extraBody });
     } catch (primaryError) {
+        // Si no hay fallback permitido (p.ej. cuando hay tool_calls en el historial)
+        if (noFallback) {
+            throw new Error(`El modelo ${model} no pudo responder: ${primaryError.message}`);
+        }
         // Si el error no justifica fallback (ej: 401 auth), lanzar directamente
         if (!shouldTryFallback(primaryError)) {
             throw new Error(`El modelo no pudo generar una respuesta tras ${primaryError.attempts || '?'} intentos: ${primaryError.message}`);

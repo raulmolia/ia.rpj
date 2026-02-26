@@ -147,7 +147,7 @@ export async function getDesign(usuarioId, designId) {
 
 /**
  * Crea un nuevo diseño en blanco.
- * designTypeId: p.ej. "presentation", "social_media_post", "poster", "flyer"
+ * designTypeId: p.ej. "presentation", "social_media_post", "poster", "flyer", "doc", "whiteboard"
  */
 export async function createDesign(usuarioId, { designTypeId = 'presentation', title = '' } = {}) {
     const token = await getValidAccessToken(usuarioId);
@@ -155,7 +155,17 @@ export async function createDesign(usuarioId, { designTypeId = 'presentation', t
         design_type: { type: 'preset', name: designTypeId },
     };
     if (title) body.title = title;
-    return canvaRequest('POST', '/designs', token, body);
+    const result = await canvaRequest('POST', '/designs', token, body);
+    // Normalizar la respuesta para que la URL sea clara para el LLM
+    const design = result.design || result;
+    return {
+        id: design.id,
+        title: design.title || title,
+        url: design.url || `https://www.canva.com/design/${design.id}/edit`,
+        edit_url: design.url || `https://www.canva.com/design/${design.id}/edit`,
+        type: designTypeId,
+        created_at: design.created_at,
+    };
 }
 
 /**
@@ -245,18 +255,29 @@ export const CANVA_TOOLS = [
         type: 'function',
         function: {
             name: 'canva_create_design',
-            description: 'Crea un nuevo diseño en blanco en Canva. Úsala cuando el usuario quiera crear un cartel, presentación, publicación para redes, flyer u otro tipo de diseño.',
+            description: 'Crea un nuevo diseño en blanco en Canva y devuelve su URL. ' +
+                'Cuando el usuario pida crear algo en Canva, llama a esta función TRES VECES con distintos ' +
+                'tipos de diseño para ofrecerle 3 opciones diferentes. La respuesta incluirá la URL directa ' +
+                'para editar el diseño en Canva.',
             parameters: {
                 type: 'object',
                 properties: {
                     design_type: {
                         type: 'string',
-                        description: 'Tipo de diseño: "presentation" (presentación), "poster" (cartel/poster), "flyer" (tríptico/flyer), "social_media_post" (publicación redes sociales), "banner" (banner web)',
-                        enum: ['presentation', 'poster', 'flyer', 'social_media_post', 'banner'],
+                        description: 'Tipo de diseño. Valores válidos: ' +
+                            '"presentation" (presentación de diapositivas), ' +
+                            '"poster" (cartel/póster vertical), ' +
+                            '"flyer" (flyer/tríptico), ' +
+                            '"doc" (documento/hoja de papel), ' +
+                            '"whiteboard" (pizarra colaborativa), ' +
+                            '"social_media_post" (publicación redes sociales cuadrada), ' +
+                            '"instagram_post" (post Instagram cuadrado), ' +
+                            '"instagram_story" (historia Instagram vertical)',
+                        enum: ['presentation', 'poster', 'flyer', 'doc', 'whiteboard', 'social_media_post', 'instagram_post', 'instagram_story'],
                     },
                     title: {
                         type: 'string',
-                        description: 'Título o nombre para el nuevo diseño (opcional)',
+                        description: 'Título o nombre para el nuevo diseño',
                     },
                 },
                 required: ['design_type'],

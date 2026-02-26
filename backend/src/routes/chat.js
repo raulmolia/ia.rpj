@@ -715,14 +715,29 @@ REGLAS ABSOLUTAS:
 
         llmMessages.push({ role: 'user', content: trimmedMessage });
 
-        // ── Conectores: inyectar tools si el usuario es PRO y tiene Canva activo ──
+        // ── Conectores: inyectar tools + system message si el usuario es PRO y tiene Canva activo ──
         // useCanvaTools puede ser false explícitamente para desactivarlas desde el frontend
         const userIsPro = tipoSuscripcion === 'PRO' || USER_LIMITS[userRole]?.hasTools;
         let activeTools = [];
         if (userIsPro && req.user?.id && useCanvaTools !== false) {
             try {
                 const canvaActive = await hasActiveCanvaConnector(req.user.id);
-                if (canvaActive) activeTools = [...CANVA_TOOLS];
+                if (canvaActive) {
+                    activeTools = [...CANVA_TOOLS];
+                    // Inyectar instrucciones explícitas sobre cómo usar las tools de Canva
+                    llmMessages.push({
+                        role: 'system',
+                        content:
+                            'Tienes acceso a las herramientas de Canva del usuario. ' +
+                            'IMPORTANTE: Cuando el usuario pida crear un diseño en Canva, DEBES llamar a ' +
+                            '"canva_create_design" EXACTAMENTE TRES VECES seguidas con distintos tipos de diseño ' +
+                            '(por ejemplo: "poster", "doc" y "presentation") para ofrecer 3 opciones. ' +
+                            'Cada llamada devuelve un objeto con los campos "url" y "edit_url" con el enlace directo. ' +
+                            'Tras recibir los 3 resultados, presenta los diseños en Markdown con el formato: ' +
+                            '"### \uD83C\uDFA8 [Opción N — Tipo] (URL)" y una descripción breve de cada uno. ' +
+                            'NUNCA escribas texto tipo <tool_call>; usa directamente las funciones disponibles.',
+                    });
+                }
             } catch { /* no bloquear si falla */ }
         }
 
@@ -731,9 +746,14 @@ REGLAS ABSOLUTAS:
             model: useThinkingModel === true ? 'tngtech/DeepSeek-R1T-Chimera' : undefined,
             // Los modelos de razonamiento (thinking) no admiten tools
             ...(activeTools.length > 0 && !useThinkingModel
-                ? { extraBody: { tools: activeTools, tool_choice: 'auto' } }
+                ? { extraBody: { tools: activeTools, tool_choice: 'auto', parallel_tool_calls: true } }
                 : {}),
         };
+
+        // Forzar Qwen cuando hay tools activas (es el modelo más compatible con function calling)
+        if (activeTools.length > 0 && !useThinkingModel) {
+            llmCallOptions.model = 'Qwen/Qwen2.5-72B-Instruct';
+        }
 
         let llmResponse;
         try {
@@ -742,8 +762,15 @@ REGLAS ABSOLUTAS:
             throw new Error(`El modelo no pudo generar una respuesta: ${error.message}`);
         }
 
-        // ── Tool-calling loop: ejecutar tools hasta obtener respuesta final ──
-        if (llmResponse.finishReason === 'tool_calls' && llmResponse.toolCalls?.length > 0) {
+        // ── Tool-calling loop: ejecutar tools hasta obtener respuesta final (máx 5 pases) ──
+        const MAX_TOOL_PASSES = 5;
+        let toolPasses = 0;
+        while (
+            llmResponse.finishReason === 'tool_calls' &&
+            llmResponse.toolCalls?.length > 0 &&
+            toolPasses < MAX_TOOL_PASSES
+        ) {
+            toolPasses++;
             // Añadir la respuesta del asistente con tool_calls al historial
             const assistantToolMessage = {
                 role: 'assistant',
@@ -774,14 +801,23 @@ REGLAS ABSOLUTAS:
                 });
             }
 
-            // Segunda llamada al LLM con resultados de tools (sin tools para evitar loop infinito)
+            // Siguiente llamada al LLM con resultados de tools
+            // En el último pase (o si no hay más tools), no inyectar tools para evitar loop infinito
             try {
+                const isLastPass = toolPasses >= MAX_TOOL_PASSES - 1;
                 llmResponse = await callChatCompletion({
                     messages: llmMessages,
-                    model: useThinkingModel === true ? 'tngtech/DeepSeek-R1T-Chimera' : undefined,
+                    // Siempre Qwen para tool-calling (más compatible)
+                    model: useThinkingModel === true ? 'tngtech/DeepSeek-R1T-Chimera' : 'Qwen/Qwen2.5-72B-Instruct',
+                    // No usar fallback cuando hay tool_calls en el historial (los fallbacks no soportan tool_calls)
+                    noFallback: true,
+                    // Solo mantener tools activas si no es el último pase
+                    ...(!isLastPass && activeTools.length > 0
+                        ? { extraBody: { tools: activeTools, tool_choice: 'auto', parallel_tool_calls: true } }
+                        : {}),
                 });
             } catch (error) {
-                throw new Error(`Error en segunda llamada tras tools: ${error.message}`);
+                throw new Error(`Error en llamada tras tools (pase ${toolPasses}): ${error.message}`);
             }
         }
 
