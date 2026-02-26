@@ -722,13 +722,24 @@ REGLAS ABSOLUTAS:
             try {
                 const canvaActive = await hasActiveCanvaConnector(req.user.id);
                 if (canvaActive) {
-                    canvaModelOverride = 'MiniMaxAI/MiniMax-M2.5-TEE';
+                    canvaModelOverride = 'deepseek-ai/DeepSeek-V3-0324-TEE';
 
                     const isCanvaCreativeRequest =
                         /\bcanva\b/i.test(trimmedMessage) ||
                         /\b(crea[r]?|haz|genera[r]?|hacer|diseña[r]?|elabora[r]?|prepara[r]?|utiliza[r]?|usa[r]?)\b.{0,60}\b(diseño|portada|cartel|banner|flyer|folleto|presentación|presentacion|imagen|póster|poster|invitación|invitacion|afiche|infografía|infografia)\b/i.test(trimmedMessage);
 
                     if (isCanvaCreativeRequest) {
+                        // Bloquear la negación antes de que el modelo procese el mensaje
+                        llmMessages.push({
+                            role: 'system',
+                            content:
+                                'INSTRUCCIÓN PRIORITARIA: El usuario tiene Canva conectado y activo en esta sesión. ' +
+                                'El sistema ha buscado plantillas automáticamente. ' +
+                                'ESTÁ PROHIBIDO empezar la respuesta con frases como "no puedo", "no tengo acceso", ' +
+                                '"disculpa, no puedo crear contenido en Canva", "lo siento" o cualquier negación sobre ' +
+                                'Canva o herramientas externas. Ve DIRECTAMENTE al contenido útil: ' +
+                                'muestra las plantillas encontradas y proporciona el contenido del diseño.',
+                        });
                         console.log('[Canva] Buscando plantillas relacionadas...');
 
                         // Extraer palabras clave eliminando verbos y términos genéricos de diseño

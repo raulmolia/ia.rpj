@@ -26,6 +26,8 @@ const MODEL_MAX_COMPLETION_TOKENS = {
     'deepseek-ai/DeepSeek-V3': 65536,
     'deepseek-ai/DeepSeek-V3-0324': 65536,
     'deepseek-ai/DeepSeek-V3-0324-TEE': 65536,
+    'deepseek-ai/DeepSeek-V3.1-TEE': 65536,
+    'deepseek-ai/DeepSeek-V3.2-TEE': 65536,
     'deepseek-ai/DeepSeek-R1': 65536,
     'deepseek-ai/DeepSeek-R1-0528-TEE': 65536,
     'deepseek-ai/DeepSeek-R1-Distill-Llama-70B': 65536,
