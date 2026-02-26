@@ -5,6 +5,7 @@ import chromaService from '../services/chromaService.js';
 import { callChatCompletion } from '../services/llmService.js';
 import gemmaService from '../services/gemmaService.js';
 import logService from '../services/logService.js';
+import { hasActiveCanvaConnector, CANVA_TOOLS, executeCanvaTool } from '../services/canvaConnectorService.js';
 import {
     detectIntentFromText,
     resolveIntent,
@@ -714,14 +715,73 @@ REGLAS ABSOLUTAS:
 
         llmMessages.push({ role: 'user', content: trimmedMessage });
 
+        // ── Conectores: inyectar tools si el usuario es PRO y tiene Canva activo ──
+        const userIsPro = tipoSuscripcion === 'PRO' || USER_LIMITS[userRole]?.hasTools;
+        let activeTools = [];
+        if (userIsPro && req.user?.id) {
+            try {
+                const canvaActive = await hasActiveCanvaConnector(req.user.id);
+                if (canvaActive) activeTools = [...CANVA_TOOLS];
+            } catch { /* no bloquear si falla */ }
+        }
+
+        const llmCallOptions = {
+            messages: llmMessages,
+            model: useThinkingModel === true ? 'tngtech/DeepSeek-R1T-Chimera' : undefined,
+            // Los modelos de razonamiento (thinking) no admiten tools
+            ...(activeTools.length > 0 && !useThinkingModel
+                ? { extraBody: { tools: activeTools, tool_choice: 'auto' } }
+                : {}),
+        };
+
         let llmResponse;
         try {
-            llmResponse = await callChatCompletion({
-                messages: llmMessages,
-                model: useThinkingModel === true ? 'tngtech/DeepSeek-R1T-Chimera' : undefined,
-            });
+            llmResponse = await callChatCompletion(llmCallOptions);
         } catch (error) {
             throw new Error(`El modelo no pudo generar una respuesta: ${error.message}`);
+        }
+
+        // ── Tool-calling loop: ejecutar tools hasta obtener respuesta final ──
+        if (llmResponse.finishReason === 'tool_calls' && llmResponse.toolCalls?.length > 0) {
+            // Añadir la respuesta del asistente con tool_calls al historial
+            const assistantToolMessage = {
+                role: 'assistant',
+                content: null,
+                tool_calls: llmResponse.toolCalls,
+            };
+            llmMessages.push(assistantToolMessage);
+
+            // Ejecutar cada tool y añadir resultados al historial
+            for (const toolCall of llmResponse.toolCalls) {
+                const toolName = toolCall.function?.name;
+                let toolArgs = {};
+                try { toolArgs = JSON.parse(toolCall.function?.arguments || '{}'); } catch { /* args vacíos */ }
+
+                let toolResult;
+                try {
+                    toolResult = await executeCanvaTool(req.user.id, toolName, toolArgs);
+                    console.log(`[Tools] ✅ ${toolName} ejecutada correctamente`);
+                } catch (toolError) {
+                    console.error(`[Tools] ❌ Error ejecutando ${toolName}:`, toolError.message);
+                    toolResult = { error: toolError.message };
+                }
+
+                llmMessages.push({
+                    role: 'tool',
+                    tool_call_id: toolCall.id,
+                    content: JSON.stringify(toolResult),
+                });
+            }
+
+            // Segunda llamada al LLM con resultados de tools (sin tools para evitar loop infinito)
+            try {
+                llmResponse = await callChatCompletion({
+                    messages: llmMessages,
+                    model: useThinkingModel === true ? 'tngtech/DeepSeek-R1T-Chimera' : undefined,
+                });
+            } catch (error) {
+                throw new Error(`Error en segunda llamada tras tools: ${error.message}`);
+            }
         }
 
         // Limpiar cualquier tag <think> residual del contenido antes de guardar y devolver

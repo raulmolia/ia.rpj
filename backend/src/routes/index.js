@@ -13,6 +13,7 @@ import statsRoutes from './stats.js';
 import feedbackRoutes from './feedback.js';
 import shareRoutes from './share.js';
 import logsRoutes from './logs.js';
+import conectoresRoutes from './conectores.js';
 
 const { PrismaClient } = prismaPackage;
 
@@ -31,6 +32,7 @@ router.use('/stats', statsRoutes);
 router.use('/feedback', feedbackRoutes);
 router.use('/share', shareRoutes);
 router.use('/logs', logsRoutes);
+router.use('/conectores', conectoresRoutes);
 
 // Ruta de health check
 router.get('/health', async (req, res) => {

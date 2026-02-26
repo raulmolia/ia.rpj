@@ -55,6 +55,7 @@ import {
     ThumbsDown,
     RotateCcw,
     Type,
+    Plug,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -95,6 +96,7 @@ import { LanguageSelector } from "@/components/language-selector"
 import { UsageStats } from "@/components/usage-stats"
 import { downloadAsPDF, downloadAsWord } from "@/lib/document-generator"
 import { ChangePasswordModal } from "@/components/change-password-modal"
+import { ConnectoresPanel } from "@/components/conectores-panel"
 import { CanvasDialog } from "@/components/canvas"
 import { ShareDialog } from "@/components/share-dialog"
 import { useLocale, formatRelativeTime, type Locale } from "@/lib/locale-context"
@@ -262,6 +264,7 @@ export default function ChatHomePage() {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
     const [chatPendingDeletion, setChatPendingDeletion] = useState<Chat | null>(null)
     const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false)
+    const [settingsTab, setSettingsTab] = useState<"general" | "conectores">("general")
     const [isDeletingChat, setIsDeletingChat] = useState(false)
     const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false)
     const [searchQuery, setSearchQuery] = useState("")
@@ -445,6 +448,25 @@ export default function ChatHomePage() {
             router.replace("/auth/login")
         }
     }, [router, status])
+
+    // Detectar redirección de OAuth de conectores (?connector=canva&status=...)
+    useEffect(() => {
+        if (typeof window === "undefined") return
+        const params = new URLSearchParams(window.location.search)
+        const connector = params.get("connector")
+        const connectorStatus = params.get("status")
+        if (!connector) return
+
+        // Limpiar params de la URL sin recarga
+        const cleanUrl = window.location.pathname
+        window.history.replaceState({}, "", cleanUrl)
+
+        if (connectorStatus === "success") {
+            // Abrir configuración en la pestaña Conectores para confirmación visual
+            setSettingsTab("conectores")
+            setIsSettingsDialogOpen(true)
+        }
+    }, [])
 
 
     useEffect(() => {
@@ -2785,15 +2807,35 @@ export default function ChatHomePage() {
                         <div className="w-48 shrink-0 space-y-1">
                             <button
                                 type="button"
-                                className="w-full flex items-center gap-3 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-left"
+                                onClick={() => setSettingsTab("general")}
+                                className={`w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-left transition-colors ${
+                                    settingsTab === "general"
+                                        ? "bg-accent text-accent-foreground"
+                                        : "text-muted-foreground hover:bg-accent/50"
+                                }`}
                             >
                                 <Settings className="h-4 w-4" />
                                 {t("settings.general")}
                             </button>
+                            {hasTools && (
+                                <button
+                                    type="button"
+                                    onClick={() => setSettingsTab("conectores")}
+                                    className={`w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-left transition-colors ${
+                                        settingsTab === "conectores"
+                                            ? "bg-accent text-accent-foreground"
+                                            : "text-muted-foreground hover:bg-accent/50"
+                                    }`}
+                                >
+                                    <Plug className="h-4 w-4" />
+                                    Conectores
+                                </button>
+                            )}
                         </div>
 
                         {/* Contenido de configuración */}
                         <div className="flex-1 overflow-y-auto space-y-6 pr-2">
+                            {settingsTab === "general" && (
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
@@ -2881,6 +2923,11 @@ export default function ChatHomePage() {
                                     </div>
                                 </div>
                             </div>
+                            )}
+
+                            {settingsTab === "conectores" && hasTools && token && (
+                                <ConnectoresPanel token={token} />
+                            )}
                         </div>
                     </div>
                 </DialogContent>

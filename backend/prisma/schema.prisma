@@ -57,6 +57,7 @@ model Usuario {
   fuentesWeb        FuenteWeb[]
   feedbacksMensajes FeedbackMensaje[]
   logs              LogSistema[]
+  conectores        Conector[]
 
   @@map("usuarios")
 }
@@ -360,6 +361,41 @@ enum TipoFuenteWeb {
   PAGINA // URL específica
   DOMINIO // Dominio completo para scraping
   SITEMAP // URL de sitemap XML
+}
+
+// ===== CONECTORES EXTERNOS (MCPs) =====
+
+// Tipos de conectores disponibles en la plataforma
+enum TipoConector {
+  CANVA
+}
+
+// Estado de un conector
+enum EstadoConector {
+  ACTIVO       // Token válido y operativo
+  ERROR        // Token expirado o revocado, requiere reconexión
+  INACTIVO     // Pausado por el usuario
+}
+
+// Conector de un usuario con un servicio externo
+model Conector {
+  id                  String         @id @default(cuid())
+  usuarioId           String
+  tipo                TipoConector
+  estado              EstadoConector @default(ACTIVO)
+  tokenAcceso         String         @db.LongText   // cifrado AES-256-GCM
+  tokenActualizacion  String?        @db.Text        // cifrado AES-256-GCM
+  tokenExpiracion     DateTime?
+  config              Json?          // metadatos extras (nombre cuenta, scope, etc.)
+  fechaCreacion       DateTime       @default(now())
+  fechaActualizacion  DateTime       @updatedAt
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, tipo])
+  @@index([usuarioId],  name: "idx_conectores_usuario")
+  @@index([tipo],       name: "idx_conectores_tipo")
+  @@map("conectores")
 }
 
 // ===== LOGS DEL SISTEMA =====

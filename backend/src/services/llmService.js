@@ -114,6 +114,22 @@ async function tryModelCompletion({
 
             const data = await response.json();
             const message = data?.choices?.[0]?.message;
+            const finishReason = data?.choices?.[0]?.finish_reason;
+
+            // Si el modelo responde con tool_calls, devolver sin procesar contenido
+            if (finishReason === 'tool_calls' || (message?.tool_calls && message.tool_calls.length > 0)) {
+                return {
+                    content: '',
+                    toolCalls: message.tool_calls || [],
+                    finishReason: 'tool_calls',
+                    raw: data,
+                    usage: data?.usage ?? null,
+                    attempts: attempt,
+                    durationMs: Date.now() - startedAt,
+                    model,
+                };
+            }
+
             let content = message?.content?.trim() || '';
 
             // Algunos modelos de razonamiento (R1, Qwen3) envuelven la respuesta en <think>...</think>
