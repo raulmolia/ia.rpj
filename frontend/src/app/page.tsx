@@ -108,6 +108,7 @@ type ChatMessage = {
     content: string
     createdAt?: string
     pending?: boolean
+    isWorkContent?: boolean
 }
 
 type Chat = {
@@ -348,6 +349,7 @@ export default function ChatHomePage() {
     const [isCanvasMode, setIsCanvasMode] = useState(false)
     const [canvasOpen, setCanvasOpen] = useState(false)
     const [canvasContent, setCanvasContent] = useState("")
+    const [canvasMessageId, setCanvasMessageId] = useState<string | null>(null)
     const [attachedFiles, setAttachedFiles] = useState<Array<{
         fileName: string
         mimeType: string
@@ -674,6 +676,7 @@ export default function ChatHomePage() {
                     id: msg.id,
                     role: toFrontendRole(msg.role),
                     content: msg.content,
+                    isWorkContent: msg.isWorkContent ?? undefined,
                     createdAt: msg.fechaCreacion,
                 }))
                 : []
@@ -885,6 +888,7 @@ export default function ChatHomePage() {
                 id: createId(),
                 role: "asistente",
                 content: data.message.content,
+                isWorkContent: data.message.isWorkContent ?? undefined,
                 createdAt: new Date().toISOString(),
             }
 
@@ -918,6 +922,7 @@ export default function ChatHomePage() {
             // Si modo Canvas está activo, abrir el editor con la respuesta
             if (isCanvasMode && data.message.content) {
                 setCanvasContent(data.message.content)
+                setCanvasMessageId(assistantMessage.id)
                 setCanvasOpen(true)
                 setIsCanvasMode(false) // Reset after opening
             }
@@ -2388,7 +2393,7 @@ export default function ChatHomePage() {
                                                     : "text-foreground",
                                             )}
                                         >
-                                            {message.role === "asistente" && message.content && message.content.length > 300 && /^#{1,3}\s/m.test(message.content) && (
+                                            {message.role === "asistente" && message.isWorkContent === true && (
                                                 <div className="flex justify-end mb-3 gap-2">
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>
@@ -2434,6 +2439,7 @@ export default function ChatHomePage() {
                                                             className="focus:outline-none"
                                                             onClick={() => {
                                                                 setCanvasContent(message.content)
+                                                                setCanvasMessageId(message.id)
                                                                 setCanvasOpen(true)
                                                             }}
                                                         >
@@ -2482,7 +2488,7 @@ export default function ChatHomePage() {
                                             )}
 
                                             {/* Iconos de acción para trabajos finales */}
-                                            {message.role === "asistente" && message.content && message.content.length > 300 && /^#{1,3}\s/m.test(message.content) && (
+                                            {message.role === "asistente" && message.isWorkContent === true && (
                                                 <div className="flex items-center gap-1 mt-3 pt-3 border-t border-border/30">
                                                     {/* Copiar */}
                                                     <button
@@ -2983,23 +2989,47 @@ export default function ChatHomePage() {
                 open={canvasOpen}
                 onClose={(finalContent) => {
                     setCanvasOpen(false)
-                    // Update the last assistant message with the canvas-edited content
                     if (finalContent && activeChat) {
-                        const lastAssistantIdx = [...(activeChat.messages || [])].reverse().findIndex(m => m.role === "asistente")
-                        if (lastAssistantIdx >= 0) {
-                            const actualIdx = (activeChat.messages.length - 1) - lastAssistantIdx
-                            setChats(prev => prev.map(chat =>
-                                chat.id === activeChatId
-                                    ? {
-                                        ...chat,
-                                        messages: chat.messages.map((msg, i) =>
-                                            i === actualIdx ? { ...msg, content: finalContent } : msg
-                                        ),
-                                    }
-                                    : chat
-                            ))
-                        }
+                        const targetId = canvasMessageId
+                        setChats(prev => prev.map(chat => {
+                            if (chat.id !== activeChatId) return chat
+
+                            // 1. Buscar el mensaje exacto por su ID (caso normal)
+                            const foundByIdIdx = targetId
+                                ? chat.messages.findIndex(m => m.id === targetId)
+                                : -1
+
+                            if (foundByIdIdx >= 0) {
+                                return {
+                                    ...chat,
+                                    messages: chat.messages.map((msg, i) =>
+                                        i === foundByIdIdx
+                                            ? { ...msg, content: finalContent, isWorkContent: true }
+                                            : msg
+                                    ),
+                                }
+                            }
+
+                            // 2. Fallback: actualizar el último mensaje del asistente
+                            //    (caso canvas abierto desde respuesta nueva antes de recarga de IDs)
+                            const lastAssistantIdx = [...(chat.messages)].reverse()
+                                .findIndex(m => m.role === "asistente")
+                            if (lastAssistantIdx >= 0) {
+                                const actualIdx = (chat.messages.length - 1) - lastAssistantIdx
+                                return {
+                                    ...chat,
+                                    messages: chat.messages.map((msg, i) =>
+                                        i === actualIdx
+                                            ? { ...msg, content: finalContent, isWorkContent: true }
+                                            : msg
+                                    ),
+                                }
+                            }
+
+                            return chat
+                        }))
                     }
+                    setCanvasMessageId(null)
                 }}
                 initialContent={canvasContent}
                 conversationId={activeChat?.conversationId ?? null}

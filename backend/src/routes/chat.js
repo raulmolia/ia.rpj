@@ -148,11 +148,57 @@ function sanitizeConversation(conversation) {
     };
 }
 
+/**
+ * Clasifica si una respuesta del LLM es una "entrega de trabajo" (contenido estructurado)
+ * o una respuesta conversacional (saludo, aclaración, confirmación...).
+ *
+ * Devuelve true únicamente cuando hay evidencia clara de contenido estructurado:
+ *   – encabezados markdown (# ## ###...)
+ *   – 4 o más ítems de lista consecutivos
+ *   – 3 o más secciones en negrita en un texto largo
+ *   – al menos una regla horizontal en un texto suficientemente largo
+ */
+function classifyAsWorkContent(content, canvasMode = false) {
+    if (!content || typeof content !== 'string') return false;
+
+    // Canvas mode SIEMPRE produce contenido de trabajo
+    if (canvasMode) return true;
+
+    const trimmed = content.trim();
+
+    // Respuestas cortas son conversacionales
+    if (trimmed.length < 200) return false;
+
+    // Encabezados markdown (H1–H6): señal inequívoca de documento estructurado
+    if (/^#{1,6}\s/m.test(trimmed)) return true;
+
+    // 4 o más ítems de lista: estructurado
+    const listItems = (trimmed.match(/^[\-\*\+]\s|^\d+\.\s/gm) || []).length;
+    if (listItems >= 4) return true;
+
+    // 3+ secciones en negrita con texto suficiente: contenido bien organizado
+    const boldHeaders = (trimmed.match(/\*\*[^*]{2,60}\*\*/g) || []).length;
+    if (boldHeaders >= 3 && trimmed.length > 400) return true;
+
+    // Regla horizontal (---): solo en documentos formateados
+    if (/^---+$/m.test(trimmed) && trimmed.length > 300) return true;
+
+    return false;
+}
+
 function sanitizeMessage(message) {
+    const metadatos = (message.metadatos && typeof message.metadatos === 'object') ? message.metadatos : {};
+
+    // Para mensajes existentes sin el campo, se computa a partir del contenido
+    const isWorkContent = metadatos.isWorkContent !== undefined
+        ? Boolean(metadatos.isWorkContent)
+        : classifyAsWorkContent(message.contenido);
+
     return {
         id: message.id,
         role: mapRoleToOpenAI(message.rol),
         content: message.contenido,
+        isWorkContent,
         intencion: message.intencion,
         fechaCreacion: message.fechaCreacion,
     };
@@ -675,6 +721,9 @@ REGLAS ABSOLUTAS:
         cleanContent = cleanContent.replace(/<\/?think>/gi, '').trim();
         llmResponse.content = cleanContent;
 
+        // Clasificar si es entrega de trabajo o respuesta conversacional
+        const isWorkContent = classifyAsWorkContent(cleanContent, canvasMode);
+
         const durationMs = typeof llmResponse.durationMs === 'number'
             ? llmResponse.durationMs
             : null;
@@ -696,6 +745,7 @@ REGLAS ABSOLUTAS:
                 message: {
                     role: 'assistant',
                     content: llmResponse.content,
+                    isWorkContent,
                 },
                 usage: llmResponse.usage || null,
                 deleted: true,
@@ -712,6 +762,7 @@ REGLAS ABSOLUTAS:
                 tokensSalida: llmResponse.usage?.completion_tokens || null,
                 duracionMs: durationMs,
                 metadatos: {
+                    isWorkContent,
                     chromaResults: contextResults.map((item) => ({
                         id: item.id,
                         metadata: item.metadata || null,
@@ -776,6 +827,7 @@ REGLAS ABSOLUTAS:
             message: {
                 role: 'assistant',
                 content: assistantMessageRecord.contenido,
+                isWorkContent,
             },
             usage: llmResponse.usage || null,
         });
@@ -803,6 +855,7 @@ REGLAS ABSOLUTAS:
                 message: {
                     role: 'assistant',
                     content: fallbackContent,
+                    isWorkContent: false,
                     fallback: true,
                 },
                 fallback: true,
@@ -819,7 +872,7 @@ REGLAS ABSOLUTAS:
                 return res.status(200).json({
                     conversationId: null,
                     intent: detectedIntent.id,
-                    message: { role: 'assistant', content: fallbackContent, fallback: true },
+                    message: { role: 'assistant', content: fallbackContent, isWorkContent: false, fallback: true },
                     fallback: true,
                     deleted: true,
                 });
@@ -869,6 +922,7 @@ REGLAS ABSOLUTAS:
             message: {
                 role: 'assistant',
                 content: assistantMessageRecord?.contenido || FALLBACK_MESSAGE,
+                isWorkContent: false,
                 fallback: true,
             },
             fallback: true,
