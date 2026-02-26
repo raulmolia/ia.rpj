@@ -575,8 +575,13 @@ export default function ChatHomePage() {
             })
 
             if (!response.ok) {
-                const message = await response.text()
-                throw new Error(message || "No se pudieron cargar las conversaciones")
+                if (response.status === 401) {
+                    logout()
+                    return
+                }
+                const body = await response.json().catch(() => null)
+                const message = body?.message || body?.error || "No se pudieron cargar las conversaciones"
+                throw new Error(message)
             }
 
             const data = await response.json()
@@ -665,8 +670,13 @@ export default function ChatHomePage() {
             })
 
             if (!response.ok) {
-                const message = await response.text()
-                throw new Error(message || "No se pudo cargar la conversación")
+                if (response.status === 401) {
+                    logout()
+                    return
+                }
+                const body = await response.json().catch(() => null)
+                const message = body?.message || body?.error || "No se pudo cargar la conversación"
+                throw new Error(message)
             }
 
             const data = await response.json()

@@ -11,8 +11,12 @@ const nextConfig = {
             allowedOrigins: [
                 'ia.rpj.es',
                 'www.ia.rpj.es',
+                'https://ia.rpj.es',
+                'https://www.ia.rpj.es',
+                '217.154.99.32',
                 'localhost:3000',
                 '127.0.0.1:3000',
+                '0.0.0.0:3000',
             ],
         },
     },
