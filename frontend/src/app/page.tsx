@@ -56,6 +56,7 @@ import {
     RotateCcw,
     Type,
     Plug,
+    X,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -1600,6 +1601,25 @@ export default function ChatHomePage() {
                                         </button>
                                     )
                                 })}
+                            </div>
+                        )}
+
+                        {/* Badge de herramienta Canva activa */}
+                        {hasActiveCanva && canvaToolEnabled && (
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setCanvaToolEnabled(false)}
+                                    className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition hover:opacity-70 border-violet-400 bg-violet-50 text-violet-700 dark:border-violet-500 dark:bg-violet-950/60 dark:text-violet-300"
+                                    title="Desactivar herramienta Canva"
+                                >
+                                    <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true">
+                                        <circle cx="12" cy="12" r="12" fill="#7D2AE7"/>
+                                        <text x="12" y="17" textAnchor="middle" fill="white" fontSize="15" fontWeight="bold" fontFamily="sans-serif">C</text>
+                                    </svg>
+                                    Herramienta Canva
+                                    <X className="h-3 w-3 ml-0.5" aria-hidden="true" />
+                                </button>
                             </div>
                         )}
 

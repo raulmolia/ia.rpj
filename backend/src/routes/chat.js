@@ -719,10 +719,12 @@ REGLAS ABSOLUTAS:
         // useCanvaTools puede ser false explícitamente para desactivarlas desde el frontend
         const userIsPro = tipoSuscripcion === 'PRO' || USER_LIMITS[userRole]?.hasTools;
         let activeTools = [];
+        let canvaModelOverride = null; // Modelo a usar cuando Canva está activo
         if (userIsPro && req.user?.id && useCanvaTools !== false) {
             try {
                 const canvaActive = await hasActiveCanvaConnector(req.user.id);
                 if (canvaActive) {
+                    canvaModelOverride = 'MiniMaxAI/MiniMax-M2.5-TEE';
                     // Detectar si el usuario pide crear un diseño en Canva
                     const isCanvaDesignRequest = /\b(crea[r]?|haz|genera[r]?|hacer|diseña[r]?)\b.*\bdiseño\b|\bdiseño.*\bcanva\b|\bcanva.*\bdiseño\b/i.test(trimmedMessage);
                     if (isCanvaDesignRequest) {
@@ -767,7 +769,9 @@ REGLAS ABSOLUTAS:
 
         const llmCallOptions = {
             messages: llmMessages,
-            model: useThinkingModel === true ? 'tngtech/DeepSeek-R1T-Chimera' : undefined,
+            model: useThinkingModel === true
+                ? 'tngtech/DeepSeek-R1T-Chimera'
+                : canvaModelOverride ?? undefined,
             // Los modelos de razonamiento (thinking) no admiten tools
             ...(activeTools.length > 0 && !useThinkingModel
                 ? { extraBody: { tools: activeTools, tool_choice: 'auto', parallel_tool_calls: true } }

@@ -33,6 +33,7 @@ const MODEL_MAX_COMPLETION_TOKENS = {
     'Qwen/Qwen3-235B-A22B': 32768,
     'Qwen/Qwen3-235B-A22B-Instruct-2507-TEE': 65536,
     'Qwen/Qwen2.5-72B-Instruct': 32768,
+    'MiniMaxAI/MiniMax-M2.5-TEE': 65536,
 };
 
 // Límite seguro por defecto para modelos no registrados
