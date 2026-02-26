@@ -48,16 +48,18 @@ async function refreshAccessToken(conector) {
 
     const refreshToken = decryptToken(conector.tokenActualizacion);
 
+    const credentials = Buffer.from(`${CANVA_CLIENT_ID}:${CANVA_CLIENT_SECRET}`).toString('base64');
     const params = new URLSearchParams({
         grant_type: 'refresh_token',
-        client_id: CANVA_CLIENT_ID,
-        client_secret: CANVA_CLIENT_SECRET,
         refresh_token: refreshToken,
     });
 
     const res = await fetch(CANVA_TOKEN_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Authorization: `Basic ${credentials}`,
+        },
         body: params.toString(),
     });
 

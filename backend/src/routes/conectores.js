@@ -5,10 +5,33 @@
  */
 import express from 'express';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import prismaPackage from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
 import { encryptToken, decryptToken } from '../services/connectorEncryptionService.js';
 import logService from '../services/logService.js';
+
+// Almacén temporal en memoria para code_verifier PKCE (TTL 10 min)
+// Clave: state JWT string  |  Valor: { codeVerifier, expires }
+const pkceStore = new Map();
+
+/** Genera un code_verifier PKCE (96 bytes base64url) */
+function generateCodeVerifier() {
+    return crypto.randomBytes(96).toString('base64url');
+}
+
+/** Deriva el code_challenge SHA-256 desde un code_verifier */
+function deriveCodeChallenge(codeVerifier) {
+    return crypto.createHash('sha256').update(codeVerifier).digest('base64url');
+}
+
+/** Limpieza periódica de entradas expiradas del pkceStore */
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, value] of pkceStore.entries()) {
+        if (value.expires < now) pkceStore.delete(key);
+    }
+}, 5 * 60 * 1000); // cada 5 minutos
 
 const { PrismaClient } = prismaPackage;
 const router = express.Router();
@@ -91,12 +114,21 @@ router.get('/canva/auth', authenticate, requireConnectorAccess, (req, res) => {
         { expiresIn: OAUTH_STATE_TTL }
     );
 
+    // PKCE: generar code_verifier y code_challenge
+    const codeVerifier = generateCodeVerifier();
+    const codeChallenge = deriveCodeChallenge(codeVerifier);
+
+    // Guardar code_verifier en el store temporal (TTL 10 min)
+    pkceStore.set(state, { codeVerifier, expires: Date.now() + OAUTH_STATE_TTL * 1000 });
+
     const params = new URLSearchParams({
         response_type: 'code',
         client_id: CANVA_CLIENT_ID,
         redirect_uri: CANVA_REDIRECT_URI,
         scope: CANVA_SCOPES,
         state,
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256',
     });
 
     const authUrl = `${CANVA_AUTH_URL}?${params}`;
@@ -134,22 +166,36 @@ router.get('/canva/callback', async (req, res) => {
 
     const { userId } = statePayload;
     if (!userId) {
+        pkceStore.delete(String(state));
         return res.redirect(`${frontendBase}/?connector=canva&status=error`);
     }
 
+    // Recuperar code_verifier PKCE
+    const pkceEntry = pkceStore.get(String(state));
+    if (!pkceEntry || pkceEntry.expires < Date.now()) {
+        pkceStore.delete(String(state));
+        console.error('❌ PKCE: code_verifier no encontrado o expirado');
+        return res.redirect(`${frontendBase}/?connector=canva&status=invalid_state`);
+    }
+    const { codeVerifier } = pkceEntry;
+    pkceStore.delete(String(state)); // uso único
+
     try {
-        // Intercambiar code por tokens
+        // Intercambiar code por tokens (PKCE + Basic auth recomendado por Canva)
+        const credentials = Buffer.from(`${CANVA_CLIENT_ID}:${CANVA_CLIENT_SECRET}`).toString('base64');
         const params = new URLSearchParams({
             grant_type: 'authorization_code',
-            client_id: CANVA_CLIENT_ID,
-            client_secret: CANVA_CLIENT_SECRET,
+            code_verifier: codeVerifier,
             redirect_uri: CANVA_REDIRECT_URI,
             code: String(code),
         });
 
         const tokenRes = await fetch(CANVA_TOKEN_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                Authorization: `Basic ${credentials}`,
+            },
             body: params.toString(),
         });
 
