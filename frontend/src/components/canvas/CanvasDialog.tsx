@@ -46,6 +46,9 @@ export default function CanvasDialog({
     const [activeTab, setActiveTab] = useState<"chat" | "editor">("editor")
     const [currentContent, setCurrentContent] = useState(initialContent)
     const [sessionKey, setSessionKey] = useState(0)
+    const [pendingExternalVersion, setPendingExternalVersion] = useState<{
+        content: string; label?: string; nonce: number
+    } | undefined>(undefined)
     const miniChatEndRef = useRef<HTMLDivElement>(null)
 
     // Scroll mini-chat to bottom
@@ -60,6 +63,7 @@ export default function CanvasDialog({
             setMiniInput("")
             setCurrentContent(initialContent)
             setActiveTab("editor")
+            setPendingExternalVersion(undefined)
             setSessionKey((k) => k + 1) // Force CanvasEditor remount with fresh content
         }
     }, [open, initialContent])
@@ -119,6 +123,13 @@ export default function CanvasDialog({
             }
             setMiniMessages((prev) => [...prev, assistantMsg])
             setCurrentContent(result)
+
+            // Trigger version creation in CanvasEditor for mini-chat transforms.
+            // Selection transforms are handled by CanvasEditor's addVersion directly.
+            if (!selection) {
+                const label = instruction.length > 40 ? instruction.slice(0, 40) + "\u2026" : instruction
+                setPendingExternalVersion({ content: result, label, nonce: Date.now() })
+            }
 
             return result
         },
@@ -241,6 +252,7 @@ export default function CanvasDialog({
             onTransformRequest={handleTransformRequest}
             isTransforming={isTransforming}
             onClose={handleClose}
+            externalVersion={pendingExternalVersion}
         />
     )
 

@@ -289,6 +289,8 @@ interface CanvasEditorProps {
     onTransformRequest: (content: string, selection: string | null, instruction: string) => Promise<string>
     isTransforming: boolean
     onClose?: () => void
+    /** When nonce changes, immediately add a new version with this content (used by mini-chat transforms) */
+    externalVersion?: { content: string; label?: string; nonce: number }
 }
 
 export default function CanvasEditor({
@@ -297,6 +299,7 @@ export default function CanvasEditor({
     onTransformRequest,
     isTransforming,
     onClose,
+    externalVersion,
 }: CanvasEditorProps) {
     const t = useTranslations("canvas")
     const [versions, setVersions] = useState<CanvasVersion[]>([
@@ -313,6 +316,8 @@ export default function CanvasEditor({
     const lastExternalContentRef = useRef(initialContent)
     const isExternalUpdateRef = useRef(false)
     const isUserEditRef = useRef(false)
+    // Debounce timer for auto-versioning direct user edits
+    const userEditDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     const editor = useEditor({
         extensions: [
@@ -342,37 +347,65 @@ export default function CanvasEditor({
             // Mark this as a user-initiated edit so the initialContent sync effect
             // doesn't reset the editor when the parent feeds the value back.
             isUserEditRef.current = true
-            onContentChange?.(getEditorMarkdown(editor))
+            const markdown = getEditorMarkdown(editor)
+            onContentChange?.(markdown)
+
+            // Auto-version after 3 s of typing inactivity
+            if (userEditDebounceRef.current) clearTimeout(userEditDebounceRef.current)
+            userEditDebounceRef.current = setTimeout(() => {
+                const snapshot = getEditorMarkdown(editor)
+                setVersions((prev) => {
+                    const last = prev[prev.length - 1]
+                    if (last?.content === snapshot) return prev
+                    const next = [...prev, { content: snapshot, timestamp: Date.now() }]
+                    setCurrentVersionIndex(next.length - 1)
+                    return next
+                })
+            }, 3000)
         },
     })
 
-    // Sync editor when initialContent prop changes (from transform API result)
+    // Sync editor when initialContent prop changes.
+    // Version creation is handled separately via externalVersion + debounce.
+    // This effect only keeps the editor display in sync (echo-prevention for user edits).
     useEffect(() => {
         if (!editor) return
         if (initialContent === lastExternalContentRef.current) return
 
-        // If this change came from the user editing the editor (onUpdate → parent → back here),
-        // just update the ref without resetting the editor content or adding a version.
         if (isUserEditRef.current) {
+            // Echo of the user's own edit coming back as a prop — just update the ref.
             isUserEditRef.current = false
             lastExternalContentRef.current = initialContent
             return
         }
 
+        // True external reset (e.g., CanvasDialog re-opened with different content).
+        // Sync editor display only; do NOT add a version here.
         lastExternalContentRef.current = initialContent
-
-        // Set content in editor, suppressing the onUpdate callback
         isExternalUpdateRef.current = true
         editor.commands.setContent(convertMarkdownToHtml(initialContent))
+    }, [initialContent, editor])
 
-        // Add as new version (only for real external changes like transform results)
-        const newVersion: CanvasVersion = { content: initialContent, timestamp: Date.now() }
+    // Add a version for mini-chat transforms (nonce changes on each new transform).
+    useEffect(() => {
+        if (!externalVersion || !editor) return
+        // Cancel any pending user-edit debounce snapshot
+        if (userEditDebounceRef.current) clearTimeout(userEditDebounceRef.current)
+        // Set editor content
+        isExternalUpdateRef.current = true
+        isUserEditRef.current = false
+        editor.commands.setContent(convertMarkdownToHtml(externalVersion.content))
+        lastExternalContentRef.current = externalVersion.content
+        // Add version (always append — mini-chat always produces the new latest)
+        const { content, label } = externalVersion
         setVersions((prev) => {
-            const next = [...prev, newVersion]
+            const next = [...prev, { content, timestamp: Date.now(), label }]
             setCurrentVersionIndex(next.length - 1)
             return next
         })
-    }, [initialContent, editor])
+        onContentChange?.(externalVersion.content)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [externalVersion?.nonce])
 
     // Sync editor content when navigating between versions
     useEffect(() => {
@@ -497,6 +530,9 @@ export default function CanvasEditor({
                 const result = await onTransformRequest(fullContent, selectedText, instruction)
                 isExternalUpdateRef.current = true
                 editor.commands.setContent(convertMarkdownToHtml(result))
+                // Update ref so initialContent useEffect doesn't try to re-sync
+                lastExternalContentRef.current = result
+                if (userEditDebounceRef.current) clearTimeout(userEditDebounceRef.current)
                 const versionLabel = instruction.length > 40 ? instruction.slice(0, 40) + "\u2026" : instruction
                 addVersion(result, versionLabel)
                 setPopoverPosition(null)
