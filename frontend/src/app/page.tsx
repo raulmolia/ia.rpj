@@ -350,6 +350,8 @@ export default function ChatHomePage() {
     const [selectedSubOption, setSelectedSubOption] = useState<Record<string, QuickPromptSubOption | null>>({})
     const [isThinkingMode, setIsThinkingMode] = useState(false)
     const [isCanvasMode, setIsCanvasMode] = useState(false)
+    const [hasActiveCanva, setHasActiveCanva] = useState(false)
+    const [canvaToolEnabled, setCanvaToolEnabled] = useState(true)
     const [canvasOpen, setCanvasOpen] = useState(false)
     const [canvasContent, setCanvasContent] = useState("")
     const [canvasMessageId, setCanvasMessageId] = useState<string | null>(null)
@@ -465,8 +467,26 @@ export default function ChatHomePage() {
             // Abrir configuración en la pestaña Conectores para confirmación visual
             setSettingsTab("conectores")
             setIsSettingsDialogOpen(true)
+            setHasActiveCanva(true)
         }
     }, [])
+
+    // Comprobar si el usuario tiene el conector de Canva activo
+    useEffect(() => {
+        if (!token || !hasTools) return
+        fetch(buildApiUrl("/api/conectores"), {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then((r) => r.ok ? r.json() : null)
+            .then((data) => {
+                if (!data?.conectores) return
+                const canva = data.conectores.find(
+                    (c: { tipo: string; estado: string }) => c.tipo === "CANVA" && c.estado === "ACTIVO"
+                )
+                setHasActiveCanva(!!canva)
+            })
+            .catch(() => {})
+    }, [token, hasTools])
 
 
     useEffect(() => {
@@ -905,6 +925,7 @@ export default function ChatHomePage() {
                     tags: tagsToSend.length > 0 ? tagsToSend : undefined,
                     useThinkingModel: isThinkingMode,
                     canvasMode: isCanvasMode || undefined,
+                    useCanvaTools: hasActiveCanva && !canvaToolEnabled ? false : undefined,
                 }),
                 signal: abortController.signal,
             })
@@ -979,7 +1000,7 @@ export default function ChatHomePage() {
             setIsThinking(false)
             abortControllerRef.current = null
         }
-    }, [activeChat, fetchConversations, inputValue, isThinking, token, selectedQuickPromptItems, isThinkingMode, isCanvasMode, attachedFiles, isUploadingFiles, loadConversationMessages])
+    }, [activeChat, fetchConversations, inputValue, isThinking, token, selectedQuickPromptItems, isThinkingMode, isCanvasMode, attachedFiles, isUploadingFiles, loadConversationMessages, hasActiveCanva, canvaToolEnabled])
 
     const handlePromptKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>) => {
         if (event.key !== "Enter" || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) {
@@ -1640,13 +1661,16 @@ export default function ChatHomePage() {
                                                 type="button"
                                                 variant="ghost"
                                                 size="icon"
-                                                className="h-8 w-8 shrink-0 rounded-full"
+                                                className="relative h-8 w-8 shrink-0 rounded-full"
                                                 aria-label={t("tooltips.tools")}
                                             >
                                                 <Wrench className="h-4 w-4" aria-hidden="true" />
+                                                {hasActiveCanva && canvaToolEnabled && (
+                                                    <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
+                                                )}
                                             </Button>
                                         </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="start" className="w-56">
+                                        <DropdownMenuContent align="start" className="w-60">
                                             <DropdownMenuItem
                                                 className={cn(isCanvasMode && "bg-primary/10 text-primary")}
                                                 onSelect={() => setIsCanvasMode(!isCanvasMode)}
@@ -1659,6 +1683,28 @@ export default function ChatHomePage() {
                                                     </Badge>
                                                 )}
                                             </DropdownMenuItem>
+
+                                            {/* Conectores activos */}
+                                            {hasActiveCanva && (
+                                                <>
+                                                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground mt-1">
+                                                        Conectores
+                                                    </div>
+                                                    <DropdownMenuItem
+                                                        className={cn(canvaToolEnabled && "bg-primary/10 text-primary")}
+                                                        onSelect={() => setCanvaToolEnabled(!canvaToolEnabled)}
+                                                    >
+                                                        <Plug className="mr-2 h-4 w-4" aria-hidden="true" />
+                                                        Canva
+                                                        <Badge
+                                                            variant={canvaToolEnabled ? "default" : "outline"}
+                                                            className="ml-auto text-[10px] px-1.5 py-0"
+                                                        >
+                                                            {canvaToolEnabled ? "ON" : "OFF"}
+                                                        </Badge>
+                                                    </DropdownMenuItem>
+                                                </>
+                                            )}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 )}

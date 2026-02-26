@@ -545,7 +545,7 @@ router.get('/:id', authenticate, async (req, res) => {
 });
 
 router.post('/', authenticate, async (req, res) => {
-    const { message, conversationId, intent: rawIntent, tags: clientTags, useThinkingModel, attachments, canvasMode } = req.body || {};
+    const { message, conversationId, intent: rawIntent, tags: clientTags, useThinkingModel, attachments, canvasMode, useCanvaTools } = req.body || {};
 
     let conversation = null;
     let detectedIntent = DEFAULT_INTENT;
@@ -716,9 +716,10 @@ REGLAS ABSOLUTAS:
         llmMessages.push({ role: 'user', content: trimmedMessage });
 
         // ── Conectores: inyectar tools si el usuario es PRO y tiene Canva activo ──
+        // useCanvaTools puede ser false explícitamente para desactivarlas desde el frontend
         const userIsPro = tipoSuscripcion === 'PRO' || USER_LIMITS[userRole]?.hasTools;
         let activeTools = [];
-        if (userIsPro && req.user?.id) {
+        if (userIsPro && req.user?.id && useCanvaTools !== false) {
             try {
                 const canvaActive = await hasActiveCanvaConnector(req.user.id);
                 if (canvaActive) activeTools = [...CANVA_TOOLS];
