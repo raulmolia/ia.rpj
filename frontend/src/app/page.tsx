@@ -352,7 +352,7 @@ export default function ChatHomePage() {
     const [isThinkingMode, setIsThinkingMode] = useState(false)
     const [isCanvasMode, setIsCanvasMode] = useState(false)
     const [hasActiveCanva, setHasActiveCanva] = useState(false)
-    const [canvaToolEnabled, setCanvaToolEnabled] = useState(true)
+    const [canvaToolEnabled, setCanvaToolEnabled] = useState(false)
     const [canvasOpen, setCanvasOpen] = useState(false)
     const [canvasContent, setCanvasContent] = useState("")
     const [canvasMessageId, setCanvasMessageId] = useState<string | null>(null)
