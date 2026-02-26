@@ -13,9 +13,17 @@ type EstadoConector = "ACTIVO" | "INACTIVO" | "ERROR"
 
 interface ConectorInfo {
     id: string
-    tipo: "CANVA"
+    tipo: "CANVA" | "GOOGLE_DRIVE" | "GOOGLE_DOCS"
     estado: EstadoConector
-    config?: { canvaUserId?: string; canvaTeamId?: string } | null
+    config?: {
+        // Canva
+        canvaUserId?: string
+        canvaTeamId?: string
+        // Google
+        googleEmail?: string
+        googleName?: string
+        googlePicture?: string
+    } | null
     tokenExpiracion?: string | null
     fechaCreacion?: string
 }
@@ -34,6 +42,25 @@ const AVAILABLE_CONNECTORS = [
         tools: ["Listar diseños", "Crear diseños", "Buscar plantillas", "Exportar como PDF/PNG"],
         logoSrc: "/canva-logo.svg",
         docsUrl: "https://www.canva.dev/docs/connect/",
+        authPath: "canva",
+    },
+    {
+        tipo: "GOOGLE_DRIVE" as const,
+        name: "Google Drive",
+        description: "Accede a tus archivos de Google Drive: lista, busca por contenido y crea carpetas desde el chat.",
+        tools: ["Listar archivos", "Buscar en Drive", "Ver metadatos", "Crear carpetas"],
+        logoSrc: "/google-drive-logo.svg",
+        docsUrl: "https://developers.google.com/drive/api/guides/about-sdk",
+        authPath: "google-drive",
+    },
+    {
+        tipo: "GOOGLE_DOCS" as const,
+        name: "Google Docs",
+        description: "Lee, crea y edita documentos de Google Docs directamente desde la conversación.",
+        tools: ["Listar documentos", "Leer contenido", "Crear documentos", "Añadir texto", "Reemplazar plantillas"],
+        logoSrc: "/google-docs-logo.svg",
+        docsUrl: "https://developers.google.com/docs/api/guides/concepts",
+        authPath: "google-docs",
     },
 ]
 
@@ -69,7 +96,6 @@ export function ConnectoresPanel({ token }: ConectoresPanelProps) {
     const [loading, setLoading] = useState(true)
     const [actionLoading, setActionLoading] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
-
     const fetchConectores = useCallback(async () => {
         setLoading(true)
         setError(null)
@@ -91,11 +117,13 @@ export function ConnectoresPanel({ token }: ConectoresPanelProps) {
         fetchConectores()
     }, [fetchConectores])
 
-    const handleConnect = async (tipo: "CANVA") => {
+    const handleConnect = async (tipo: "CANVA" | "GOOGLE_DRIVE" | "GOOGLE_DOCS") => {
         setActionLoading(tipo)
         setError(null)
+        const def = AVAILABLE_CONNECTORS.find((c) => c.tipo === tipo)
+        const authPath = def?.authPath ?? tipo.toLowerCase().replace("_", "-")
         try {
-            const res = await fetch(buildApiUrl(`/api/conectores/${tipo.toLowerCase()}/auth`), {
+            const res = await fetch(buildApiUrl(`/api/conectores/${authPath}/auth`), {
                 headers: { Authorization: `Bearer ${token}` },
             })
             const data = await res.json()
@@ -269,6 +297,24 @@ export function ConnectoresPanel({ token }: ConectoresPanelProps) {
                             {isConnected && conector!.config?.canvaUserId && (
                                 <p className="text-xs text-muted-foreground">
                                     ID de cuenta Canva: <span className="font-mono">{conector!.config.canvaUserId}</span>
+                                </p>
+                            )}
+
+                            {/* Info cuenta Google si está conectado */}
+                            {isConnected && conector!.config?.googleEmail && (
+                                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                    {conector!.config.googlePicture && (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                            src={conector!.config.googlePicture}
+                                            alt=""
+                                            className="h-4 w-4 rounded-full"
+                                        />
+                                    )}
+                                    Conectado como <span className="font-medium">{conector!.config.googleName || conector!.config.googleEmail}</span>
+                                    {conector!.config.googleName && (
+                                        <span className="text-muted-foreground/70">({conector!.config.googleEmail})</span>
+                                    )}
                                 </p>
                             )}
 

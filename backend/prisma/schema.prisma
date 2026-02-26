@@ -368,6 +368,8 @@ enum TipoFuenteWeb {
 // Tipos de conectores disponibles en la plataforma
 enum TipoConector {
   CANVA
+  GOOGLE_DRIVE
+  GOOGLE_DOCS
 }
 
 // Estado de un conector

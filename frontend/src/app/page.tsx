@@ -468,7 +468,9 @@ export default function ChatHomePage() {
             // Abrir configuración en la pestaña Conectores para confirmación visual
             setSettingsTab("conectores")
             setIsSettingsDialogOpen(true)
-            setHasActiveCanva(true)
+            if (connector === "canva") {
+                setHasActiveCanva(true)
+            }
         }
     }, [])
 
