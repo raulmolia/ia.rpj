@@ -196,16 +196,6 @@ export async function exportDesign(usuarioId, designId, format = 'pdf') {
     throw new Error('Tiempo de espera agotado para la exportación de Canva');
 }
 
-/**
- * Busca templates en Canva por texto.
- */
-export async function findTemplates(usuarioId, query, limit = 8) {
-    const token = await getValidAccessToken(usuarioId);
-    const params = new URLSearchParams({ query, limit: String(limit) });
-    const data = await canvaRequest('GET', `/templates?${params}`, token);
-    return data.items || [];
-}
-
 // ─── Definición de tools para el LLM ─────────────────────────────────────────
 
 /**
@@ -300,27 +290,6 @@ export const CANVA_TOOLS = [
             },
         },
     },
-    {
-        type: 'function',
-        function: {
-            name: 'canva_find_templates',
-            description: 'Busca plantillas disponibles en Canva por texto. Úsala cuando el usuario quiera buscar una plantilla para empezar un diseño.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    query: {
-                        type: 'string',
-                        description: 'Términos de búsqueda para encontrar plantillas (en español o inglés)',
-                    },
-                    limit: {
-                        type: 'number',
-                        description: 'Número de resultados (por defecto 8)',
-                    },
-                },
-                required: ['query'],
-            },
-        },
-    },
 ];
 
 /**
@@ -343,9 +312,6 @@ export async function executeCanvaTool(usuarioId, toolName, args) {
 
         case 'canva_export_design':
             return exportDesign(usuarioId, args.design_id, args.format);
-
-        case 'canva_find_templates':
-            return findTemplates(usuarioId, args.query, args.limit);
 
         default:
             throw new Error(`Tool de Canva desconocida: ${toolName}`);

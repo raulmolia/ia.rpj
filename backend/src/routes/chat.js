@@ -5,7 +5,7 @@ import chromaService from '../services/chromaService.js';
 import { callChatCompletion, MODELS } from '../services/llmService.js';
 import gemmaService from '../services/gemmaService.js';
 import logService from '../services/logService.js';
-import { hasActiveCanvaConnector, CANVA_TOOLS, executeCanvaTool, createDesign, findTemplates } from '../services/canvaConnectorService.js';
+import { hasActiveCanvaConnector, CANVA_TOOLS, executeCanvaTool } from '../services/canvaConnectorService.js';
 import {
     detectIntentFromText,
     resolveIntent,
@@ -713,127 +713,46 @@ REGLAS ABSOLUTAS:
             llmMessages.push(...previousHistory);
         }
 
-        // ── Conectores: ejecutar Canva ANTES de añadir el mensaje del usuario ──
-        // useCanvaTools puede ser false explícitamente para desactivarlas desde el frontend
+        // ── Conectores: inyectar tools de Canva cuando el botón está activado ──
         const userIsPro = tipoSuscripcion === 'PRO' || USER_LIMITS[userRole]?.hasTools;
-        let canvaModelOverride = null;
-        let canvaLinksContext = ''; // Se añadirá al mensaje del usuario si hay resultados
-        if (userIsPro && req.user?.id && useCanvaTools !== false) {
+        let activeTools = [];
+        if (userIsPro && req.user?.id && useCanvaTools === true) {
             try {
                 const canvaActive = await hasActiveCanvaConnector(req.user.id);
                 if (canvaActive) {
-                    canvaModelOverride = MODELS.TOOLS;
-
-                    const isCanvaCreativeRequest =
-                        /\bcanva\b/i.test(trimmedMessage) ||
-                        /\b(crea[r]?|haz|genera[r]?|hacer|diseña[r]?|elabora[r]?|prepara[r]?|utiliza[r]?|usa[r]?)\b.{0,60}\b(diseño|portada|cartel|banner|flyer|folleto|presentación|presentacion|imagen|póster|poster|invitación|invitacion|afiche|infografía|infografia)\b/i.test(trimmedMessage);
-
-                    if (isCanvaCreativeRequest) {
-                        // Bloquear la negación antes de que el modelo procese el mensaje
-                        llmMessages.push({
-                            role: 'system',
-                            content:
-                                'INSTRUCCIÓN PRIORITARIA: El usuario tiene Canva conectado y activo en esta sesión. ' +
-                                'El sistema ha buscado plantillas automáticamente. ' +
-                                'ESTÁ PROHIBIDO empezar la respuesta con frases como "no puedo", "no tengo acceso", ' +
-                                '"disculpa, no puedo crear contenido en Canva", "lo siento" o cualquier negación sobre ' +
-                                'Canva o herramientas externas. Ve DIRECTAMENTE al contenido útil: ' +
-                                'muestra las plantillas encontradas y proporciona el contenido del diseño.',
-                        });
-                        console.log('[Canva] Buscando plantillas relacionadas...');
-
-                        // Extraer palabras clave eliminando verbos y términos genéricos de diseño
-                        const stopWords = /\b(crea[r]?|haz|genera[r]?|hacer|diseña[r]?|elabora[r]?|prepara[r]?|utiliza[r]?|usa[r]?|un|una|el|la|los|las|de|del|para|con|que|en|al|por|me|mi|mis|nuestro|nuestra|canva|diseño|portada|cartel|banner|flyer|folleto|presentación|presentacion|imagen|póster|poster|invitación|invitacion|afiche|infografía|infografia|necesito|quiero|puedes|por favor)\b/gi;
-                        const keywords = trimmedMessage.replace(stopWords, ' ').replace(/\s+/g, ' ').trim().substring(0, 100);
-                        const searchQuery = keywords || trimmedMessage.substring(0, 60);
-                        console.log(`[Canva] Búsqueda de plantillas: "${searchQuery}"`);
-
-                        try {
-                            const templates = await findTemplates(req.user.id, searchQuery, 5);
-                            console.log(`[Canva] Plantillas encontradas: ${templates.length}`);
-
-                            if (templates.length > 0) {
-                                const templateList = templates.map(t => {
-                                    const url = t.urls?.view_url || t.urls?.edit_url || t.url
-                                        || `https://www.canva.com/search/templates?q=${encodeURIComponent(searchQuery)}`;
-                                    return `- **${t.title || 'Plantilla'}**: [Ver plantilla ↗](${url})`;
-                                }).join('\n');
-
-                                canvaLinksContext =
-                                    '\n\n---\n[SISTEMA CANVA — El backend ha encontrado plantillas relacionadas. ' +
-                                    'DEBES incluir en tu respuesta DOS secciones claramente separadas:\n\n' +
-                                    'SECCIÓN 1 — PLANTILLAS DE CANVA:\n' +
-                                    'Muestra estas plantillas con sus enlaces EXACTOS sin modificarlos:\n' +
-                                    templateList + '\n\n' +
-                                    'SECCIÓN 2 — CONTENIDO LISTO PARA COPIAR:\n' +
-                                    'Genera el contenido completo del diseño para que el usuario lo pegue en Canva:\n' +
-                                    '• TÍTULO principal (breve, impactante, máx. 10 palabras)\n' +
-                                    '• SUBTÍTULO o eslogan (opcional, máx. 1 frase)\n' +
-                                    '• TEXTO PRINCIPAL (párrafo central o puntos clave del mensaje)\n' +
-                                    '• PALETA DE COLORES (3-5 colores con códigos HEX y descripción: ej. Azul cielo #87CEEB)\n' +
-                                    '• TIPOGRAFÍA sugerida (fuente para título + fuente para cuerpo)\n' +
-                                    '• COMPOSICIÓN (cómo disponer los elementos en el diseño)\n' +
-                                    'Termina invitando al usuario a abrir una plantilla de arriba y pegar el contenido.]';
-                            } else {
-                                // Sin resultados de templates: genera contenido + enlace de búsqueda manual
-                                const searchUrl = `https://www.canva.com/search/templates?q=${encodeURIComponent(searchQuery)}`;
-                                canvaLinksContext =
-                                    '\n\n---\n[SISTEMA CANVA — No se encontraron plantillas específicas para la búsqueda. ' +
-                                    'DEBES responder con DOS secciones:\n\n' +
-                                    'SECCIÓN 1 — BUSCAR EN CANVA:\n' +
-                                    `Indica al usuario que puede buscar plantillas en: [Buscar plantillas en Canva ↗](${searchUrl})\n\n` +
-                                    'SECCIÓN 2 — CONTENIDO LISTO PARA COPIAR:\n' +
-                                    'Genera el contenido completo del diseño:\n' +
-                                    '• TÍTULO principal\n' +
-                                    '• SUBTÍTULO o eslogan\n' +
-                                    '• TEXTO PRINCIPAL\n' +
-                                    '• PALETA DE COLORES (con HEX)\n' +
-                                    '• TIPOGRAFÍA sugerida\n' +
-                                    '• COMPOSICIÓN del diseño]';
-                            }
-                        } catch (templateError) {
-                            console.error('[Canva] Error buscando plantillas:', templateError.message);
-                            canvaLinksContext =
-                                '\n\n---\n[SISTEMA CANVA — Genera el contenido del diseño en dos partes: ' +
-                                '1) Enlace de búsqueda: https://www.canva.com/templates ' +
-                                '2) Contenido completo: título, subtítulo, texto principal, paleta de colores (HEX), ' +
-                                'tipografía y descripción del layout para que el usuario lo cree en Canva.]';
-                        }
-                    } else {
-                        // Canva activo pero sin solicitud creativa: avisar al LLM para que no lo niegue
-                        llmMessages.push({
-                            role: 'system',
-                            content:
-                                'El usuario tiene la herramienta Canva conectada y activa. ' +
-                                'Cuando pida crear portadas, carteles, presentaciones, diseños, banners, ' +
-                                'folletos, imágenes o cualquier recurso visual, el sistema los creará en Canva. ' +
-                                'NUNCA digas que no tienes acceso a Canva ni a herramientas externas.',
-                        });
-                    }
+                    activeTools = CANVA_TOOLS;
+                    llmMessages.push({
+                        role: 'system',
+                        content:
+                            'El usuario ha activado la integración con Canva. Tienes acceso a las siguientes herramientas:\n' +
+                            '• canva_list_designs — lista los diseños del usuario en Canva\n' +
+                            '• canva_get_design — obtiene detalles de un diseño por su ID\n' +
+                            '• canva_create_design — crea un diseño nuevo (tipos válidos: "doc", "whiteboard", "presentation")\n' +
+                            '• canva_export_design — exporta un diseño como PDF, PNG o JPG\n' +
+                            'Usa estas herramientas SIEMPRE que el usuario pida algo relacionado con sus diseños de Canva. ' +
+                            'Para crear cualquier tipo de diseño visual (cartel, banner, presentación, portada, folleto, etc.) ' +
+                            'llama a canva_create_design con el tipo adecuado y devuelve el enlace edit_url al usuario. ' +
+                            'Para consultar sus diseños existentes usa canva_list_designs.',
+                    });
+                    console.log('[Canva] Tools inyectadas al LLM');
                 }
             } catch (e) {
-                console.error('[Canva] Error en activación directa:', e.message);
+                console.error('[Canva] Error activando tools:', e.message);
             }
         }
 
-        // Añadir mensaje del usuario (con contexto Canva embebido si aplica)
-        llmMessages.push({ role: 'user', content: trimmedMessage + canvaLinksContext });
-
-        // ── activeTools vacío — Canva se ejecuta directamente arriba ──
-        let activeTools = [];
+        // Añadir mensaje del usuario
+        llmMessages.push({ role: 'user', content: trimmedMessage });
 
         const llmCallOptions = {
             messages: llmMessages,
-            model: useThinkingModel === true ? MODELS.THINKING : (canvaModelOverride ?? undefined),
+            model: useThinkingModel === true ? MODELS.THINKING : (activeTools.length > 0 ? MODELS.TOOLS : undefined),
             useThinking: useThinkingModel === true,
             // Los modelos de razonamiento (thinking) no admiten tools
             ...(activeTools.length > 0 && !useThinkingModel
                 ? { extraBody: { tools: activeTools, tool_choice: 'auto', parallel_tool_calls: true } }
                 : {}),
         };
-
-        // Nota: tool_calls de Canva se ejecutan directamente (ver bloque anterior).
-        // activeTools queda vacío salvo otras herramientas futuras.
 
         let llmResponse;
         try {
@@ -887,8 +806,7 @@ REGLAS ABSOLUTAS:
                 const isLastPass = toolPasses >= MAX_TOOL_PASSES - 1;
                 llmResponse = await callChatCompletion({
                     messages: llmMessages,
-                    // Siempre Qwen para tool-calling (más compatible)
-                    model: useThinkingModel === true ? MODELS.THINKING : MODELS.DEFAULT,
+                    model: useThinkingModel === true ? MODELS.THINKING : MODELS.TOOLS,
                     toolFallbackModel: MODELS.DEFAULT,
                     // Timeout reducido para no superar el timeout del proxy (60s total)
                     timeoutMs: 20000,

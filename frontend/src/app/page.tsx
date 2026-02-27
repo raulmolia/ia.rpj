@@ -928,7 +928,7 @@ export default function ChatHomePage() {
                     tags: tagsToSend.length > 0 ? tagsToSend : undefined,
                     useThinkingModel: isThinkingMode,
                     canvasMode: isCanvasMode || undefined,
-                    useCanvaTools: hasActiveCanva && !canvaToolEnabled ? false : undefined,
+                    useCanvaTools: hasActiveCanva && canvaToolEnabled ? true : false,
                 }),
                 signal: abortController.signal,
             })
