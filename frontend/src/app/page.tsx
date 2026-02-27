@@ -57,6 +57,8 @@ import {
     Type,
     Plug,
     X,
+    HardDrive,
+    Upload,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -102,8 +104,17 @@ import { CanvasDialog } from "@/components/canvas"
 import { ShareDialog } from "@/components/share-dialog"
 import { useLocale, formatRelativeTime, type Locale } from "@/lib/locale-context"
 import { useToast } from "@/hooks/use-toast"
+import { CanvaDesignCards, type CanvaDesign } from "@/components/canva-design-cards"
+import { CanvaThinkingBox } from "@/components/canva-thinking-box"
+import { GoogleDrivePicker } from "@/components/google-drive-picker"
 
 type MessageRole = "usuario" | "asistente"
+
+type ToolStep = {
+    tool: string
+    status: 'success' | 'error'
+    summary: string
+}
 
 type ChatMessage = {
     id: string
@@ -112,6 +123,9 @@ type ChatMessage = {
     createdAt?: string
     pending?: boolean
     isWorkContent?: boolean
+    canvaDesigns?: CanvaDesign[]
+    toolSteps?: ToolStep[]
+    templateSearchUrl?: string
 }
 
 type Chat = {
@@ -353,6 +367,11 @@ export default function ChatHomePage() {
     const [isCanvasMode, setIsCanvasMode] = useState(false)
     const [hasActiveCanva, setHasActiveCanva] = useState(false)
     const [canvaToolEnabled, setCanvaToolEnabled] = useState(false)
+    const [hasActiveGoogleDrive, setHasActiveGoogleDrive] = useState(false)
+    const [hasActiveGoogleDocs, setHasActiveGoogleDocs] = useState(false)
+    const [googleDriveToolEnabled, setGoogleDriveToolEnabled] = useState(false)
+    const [googleDocsToolEnabled, setGoogleDocsToolEnabled] = useState(false)
+    const [isDrivePickerOpen, setIsDrivePickerOpen] = useState(false)
     const [canvasOpen, setCanvasOpen] = useState(false)
     const [canvasContent, setCanvasContent] = useState("")
     const [canvasMessageId, setCanvasMessageId] = useState<string | null>(null)
@@ -470,6 +489,10 @@ export default function ChatHomePage() {
             setIsSettingsDialogOpen(true)
             if (connector === "canva") {
                 setHasActiveCanva(true)
+            } else if (connector === "google-drive") {
+                setHasActiveGoogleDrive(true)
+            } else if (connector === "google-docs") {
+                setHasActiveGoogleDocs(true)
             }
         }
     }, [])
@@ -487,6 +510,14 @@ export default function ChatHomePage() {
                     (c: { tipo: string; estado: string }) => c.tipo === "CANVA" && c.estado === "ACTIVO"
                 )
                 setHasActiveCanva(!!canva)
+                const gdrive = data.conectores.find(
+                    (c: { tipo: string; estado: string }) => c.tipo === "GOOGLE_DRIVE" && c.estado === "ACTIVO"
+                )
+                setHasActiveGoogleDrive(!!gdrive)
+                const gdocs = data.conectores.find(
+                    (c: { tipo: string; estado: string }) => c.tipo === "GOOGLE_DOCS" && c.estado === "ACTIVO"
+                )
+                setHasActiveGoogleDocs(!!gdocs)
             })
             .catch(() => {})
     }, [token, hasTools])
@@ -929,6 +960,8 @@ export default function ChatHomePage() {
                     useThinkingModel: isThinkingMode,
                     canvasMode: isCanvasMode || undefined,
                     useCanvaTools: hasActiveCanva && canvaToolEnabled ? true : false,
+                    useGoogleDriveTools: hasActiveGoogleDrive && googleDriveToolEnabled ? true : false,
+                    useGoogleDocsTools: hasActiveGoogleDocs && googleDocsToolEnabled ? true : false,
                 }),
                 signal: abortController.signal,
             })
@@ -946,6 +979,9 @@ export default function ChatHomePage() {
                 content: data.message.content,
                 isWorkContent: data.message.isWorkContent ?? undefined,
                 createdAt: new Date().toISOString(),
+                canvaDesigns: data.message.canvaDesigns ?? undefined,
+                toolSteps: data.message.toolSteps ?? undefined,
+                templateSearchUrl: data.message.templateSearchUrl ?? undefined,
             }
 
             setChats((prevChats) =>
@@ -1114,6 +1150,15 @@ export default function ChatHomePage() {
 
     const handleRemoveFile = useCallback((fileName: string) => {
         setAttachedFiles(prev => prev.filter(file => file.fileName !== fileName))
+    }, [])
+
+    const handleDriveFilesSelected = useCallback((files: Array<{ fileName: string; mimeType: string; size: number; text: string; wordCount: number; fromDrive: boolean; driveFileId: string }>) => {
+        setAttachedFiles(prev => {
+            const existingNames = new Set(prev.map(f => f.fileName))
+            const newFiles = files.filter(f => !existingNames.has(f.fileName))
+            return [...prev, ...newFiles] as any
+        })
+        setIsDrivePickerOpen(false)
     }, [])
 
     const transcribeAudio = useCallback(async (audioBlob: Blob) => {
@@ -1606,22 +1651,48 @@ export default function ChatHomePage() {
                             </div>
                         )}
 
-                        {/* Badge de herramienta Canva activa */}
-                        {hasActiveCanva && canvaToolEnabled && (
-                            <div className="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setCanvaToolEnabled(false)}
-                                    className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition hover:opacity-70 border-violet-400 bg-violet-50 text-violet-700 dark:border-violet-500 dark:bg-violet-950/60 dark:text-violet-300"
-                                    title="Desactivar herramienta Canva"
-                                >
-                                    <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true">
-                                        <circle cx="12" cy="12" r="12" fill="#7D2AE7"/>
-                                        <text x="12" y="17" textAnchor="middle" fill="white" fontSize="15" fontWeight="bold" fontFamily="sans-serif">C</text>
-                                    </svg>
-                                    Herramienta Canva
-                                    <X className="h-3 w-3 ml-0.5" aria-hidden="true" />
-                                </button>
+                        {/* Badges de herramientas activas */}
+                        {((hasActiveCanva && canvaToolEnabled) || (hasActiveGoogleDrive && googleDriveToolEnabled) || (hasActiveGoogleDocs && googleDocsToolEnabled)) && (
+                            <div className="flex flex-wrap items-center gap-2">
+                                {hasActiveCanva && canvaToolEnabled && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setCanvaToolEnabled(false)}
+                                        className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition hover:opacity-70 border-violet-400 bg-violet-50 text-violet-700 dark:border-violet-500 dark:bg-violet-950/60 dark:text-violet-300"
+                                        title="Desactivar herramienta Canva"
+                                    >
+                                        <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true">
+                                            <circle cx="12" cy="12" r="12" fill="#7D2AE7"/>
+                                            <text x="12" y="17" textAnchor="middle" fill="white" fontSize="15" fontWeight="bold" fontFamily="sans-serif">C</text>
+                                        </svg>
+                                        Herramienta Canva
+                                        <X className="h-3 w-3 ml-0.5" aria-hidden="true" />
+                                    </button>
+                                )}
+                                {hasActiveGoogleDrive && googleDriveToolEnabled && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setGoogleDriveToolEnabled(false)}
+                                        className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition hover:opacity-70 border-blue-400 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950/60 dark:text-blue-300"
+                                        title="Desactivar herramienta Google Drive"
+                                    >
+                                        <HardDrive className="h-3 w-3" aria-hidden="true" />
+                                        Google Drive
+                                        <X className="h-3 w-3 ml-0.5" aria-hidden="true" />
+                                    </button>
+                                )}
+                                {hasActiveGoogleDocs && googleDocsToolEnabled && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setGoogleDocsToolEnabled(false)}
+                                        className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition hover:opacity-70 border-green-400 bg-green-50 text-green-700 dark:border-green-500 dark:bg-green-950/60 dark:text-green-300"
+                                        title="Desactivar herramienta Google Docs"
+                                    >
+                                        <FileText className="h-3 w-3" aria-hidden="true" />
+                                        Google Docs
+                                        <X className="h-3 w-3 ml-0.5" aria-hidden="true" />
+                                    </button>
+                                )}
                             </div>
                         )}
 
@@ -1653,27 +1724,61 @@ export default function ChatHomePage() {
                         {/* Barra de botones abajo */}
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                {/* Botón clip para archivos */}
-                                <TooltipProvider delayDuration={700}>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
+                                {/* Botón clip para archivos — menú desplegable si hay Drive conectado */}
+                                {hasActiveGoogleDrive ? (
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
                                             <Button
                                                 type="button"
                                                 variant="ghost"
                                                 size="icon"
                                                 className="h-8 w-8 shrink-0 rounded-full"
                                                 aria-label={t("files.attachFiles")}
-                                                onClick={handleFileSelect}
                                                 disabled={isThinking || isUploadingFiles}
                                             >
                                                 <Paperclip className="h-4 w-4" aria-hidden="true" />
                                             </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top">
-                                            <p>{t("files.attachFilesTooltip")}</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="start" className="w-56">
+                                            <DropdownMenuItem onSelect={handleFileSelect}>
+                                                <Upload className="mr-2 h-4 w-4" aria-hidden="true" />
+                                                Desde el ordenador
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => setIsDrivePickerOpen(true)}>
+                                                <svg viewBox="0 0 87.3 78" className="mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da" />
+                                                    <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-20.4 35.3c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47" />
+                                                    <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.5l5.85 13.55z" fill="#ea4335" />
+                                                    <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d" />
+                                                    <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc" />
+                                                    <path d="m73.4 26.5-10.1-17.5c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 23.5h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00" />
+                                                </svg>
+                                                Desde Google Drive
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                ) : (
+                                    <TooltipProvider delayDuration={700}>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 shrink-0 rounded-full"
+                                                    aria-label={t("files.attachFiles")}
+                                                    onClick={handleFileSelect}
+                                                    disabled={isThinking || isUploadingFiles}
+                                                >
+                                                    <Paperclip className="h-4 w-4" aria-hidden="true" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top">
+                                                <p>{t("files.attachFilesTooltip")}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                )}
 
                                 {/* Botón llave inglesa para herramientas - solo visible para usuarios con acceso */}
                                 {hasTools && (
@@ -1687,9 +1792,9 @@ export default function ChatHomePage() {
                                                 aria-label={t("tooltips.tools")}
                                             >
                                                 <Wrench className="h-4 w-4" aria-hidden="true" />
-                                                {hasActiveCanva && canvaToolEnabled && (
+                                                {(hasActiveCanva && canvaToolEnabled) || (hasActiveGoogleDrive && googleDriveToolEnabled) || (hasActiveGoogleDocs && googleDocsToolEnabled) ? (
                                                     <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
-                                                )}
+                                                ) : null}
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="start" className="w-60">
@@ -1707,24 +1812,56 @@ export default function ChatHomePage() {
                                             </DropdownMenuItem>
 
                                             {/* Conectores activos */}
-                                            {hasActiveCanva && (
+                                            {(hasActiveCanva || hasActiveGoogleDrive || hasActiveGoogleDocs) && (
                                                 <>
                                                     <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground mt-1">
                                                         Conectores
                                                     </div>
-                                                    <DropdownMenuItem
-                                                        className={cn(canvaToolEnabled && "bg-primary/10 text-primary")}
-                                                        onSelect={() => setCanvaToolEnabled(!canvaToolEnabled)}
-                                                    >
-                                                        <Plug className="mr-2 h-4 w-4" aria-hidden="true" />
-                                                        Canva
-                                                        <Badge
-                                                            variant={canvaToolEnabled ? "default" : "outline"}
-                                                            className="ml-auto text-[10px] px-1.5 py-0"
+                                                    {hasActiveCanva && (
+                                                        <DropdownMenuItem
+                                                            className={cn(canvaToolEnabled && "bg-primary/10 text-primary")}
+                                                            onSelect={() => setCanvaToolEnabled(!canvaToolEnabled)}
                                                         >
-                                                            {canvaToolEnabled ? "ON" : "OFF"}
-                                                        </Badge>
-                                                    </DropdownMenuItem>
+                                                            <Plug className="mr-2 h-4 w-4" aria-hidden="true" />
+                                                            Canva
+                                                            <Badge
+                                                                variant={canvaToolEnabled ? "default" : "outline"}
+                                                                className="ml-auto text-[10px] px-1.5 py-0"
+                                                            >
+                                                                {canvaToolEnabled ? "ON" : "OFF"}
+                                                            </Badge>
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                    {hasActiveGoogleDrive && (
+                                                        <DropdownMenuItem
+                                                            className={cn(googleDriveToolEnabled && "bg-primary/10 text-primary")}
+                                                            onSelect={() => setGoogleDriveToolEnabled(!googleDriveToolEnabled)}
+                                                        >
+                                                            <HardDrive className="mr-2 h-4 w-4" aria-hidden="true" />
+                                                            Google Drive
+                                                            <Badge
+                                                                variant={googleDriveToolEnabled ? "default" : "outline"}
+                                                                className="ml-auto text-[10px] px-1.5 py-0"
+                                                            >
+                                                                {googleDriveToolEnabled ? "ON" : "OFF"}
+                                                            </Badge>
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                    {hasActiveGoogleDocs && (
+                                                        <DropdownMenuItem
+                                                            className={cn(googleDocsToolEnabled && "bg-primary/10 text-primary")}
+                                                            onSelect={() => setGoogleDocsToolEnabled(!googleDocsToolEnabled)}
+                                                        >
+                                                            <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
+                                                            Google Docs
+                                                            <Badge
+                                                                variant={googleDocsToolEnabled ? "default" : "outline"}
+                                                                className="ml-auto text-[10px] px-1.5 py-0"
+                                                            >
+                                                                {googleDocsToolEnabled ? "ON" : "OFF"}
+                                                            </Badge>
+                                                        </DropdownMenuItem>
+                                                    )}
                                                 </>
                                             )}
                                         </DropdownMenuContent>
@@ -2582,6 +2719,14 @@ export default function ChatHomePage() {
                                                     >
                                                         {message.content}
                                                     </ReactMarkdown>
+                                                    {/* Tarjetas de diseños de Canva */}
+                                                    {message.canvaDesigns && message.canvaDesigns.length > 0 && (
+                                                        <CanvaDesignCards designs={message.canvaDesigns} templateSearchUrl={message.templateSearchUrl} />
+                                                    )}
+                                                    {/* Caja colapsable con pasos de Canva (solo si hubo toolSteps) */}
+                                                    {message.toolSteps && message.toolSteps.length > 0 && (
+                                                        <CanvaThinkingBox isActive={false} toolSteps={message.toolSteps} />
+                                                    )}
                                                 </div>
                                             ) : (
                                                 <div className="whitespace-pre-wrap">{message.content}</div>
@@ -2722,15 +2867,21 @@ export default function ChatHomePage() {
                                 ))}
 
                                 {isThinking && (
-                                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                                    <div className="flex items-start gap-3 text-sm text-muted-foreground">
                                         <Avatar className="h-9 w-9">
                                             <AvatarFallback>IA</AvatarFallback>
                                         </Avatar>
-                                        <div className="flex items-center gap-2 rounded-full border border-border/60 bg-card px-3 py-2">
-                                            <span className="h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: "0ms" }} />
-                                            <span className="h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: "120ms" }} />
-                                            <span className="h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: "240ms" }} />
-                                            <span className="text-xs font-medium text-muted-foreground">{t("chat.thinking")}</span>
+                                        <div className="flex flex-col gap-2">
+                                            {hasActiveCanva && canvaToolEnabled ? (
+                                                <CanvaThinkingBox isActive={true} />
+                                            ) : (
+                                                <div className="flex items-center gap-2 rounded-full border border-border/60 bg-card px-3 py-2">
+                                                    <span className="h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: "0ms" }} />
+                                                    <span className="h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: "120ms" }} />
+                                                    <span className="h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: "240ms" }} />
+                                                    <span className="text-xs font-medium text-muted-foreground">{t("chat.thinking")}</span>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -3170,6 +3321,14 @@ export default function ChatHomePage() {
                 messageContent={shareMessageContent}
                 conversationTitle={shareConversationTitle}
                 token={token ?? ""}
+            />
+
+            {/* Google Drive Picker */}
+            <GoogleDrivePicker
+                open={isDrivePickerOpen}
+                onOpenChange={setIsDrivePickerOpen}
+                token={token ?? ""}
+                onFilesSelected={handleDriveFilesSelected}
             />
         </div>
     )

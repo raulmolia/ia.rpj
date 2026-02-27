@@ -11,6 +11,9 @@ import { authenticate } from '../middleware/auth.js';
 import { encryptToken, decryptToken } from '../services/connectorEncryptionService.js';
 import logService from '../services/logService.js';
 
+import { listFiles, searchFiles, getFile } from '../services/googleDriveService.js';
+import { getGoogleAccessToken, hasActiveGoogleConnector } from '../services/googleOAuthService.js';
+
 // Almacén temporal en memoria para code_verifier PKCE (TTL 10 min)
 // Clave: state JWT string  |  Valor: { codeVerifier, expires }
 const pkceStore = new Map();
@@ -64,14 +67,18 @@ const GOOGLE_DOCS_REDIRECT_URI = process.env.GOOGLE_DOCS_REDIRECT_URI
     || 'https://ia.rpj.es/api/conectores/google-docs/callback';
 
 // Scopes por conector Google
+// - drive.file: crear archivos nuevos y gestionar SOLO los creados por la app (no toca nada del usuario)
+// - drive.readonly: navegar/leer archivos del Drive (sin poder modificarlos ni borrarlos)
 const GOOGLE_DRIVE_SCOPES = [
-    'https://www.googleapis.com/auth/drive',
     'https://www.googleapis.com/auth/drive.file',
+    'https://www.googleapis.com/auth/drive.readonly',
     'openid',
     'email',
     'profile',
 ].join(' ');
 
+// - documents: crear y editar Google Docs vía la API de Docs
+// - drive.file: ya incluido implícitamente al crear docs desde la app
 const GOOGLE_DOCS_SCOPES = [
     'https://www.googleapis.com/auth/documents',
     'https://www.googleapis.com/auth/drive.file',
@@ -521,6 +528,112 @@ router.delete('/:id', authenticate, requireConnectorAccess, async (req, res) => 
     } catch (error) {
         console.error('❌ Error eliminando conector:', error);
         return res.status(500).json({ error: 'Error eliminando conector' });
+    }
+});
+
+// ─── GET /api/conectores/google-drive/files ──────────────────────────────────
+// Listar / buscar archivos del Drive del usuario (para el file picker del frontend)
+router.get('/google-drive/files', authenticate, requireConnectorAccess, async (req, res) => {
+    try {
+        const hasConnector = await hasActiveGoogleConnector(req.user.id, 'GOOGLE_DRIVE');
+        if (!hasConnector) {
+            return res.status(404).json({ error: 'Google Drive no está conectado' });
+        }
+
+        const { query, pageSize, mimeType } = req.query;
+        const files = query
+            ? await searchFiles(req.user.id, query, parseInt(pageSize) || 20)
+            : await listFiles(req.user.id, {
+                query: '',
+                pageSize: parseInt(pageSize) || 20,
+                mimeType: mimeType || '',
+            });
+
+        return res.json({ files });
+    } catch (error) {
+        console.error('❌ Error listando archivos Drive:', error.message);
+        return res.status(500).json({ error: error.message || 'Error accediendo a Google Drive' });
+    }
+});
+
+// ─── GET /api/conectores/google-drive/files/:fileId/content ──────────────────
+// Descargar el contenido de texto de un archivo de Drive (para adjuntarlo al chat)
+router.get('/google-drive/files/:fileId/content', authenticate, requireConnectorAccess, async (req, res) => {
+    try {
+        const hasConnector = await hasActiveGoogleConnector(req.user.id, 'GOOGLE_DRIVE');
+        if (!hasConnector) {
+            return res.status(404).json({ error: 'Google Drive no está conectado' });
+        }
+
+        const { fileId } = req.params;
+        const token = await getGoogleAccessToken(req.user.id, 'GOOGLE_DRIVE');
+
+        // Primero obtener metadatos del archivo
+        const meta = await getFile(req.user.id, fileId);
+        const mimeType = meta.mimeType || '';
+
+        let text = '';
+        let fileName = meta.name || 'archivo';
+
+        // Para Google Docs nativo, exportar como texto plano
+        if (mimeType === 'application/vnd.google-apps.document') {
+            const exportRes = await fetch(
+                `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=text/plain`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (!exportRes.ok) throw new Error(`Error exportando documento: ${exportRes.status}`);
+            text = await exportRes.text();
+        }
+        // Para Google Sheets, exportar como CSV
+        else if (mimeType === 'application/vnd.google-apps.spreadsheet') {
+            const exportRes = await fetch(
+                `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=text/csv`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (!exportRes.ok) throw new Error(`Error exportando hoja: ${exportRes.status}`);
+            text = await exportRes.text();
+        }
+        // Para Google Slides, exportar como texto plano
+        else if (mimeType === 'application/vnd.google-apps.presentation') {
+            const exportRes = await fetch(
+                `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=text/plain`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (!exportRes.ok) throw new Error(`Error exportando presentación: ${exportRes.status}`);
+            text = await exportRes.text();
+        }
+        // Para archivos de texto plano, descargar directamente
+        else if (mimeType.startsWith('text/') || mimeType === 'application/json') {
+            const dlRes = await fetch(
+                `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (!dlRes.ok) throw new Error(`Error descargando archivo: ${dlRes.status}`);
+            text = await dlRes.text();
+        }
+        // PDF y otros — intentar exportar texto si es Google type, o indicar que no es texto
+        else {
+            return res.status(400).json({
+                error: 'Tipo de archivo no soportado para adjuntar como texto',
+                mimeType,
+                suggestion: 'Solo se pueden adjuntar documentos, hojas de cálculo, presentaciones y archivos de texto.',
+            });
+        }
+
+        // Contar palabras aproximadas
+        const wordCount = text.split(/\s+/).filter(Boolean).length;
+
+        return res.json({
+            fileId,
+            fileName,
+            mimeType,
+            text,
+            wordCount,
+            size: text.length,
+        });
+    } catch (error) {
+        console.error('❌ Error obteniendo contenido Drive:', error.message);
+        return res.status(500).json({ error: error.message || 'Error descargando archivo' });
     }
 });
 

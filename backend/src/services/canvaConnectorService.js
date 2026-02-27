@@ -124,6 +124,38 @@ export async function getValidAccessToken(usuarioId) {
     return decryptToken(conector.tokenAcceso);
 }
 
+// ─── Mapeo de tipos de diseño ─────────────────────────────────────────────────
+
+/**
+ * Mapeo de tipos conceptuales a parámetros reales de la API de Canva.
+ * La API solo admite 3 presets: doc, whiteboard, presentation.
+ * Para el resto usamos custom_size con dimensiones estándar (en px a 300dpi).
+ */
+const DESIGN_TYPE_MAP = {
+    doc:          { type: 'preset', name: 'doc' },
+    whiteboard:   { type: 'preset', name: 'whiteboard' },
+    presentation: { type: 'preset', name: 'presentation' },
+    poster:       { type: 'custom', width: 2480, height: 3508 },     // A4 vertical
+    banner:       { type: 'custom', width: 4961, height: 1748 },     // Banner horizontal
+    flyer:        { type: 'custom', width: 2480, height: 3508 },     // A4 vertical
+    social_post:  { type: 'custom', width: 1080, height: 1080 },     // Cuadrado (Instagram)
+    story:        { type: 'custom', width: 1080, height: 1920 },     // Vertical (Stories)
+    card:         { type: 'custom', width: 1500, height: 1050 },     // Tarjeta horizontal
+};
+
+/** Nombres legibles para mostrar al usuario */
+const DESIGN_TYPE_LABELS = {
+    doc: 'Documento',
+    whiteboard: 'Pizarra',
+    presentation: 'Presentación',
+    poster: 'Póster / Cartel',
+    banner: 'Banner',
+    flyer: 'Folleto',
+    social_post: 'Post redes sociales',
+    story: 'Historia / Story',
+    card: 'Tarjeta',
+};
+
 // ─── Herramientas Canva ───────────────────────────────────────────────────────
 
 /**
@@ -134,7 +166,15 @@ export async function listDesigns(usuarioId, { limit = 10, query = '' } = {}) {
     const params = new URLSearchParams({ limit: String(limit) });
     if (query) params.set('query', query);
     const data = await canvaRequest('GET', `/designs?${params}`, token);
-    return data.items || [];
+    // Incluir thumbnails en la respuesta
+    return (data.items || []).map(item => ({
+        id: item.id,
+        title: item.title || 'Sin título',
+        thumbnail_url: item.thumbnail?.url || null,
+        edit_url: item.urls?.edit_url || `https://www.canva.com/design/${item.id}/edit`,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+    }));
 }
 
 /**
@@ -142,29 +182,102 @@ export async function listDesigns(usuarioId, { limit = 10, query = '' } = {}) {
  */
 export async function getDesign(usuarioId, designId) {
     const token = await getValidAccessToken(usuarioId);
-    return canvaRequest('GET', `/designs/${designId}`, token);
+    const result = await canvaRequest('GET', `/designs/${designId}`, token);
+    const design = result.design || result;
+    return {
+        id: design.id,
+        title: design.title || 'Sin título',
+        thumbnail_url: design.thumbnail?.url || null,
+        edit_url: design.urls?.edit_url || `https://www.canva.com/design/${design.id}/edit`,
+        created_at: design.created_at,
+        updated_at: design.updated_at,
+        page_count: design.page_count || null,
+    };
 }
 
 /**
  * Crea un nuevo diseño en blanco.
- * Tipos válidos según la API de Canva Connect: "doc", "whiteboard", "presentation"
+ * Acepta tipos extendidos: doc, whiteboard, presentation, poster, banner, flyer, social_post, story, card.
+ * Para tipos sin preset nativo se usa custom_size con las dimensiones del DESIGN_TYPE_MAP.
  */
 export async function createDesign(usuarioId, { designTypeId = 'doc', title = '' } = {}) {
     const token = await getValidAccessToken(usuarioId);
-    const body = {
-        design_type: { type: 'preset', name: designTypeId },
-    };
+    const mapping = DESIGN_TYPE_MAP[designTypeId] || DESIGN_TYPE_MAP.doc;
+
+    const body = {};
+    if (mapping.type === 'preset') {
+        body.design_type = { type: 'preset', name: mapping.name };
+    } else {
+        // custom con dimensiones para tipos como poster, banner, flyer, etc.
+        body.design_type = { type: 'custom', width: mapping.width, height: mapping.height };
+    }
     if (title) body.title = title;
+
+    console.log(`[Canva] createDesign body:`, JSON.stringify(body));
+
     const result = await canvaRequest('POST', '/designs', token, body);
-    // La URL real está en design.urls.edit_url (JWT temporal generado por Canva)
     const design = result.design || result;
     const editUrl = design.urls?.edit_url || design.url || `https://www.canva.com/design/${design.id}/edit`;
+
     return {
         id: design.id,
         title: design.title || title,
         edit_url: editUrl,
+        thumbnail_url: design.thumbnail?.url || null,
         type: designTypeId,
+        type_label: DESIGN_TYPE_LABELS[designTypeId] || designTypeId,
         created_at: design.created_at,
+    };
+}
+
+/**
+ * Crea múltiples diseños del MISMO tipo.
+ * El LLM llama a esta función una sola vez con count=3 (por ejemplo)
+ * y el backend ejecuta N llamadas secuenciales a la API de Canva.
+ *
+ * @param {number} usuarioId
+ * @param {object} options
+ * @param {string} options.designTypeId - Tipo de diseño (doc, poster, presentation, etc.)
+ * @param {string} options.titleBase - Título base para los diseños
+ * @param {number} options.count - Número de diseños a crear (1-5, por defecto 3)
+ * @returns {Promise<Array>} Array con los diseños creados
+ */
+export async function createMultipleDesigns(usuarioId, { designTypeId = 'doc', titleBase = '', count = 3 } = {}) {
+    // Limitar entre 1 y 5 para no abusar de la API (20 req/min por usuario)
+    const safeCount = Math.max(1, Math.min(5, count));
+    const results = [];
+
+    for (let i = 0; i < safeCount; i++) {
+        const suffix = safeCount > 1 ? ` — Opción ${i + 1}` : '';
+        const title = titleBase ? `${titleBase}${suffix}` : `Diseño${suffix}`;
+        try {
+            const design = await createDesign(usuarioId, { designTypeId, title });
+            design.is_blank_canvas = true;
+            results.push(design);
+        } catch (err) {
+            console.error(`[Canva] Error creando diseño ${i + 1}/${safeCount}:`, err.message);
+            results.push({ error: err.message, index: i + 1 });
+        }
+    }
+
+    // Generar URL de búsqueda de plantillas relevantes en Canva
+    const typeToTemplateCategory = {
+        poster: 'posters', presentation: 'presentations', doc: 'documents',
+        whiteboard: 'whiteboards', banner: 'banners', flyer: 'flyers',
+        social_post: 'social-media', story: 'instagram-stories', card: 'cards',
+    };
+    const category = typeToTemplateCategory[designTypeId] || '';
+    const searchTerms = titleBase.replace(/[^\w\sáéíóúñ]/g, '').trim().replace(/\s+/g, '+');
+    const templateSearchUrl = category
+        ? `https://www.canva.com/${category}/templates/?query=${encodeURIComponent(searchTerms)}`
+        : `https://www.canva.com/templates/?query=${encodeURIComponent(searchTerms)}`;
+
+    return {
+        designs: results,
+        template_search_url: templateSearchUrl,
+        design_type: designTypeId,
+        design_type_label: DESIGN_TYPE_LABELS[designTypeId] || designTypeId,
+        note: 'Los lienzos se han creado en blanco con el formato correcto. Usa las sugerencias de contenido o busca una plantilla para personalizarlos.',
     };
 }
 
@@ -244,27 +357,40 @@ export const CANVA_TOOLS = [
     {
         type: 'function',
         function: {
-            name: 'canva_create_design',
-            description: 'Crea un nuevo diseño en blanco en Canva y devuelve el enlace directo (edit_url) para editarlo. ' +
-                'Cuando el usuario pida crear algo en Canva, llama a esta función TRES VECES con los 3 tipos disponibles: ' +
-                '"doc", "whiteboard" y "presentation". Cada respuesta incluye "edit_url" con el enlace real y funcional.',
+            name: 'canva_create_designs',
+            description:
+                'Crea varios diseños en blanco en Canva del MISMO tipo y devuelve un array con los enlaces. ' +
+                'IMPORTANTE: Crea siempre el número indicado en count (por defecto 3) del MISMO design_type. ' +
+                'NUNCA crees un diseño de cada tipo diferente. Si el usuario pide un cartel, crea 3 carteles (poster). ' +
+                'Si pide una presentación, crea 3 presentaciones. Cada diseño tendrá un título ligeramente distinto.',
             parameters: {
                 type: 'object',
                 properties: {
                     design_type: {
                         type: 'string',
-                        description: 'Tipo de diseño. Únicos valores válidos aceptados por la API de Canva: ' +
-                            '"doc" (documento de texto, ideal para hojas impresas y contenido escrito), ' +
-                            '"whiteboard" (pizarra colaborativa, ideal para mapas mentales y lluvia de ideas), ' +
-                            '"presentation" (presentación de diapositivas, ideal para proyectar)',
-                        enum: ['doc', 'whiteboard', 'presentation'],
+                        description:
+                            'Tipo de diseño a crear. Mapeo de lo que pide el usuario:\n' +
+                            '• "doc" → documento de texto, hoja, folio\n' +
+                            '• "whiteboard" → pizarra, brainstorming, mapa mental\n' +
+                            '• "presentation" → presentación, diapositivas\n' +
+                            '• "poster" → cartel, póster, afiche (A4 vertical)\n' +
+                            '• "banner" → banner, cabecera, pancarta (formato horizontal ancho)\n' +
+                            '• "flyer" → folleto, octavilla, volante (A4 vertical)\n' +
+                            '• "social_post" → post para redes sociales, publicación cuadrada\n' +
+                            '• "story" → historia, story, formato vertical tipo Instagram/TikTok\n' +
+                            '• "card" → tarjeta, invitación, postal',
+                        enum: ['doc', 'whiteboard', 'presentation', 'poster', 'banner', 'flyer', 'social_post', 'story', 'card'],
                     },
-                    title: {
+                    title_base: {
                         type: 'string',
-                        description: 'Título o nombre para el nuevo diseño (entre 1 y 255 caracteres)',
+                        description: 'Título descriptivo para los diseños. Se añadirá "— Opción 1/2/3" automáticamente.',
+                    },
+                    count: {
+                        type: 'number',
+                        description: 'Número de diseños a crear (entre 1 y 5). Por defecto 3.',
                     },
                 },
-                required: ['design_type'],
+                required: ['design_type', 'title_base'],
             },
         },
     },
@@ -304,10 +430,20 @@ export async function executeCanvaTool(usuarioId, toolName, args) {
         case 'canva_get_design':
             return getDesign(usuarioId, args.design_id);
 
+        // Mantener compatibilidad con la tool antigua (singular)
         case 'canva_create_design':
-            return createDesign(usuarioId, {
+            return createMultipleDesigns(usuarioId, {
                 designTypeId: args.design_type,
-                title: args.title || '',
+                titleBase: args.title || args.title_base || '',
+                count: args.count || 3,
+            });
+
+        // Nueva tool (plural) — flujo principal
+        case 'canva_create_designs':
+            return createMultipleDesigns(usuarioId, {
+                designTypeId: args.design_type,
+                titleBase: args.title_base || '',
+                count: args.count || 3,
             });
 
         case 'canva_export_design':
