@@ -1,44 +1,29 @@
-// Servicio de integración con Chutes AI (chat completions)
-// Encapsula la llamada HTTP, gestión de errores y fallback automático de modelos
+// Servicio de integración con OpenRouter API (chat completions)
+// Encapsula la llamada HTTP, gestión de errores y selección de modelos
 import logService from './logService.js';
 
-const CHUTES_API_URL = process.env.CHUTES_API_URL || "https://llm.chutes.ai/v1/chat/completions";
-const CHUTES_API_TOKEN = process.env.CHUTES_API_TOKEN || "";
-const DEFAULT_MODEL = process.env.CHUTES_MODEL || "Qwen/Qwen2.5-72B-Instruct";
-const DEFAULT_MAX_TOKENS = Number.parseInt(process.env.CHUTES_MAX_TOKENS || "8192", 10);
-const DEFAULT_TEMPERATURE = Number.parseFloat(process.env.CHUTES_TEMPERATURE || "0.7");
-const DEFAULT_TIMEOUT_MS = Number.parseInt(process.env.CHUTES_TIMEOUT_MS || "30000", 10);
-const DEFAULT_MAX_RETRIES = Number.parseInt(process.env.CHUTES_MAX_RETRIES || "1", 10);
-const DEFAULT_RETRY_DELAY_MS = Number.parseInt(process.env.CHUTES_RETRY_DELAY_MS || "1000", 10);
+const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
+const OPENROUTER_SITE_URL = process.env.OPENROUTER_SITE_URL || "https://ia.rpj.es";
+const OPENROUTER_SITE_NAME = process.env.OPENROUTER_SITE_NAME || "Asistente IA Juvenil RPJ";
 
-// Modelos de fallback ordenados por preferencia (se prueban si el principal falla)
-const FALLBACK_MODELS = (process.env.CHUTES_FALLBACK_MODELS || "deepseek-ai/DeepSeek-V3-0324-TEE,Qwen/Qwen3-235B-A22B-Instruct-2507-TEE")
-    .split(",")
-    .map(m => m.trim())
-    .filter(Boolean);
+// Modelos configurables
+const MODEL_DEFAULT  = process.env.OPENROUTER_MODEL_DEFAULT  || "qwen/qwen3-30b-a3b-instruct-2507";
+const MODEL_THINKING = process.env.OPENROUTER_MODEL_THINKING || "google/gemini-2.5-flash-lite";
+const MODEL_TOOLS    = process.env.OPENROUTER_MODEL_TOOLS    || "google/gemini-2.5-flash-lite";
 
-// Límites de max_completion_tokens conocidos por modelo (no-streaming).
-// Se usan para evitar errores 400 por exceder el límite del modelo.
+const DEFAULT_MAX_TOKENS     = Number.parseInt(process.env.OPENROUTER_MAX_TOKENS      || "8192",  10);
+const DEFAULT_TEMPERATURE    = Number.parseFloat(process.env.OPENROUTER_TEMPERATURE   || "0.7");
+const DEFAULT_TIMEOUT_MS     = Number.parseInt(process.env.OPENROUTER_TIMEOUT_MS      || "60000", 10);
+const DEFAULT_MAX_RETRIES    = Number.parseInt(process.env.OPENROUTER_MAX_RETRIES     || "1",     10);
+const DEFAULT_RETRY_DELAY_MS = Number.parseInt(process.env.OPENROUTER_RETRY_DELAY_MS  || "2000",  10);
+
+// Límites de max_tokens por modelo (para evitar errores 400)
 const MODEL_MAX_COMPLETION_TOKENS = {
-    'moonshotai/Kimi-K2-Instruct-0905': 131072,
-    'moonshotai/Kimi-K2-Thinking': 131072,
-    'moonshotai/Kimi-K2.5-TEE': 131072,
-    'deepseek-ai/DeepSeek-V3': 65536,
-    'deepseek-ai/DeepSeek-V3-0324': 65536,
-    'deepseek-ai/DeepSeek-V3-0324-TEE': 65536,
-    'deepseek-ai/DeepSeek-V3.1-TEE': 65536,
-    'deepseek-ai/DeepSeek-V3.2-TEE': 65536,
-    'deepseek-ai/DeepSeek-R1': 65536,
-    'deepseek-ai/DeepSeek-R1-0528-TEE': 65536,
-    'deepseek-ai/DeepSeek-R1-Distill-Llama-70B': 65536,
-    'tngtech/DeepSeek-R1T-Chimera': 65536,
-    'Qwen/Qwen3-235B-A22B': 32768,
-    'Qwen/Qwen3-235B-A22B-Instruct-2507-TEE': 65536,
-    'Qwen/Qwen2.5-72B-Instruct': 32768,
-    'MiniMaxAI/MiniMax-M2.5-TEE': 65536,
+    'qwen/qwen3-30b-a3b-instruct-2507': 32768,
+    'google/gemini-2.5-flash-lite': 65536,
 };
 
-// Límite seguro por defecto para modelos no registrados
 const SAFE_DEFAULT_MAX_TOKENS = 16384;
 
 /**
@@ -48,14 +33,14 @@ function getEffectiveMaxTokens(model, requested) {
     const limit = MODEL_MAX_COMPLETION_TOKENS[model] || SAFE_DEFAULT_MAX_TOKENS;
     const capped = Math.min(requested, limit);
     if (capped < requested) {
-        console.log(`[ChutesAI] max_tokens ajustado de ${requested} → ${capped} para ${model}`);
+        console.log(`[OpenRouter] max_tokens ajustado de ${requested} → ${capped} para ${model}`);
     }
     return capped;
 }
 
-function ensureApiToken() {
-    if (!CHUTES_API_TOKEN) {
-        throw new Error("Falta la variable de entorno CHUTES_API_TOKEN");
+function ensureApiKey() {
+    if (!OPENROUTER_API_KEY) {
+        throw new Error("Falta la variable de entorno OPENROUTER_API_KEY");
     }
 }
 
@@ -76,7 +61,6 @@ async function tryModelCompletion({
     maxRetries,
     extraBody = {},
 }) {
-    // Ajustar max_tokens al límite conocido del modelo
     const effectiveMaxTokens = getEffectiveMaxTokens(model, maxTokens);
 
     let attempt = 0;
@@ -86,14 +70,19 @@ async function tryModelCompletion({
         attempt += 1;
         const startedAt = Date.now();
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(new Error(`Timeout tras ${timeoutMs} ms`)), timeoutMs);
+        const timeout = setTimeout(
+            () => controller.abort(new Error(`Timeout tras ${timeoutMs} ms`)),
+            timeoutMs,
+        );
 
         try {
-            const response = await fetch(CHUTES_API_URL, {
+            const response = await fetch(OPENROUTER_API_URL, {
                 method: "POST",
                 headers: {
-                    Authorization: `Bearer ${CHUTES_API_TOKEN}`,
+                    Authorization: `Bearer ${OPENROUTER_API_KEY}`,
                     "Content-Type": "application/json",
+                    "HTTP-Referer": OPENROUTER_SITE_URL,
+                    "X-Title": OPENROUTER_SITE_NAME,
                 },
                 body: JSON.stringify({
                     model,
@@ -110,7 +99,7 @@ async function tryModelCompletion({
 
             if (!response.ok) {
                 const errorPayload = await response.text();
-                const err = new Error(`Error en Chutes AI (${response.status}): ${errorPayload}`);
+                const err = new Error(`Error en OpenRouter (${response.status}): ${errorPayload}`);
                 err.statusCode = response.status;
                 throw err;
             }
@@ -135,90 +124,49 @@ async function tryModelCompletion({
 
             let content = message?.content?.trim() || '';
 
-            // Algunos modelos de razonamiento (R1, Qwen3) envuelven la respuesta en <think>...</think>
-            // Limpiar etiquetas de pensamiento: manejar tanto pares completos como tags sin cerrar
+            // Limpiar etiquetas <think> residuales (algunos modelos pueden emitirlas)
             if (content) {
-                // Primero eliminar bloques <think>...</think> completos
                 content = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-                // Luego eliminar <think> sin cierre (todo desde <think> hasta el inicio del contenido real)
                 content = content.replace(/^<think>[\s\S]*$/gi, '').trim();
-                // Eliminar tags sueltos que puedan quedar
                 content = content.replace(/<\/?think>/gi, '').trim();
             }
 
-            // Detectar <tool_call> XML que Qwen emite en el contenido en lugar de finish_reason:tool_calls
-            // Formato Qwen: <tool_call>\n{"name":"...","arguments":{...}}\n</tool_call>
-            if (content && content.includes('<tool_call>')) {
-                const toolCallRegex = /<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/g;
-                const xmlToolCalls = [];
-                let xmlMatch;
-                while ((xmlMatch = toolCallRegex.exec(content)) !== null) {
-                    try {
-                        const parsed = JSON.parse(xmlMatch[1]);
-                        if (parsed.name) {
-                            xmlToolCalls.push({
-                                id: `call_xml_${Date.now()}_${xmlToolCalls.length}`,
-                                type: 'function',
-                                function: {
-                                    name: parsed.name,
-                                    arguments: JSON.stringify(parsed.arguments || {}),
-                                },
-                            });
-                        }
-                    } catch { /* ignorar XML malformado */ }
-                }
-                if (xmlToolCalls.length > 0) {
-                    return {
-                        content: '',
-                        toolCalls: xmlToolCalls,
-                        finishReason: 'tool_calls',
-                        raw: data,
-                        usage: data?.usage ?? null,
-                        attempts: attempt,
-                        durationMs: Date.now() - startedAt,
-                        model,
-                    };
-                }
+            // Si content está vacío, intentar extraer de reasoning (modelos thinking)
+            if (!content && message?.reasoning) {
+                content = String(message.reasoning).trim();
             }
-
-            // Si content está vacío, intentar extraer de reasoning_content (modelos thinking)
             if (!content && message?.reasoning_content) {
-                content = message.reasoning_content.trim();
+                content = String(message.reasoning_content).trim();
             }
 
             if (!content) {
-                throw new Error("La respuesta de Chutes AI no contiene contenido");
+                throw new Error("La respuesta de OpenRouter no contiene contenido");
             }
-
-            const durationMs = Date.now() - startedAt;
 
             return {
                 content,
                 raw: data,
                 usage: data?.usage ?? null,
                 attempts: attempt,
-                durationMs,
+                durationMs: Date.now() - startedAt,
                 model,
             };
         } catch (error) {
             clearTimeout(timeout);
             lastError = error instanceof Error ? error : new Error(String(error));
 
-            if (lastError?.name === 'AbortError' && lastError?.message === 'This operation was aborted') {
+            if (lastError?.name === 'AbortError') {
                 lastError = new Error(`Timeout tras ${timeoutMs} ms`);
             }
 
-            if (attempt > maxRetries) {
-                break;
-            }
+            if (attempt > maxRetries) break;
 
-            // Detectar error 429 y usar un tiempo de espera corto pero creciente
-            const is429Error = lastError.message.includes('429') || lastError.message.includes('maximum capacity');
-            const waitTime = is429Error
-                ? Math.min(DEFAULT_RETRY_DELAY_MS * attempt * 2, 5000)   // 429: 2s, 4s, 5s max
-                : Math.min(DEFAULT_RETRY_DELAY_MS * attempt, DEFAULT_RETRY_DELAY_MS * 3);
+            const is429 = lastError.message.includes('429') || lastError.message.includes('rate limit');
+            const waitTime = is429
+                ? Math.min(DEFAULT_RETRY_DELAY_MS * attempt * 3, 15000)
+                : Math.min(DEFAULT_RETRY_DELAY_MS * attempt * 2, 10000);
 
-            console.warn(`[ChutesAI] ${model} intento ${attempt} fallido: ${lastError.message}. Reintentando en ${waitTime} ms`);
+            console.warn(`[OpenRouter] ${model} intento ${attempt} fallido: ${lastError.message}. Reintentando en ${waitTime} ms`);
             await delay(waitTime);
         }
     }
@@ -228,38 +176,24 @@ async function tryModelCompletion({
 }
 
 /**
- * Determina si un error justifica probar con un modelo de fallback.
- * Además de errores de disponibilidad (502/503/timeout), incluye errores
- * de límites de tokens y contexto (400) que se solucionan con otro modelo.
+ * Llamada principal al LLM vía OpenRouter.
+ *
+ * @param {object}  options
+ * @param {Array}   options.messages             - Mensajes en formato OpenAI
+ * @param {string}  [options.model]              - Modelo a usar (por defecto MODEL_DEFAULT)
+ * @param {number}  [options.temperature]
+ * @param {number}  [options.maxTokens]
+ * @param {boolean} [options.stream]
+ * @param {number}  [options.timeoutMs]
+ * @param {number}  [options.maxRetries]
+ * @param {object}  [options.extraBody]          - Campos extra para el body (tools, reasoning, etc.)
+ * @param {boolean} [options.noFallback]         - Si true, no intentar toolFallbackModel
+ * @param {string}  [options.toolFallbackModel]  - Modelo alternativo si el principal falla
+ * @param {boolean} [options.useThinking]        - Si true, activa reasoning (DeepThink mode)
  */
-function shouldTryFallback(error) {
-    const msg = error?.message || '';
-    // Disponibilidad: 503 sin instancias, 502 bad gateway, timeout
-    if (msg.includes('503') || msg.includes('502') || msg.includes('Timeout') || msg.includes('No instances')) {
-        return true;
-    }
-    // Capacidad máxima / rate limit: probar con otro modelo que tenga instancias libres
-    if (msg.includes('429') || msg.includes('maximum capacity') || msg.includes('rate limit') || msg.includes('try again later')) {
-        return true;
-    }
-    // Modelo no encontrado: 404 o mensaje explícito del API
-    if (msg.includes('404') || msg.includes('model not found') || msg.includes('not_found')) {
-        return true;
-    }
-    // Límites de tokens/contexto: recuperable con un modelo diferente
-    if (msg.includes('max_completion_tokens') || msg.includes('context length') || msg.includes('too large') || msg.includes('token count exceeds')) {
-        return true;
-    }
-    // Respuesta vacía: el modelo respondió pero sin contenido útil
-    if (msg.includes('no contiene contenido')) {
-        return true;
-    }
-    return false;
-}
-
 export async function callChatCompletion({
     messages,
-    model = DEFAULT_MODEL,
+    model = MODEL_DEFAULT,
     temperature = DEFAULT_TEMPERATURE,
     maxTokens = DEFAULT_MAX_TOKENS,
     stream = false,
@@ -268,63 +202,58 @@ export async function callChatCompletion({
     extraBody = {},
     noFallback = false,
     toolFallbackModel = null,
+    useThinking = false,
 }) {
-    ensureApiToken();
+    ensureApiKey();
 
-    // Intentar con el modelo principal
+    const effectiveModel = model ?? MODEL_DEFAULT;
+    const effectiveExtraBody = { ...extraBody };
+
+    // Activar razonamiento cuando se solicita DeepThink (Gemini 2.5 Flash Lite)
+    if (useThinking && !effectiveExtraBody.reasoning) {
+        effectiveExtraBody.reasoning = { max_tokens: 8000 };
+    }
+
     try {
-        return await tryModelCompletion({ messages, model, temperature, maxTokens, stream, timeoutMs, maxRetries, extraBody });
+        return await tryModelCompletion({
+            messages,
+            model: effectiveModel,
+            temperature,
+            maxTokens,
+            stream,
+            timeoutMs,
+            maxRetries,
+            extraBody: effectiveExtraBody,
+        });
     } catch (primaryError) {
-        // Si hay un modelo de fallback específico para tools (compatible con tool_calls en historial), usarlo primero
-        if (toolFallbackModel && toolFallbackModel !== model) {
+        // Intentar con el modelo de fallback si está definido
+        if (toolFallbackModel && toolFallbackModel !== effectiveModel && !noFallback) {
             try {
-                console.log(`[ChutesAI] Intentando con toolFallbackModel: ${toolFallbackModel}`);
-                return await tryModelCompletion({ messages, model: toolFallbackModel, temperature, maxTokens, stream, timeoutMs, maxRetries: 1, extraBody });
-            } catch (toolFallbackError) {
-                console.warn(`[ChutesAI] toolFallbackModel ${toolFallbackModel} también falló: ${toolFallbackError.message}`);
-                // Continuar con la lógica normal de fallback
-            }
-        }
-        // Si no hay fallback permitido (p.ej. cuando hay tool_calls en el historial)
-        if (noFallback) {
-            throw new Error(`El modelo ${model} no pudo responder: ${primaryError.message}`);
-        }
-        // Si el error no justifica fallback (ej: 401 auth), lanzar directamente
-        if (!shouldTryFallback(primaryError)) {
-            throw new Error(`El modelo no pudo generar una respuesta tras ${primaryError.attempts || '?'} intentos: ${primaryError.message}`);
-        }
-
-        console.warn(`[ChutesAI] Modelo principal ${model} no disponible. Probando modelos de fallback...`);
-        logService.logWarn('LLM', `Modelo principal no disponible, activando fallback`, { detalles: { modelo: model, error: primaryError.message } });
-
-        // Intentar con cada modelo de fallback en orden
-        for (const fallbackModel of FALLBACK_MODELS) {
-            if (fallbackModel === model) continue; // Saltar si es el mismo modelo
-
-            try {
-                console.log(`[ChutesAI] Intentando con modelo de fallback: ${fallbackModel}`);
-                const result = await tryModelCompletion({
+                console.log(`[OpenRouter] Intentando con toolFallbackModel: ${toolFallbackModel}`);
+                return await tryModelCompletion({
                     messages,
-                    model: fallbackModel,
+                    model: toolFallbackModel,
                     temperature,
                     maxTokens,
                     stream,
                     timeoutMs,
-                    maxRetries: 0, // sin reintentos en fallback para no superar timeout del proxy
-                    extraBody,
+                    maxRetries: 0,
+                    extraBody: effectiveExtraBody,
                 });
-                console.log(`[ChutesAI] ✅ Modelo de fallback ${fallbackModel} respondió correctamente`);
-                logService.logInfo('LLM', `Fallback exitoso con modelo ${fallbackModel}`, { detalles: { modelo: fallbackModel, intento: result.attempts, duracionMs: result.durationMs } });
-                return result;
             } catch (fallbackError) {
-                console.warn(`[ChutesAI] Modelo de fallback ${fallbackModel} también falló: ${fallbackError.message}`);
-                continue;
+                console.warn(`[OpenRouter] toolFallbackModel ${toolFallbackModel} también falló: ${fallbackError.message}`);
             }
         }
 
-        // Todos los modelos fallaron
-        const allModelsError = `Ningún modelo disponible. Principal (${model}) y fallbacks (${FALLBACK_MODELS.join(', ')}) fallaron.`;
-        logService.logError('LLM', allModelsError, { detalles: { modelo: model, fallbacks: FALLBACK_MODELS } });
-        throw new Error(allModelsError);
+        const errorMsg = `OpenRouter: el modelo ${effectiveModel} no pudo responder: ${primaryError.message}`;
+        logService.logError('LLM', errorMsg, { detalles: { modelo: effectiveModel, error: primaryError.message } });
+        throw new Error(errorMsg);
     }
 }
+
+// Exportar constantes de modelos para uso en otras partes del código
+export const MODELS = {
+    DEFAULT:  MODEL_DEFAULT,
+    THINKING: MODEL_THINKING,
+    TOOLS:    MODEL_TOOLS,
+};

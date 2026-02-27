@@ -2,7 +2,7 @@ import express from 'express';
 import prismaPackage from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
 import chromaService from '../services/chromaService.js';
-import { callChatCompletion } from '../services/llmService.js';
+import { callChatCompletion, MODELS } from '../services/llmService.js';
 import gemmaService from '../services/gemmaService.js';
 import logService from '../services/logService.js';
 import { hasActiveCanvaConnector, CANVA_TOOLS, executeCanvaTool, createDesign, findTemplates } from '../services/canvaConnectorService.js';
@@ -722,7 +722,7 @@ REGLAS ABSOLUTAS:
             try {
                 const canvaActive = await hasActiveCanvaConnector(req.user.id);
                 if (canvaActive) {
-                    canvaModelOverride = 'deepseek-ai/DeepSeek-V3-0324-TEE';
+                    canvaModelOverride = MODELS.TOOLS;
 
                     const isCanvaCreativeRequest =
                         /\bcanva\b/i.test(trimmedMessage) ||
@@ -824,9 +824,8 @@ REGLAS ABSOLUTAS:
 
         const llmCallOptions = {
             messages: llmMessages,
-            model: useThinkingModel === true
-                ? 'tngtech/DeepSeek-R1T-Chimera'
-                : canvaModelOverride ?? undefined,
+            model: useThinkingModel === true ? MODELS.THINKING : (canvaModelOverride ?? undefined),
+            useThinking: useThinkingModel === true,
             // Los modelos de razonamiento (thinking) no admiten tools
             ...(activeTools.length > 0 && !useThinkingModel
                 ? { extraBody: { tools: activeTools, tool_choice: 'auto', parallel_tool_calls: true } }
@@ -889,9 +888,8 @@ REGLAS ABSOLUTAS:
                 llmResponse = await callChatCompletion({
                     messages: llmMessages,
                     // Siempre Qwen para tool-calling (más compatible)
-                    model: useThinkingModel === true ? 'tngtech/DeepSeek-R1T-Chimera' : 'Qwen/Qwen2.5-72B-Instruct',
-                    // Fallback a Qwen3 (compatible con tool_calls en historial), evitar DeepSeek
-                    toolFallbackModel: 'Qwen/Qwen3-235B-A22B-Instruct-2507-TEE',
+                    model: useThinkingModel === true ? MODELS.THINKING : MODELS.DEFAULT,
+                    toolFallbackModel: MODELS.DEFAULT,
                     // Timeout reducido para no superar el timeout del proxy (60s total)
                     timeoutMs: 20000,
                     // Solo mantener tools activas si no es el último pase

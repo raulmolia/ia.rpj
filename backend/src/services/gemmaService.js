@@ -1,60 +1,7 @@
-// Servicio para interactuar con Gemma 3 4b It - Asistente de aplicación
-import dotenv from 'dotenv';
+// Servicio para tareas auxiliares de IA (títulos, saludos, transcripción, optimización)
+// Usa callChatCompletion de llmService (OpenRouter)
 import { getGreeting } from '../config/chatPrompts.js';
-import { callChatCompletion } from './llmService.js';
-
-dotenv.config();
-
-const CHUTES_API_TOKEN = process.env.CHUTES_API_TOKEN;
-const GEMMA_MODEL = 'unsloth/gemma-3-4b-it';
-const API_URL = 'https://llm.chutes.ai/v1/chat/completions';
-
-/**
- * Llama a Gemma 3 4b It para tareas de asistencia de aplicación
- * @param {Array} messages - Array de mensajes en formato OpenAI
- * @param {Object} options - Opciones adicionales
- * @returns {Promise<string>} - Respuesta del modelo
- */
-async function callGemma(messages, options = {}) {
-    const {
-        temperature = 0.7,
-        maxTokens = 1024,
-        stream = false,
-    } = options;
-
-    try {
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${CHUTES_API_TOKEN}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                model: GEMMA_MODEL,
-                messages,
-                stream,
-                max_tokens: maxTokens,
-                temperature,
-            }),
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(`Gemma API error (${response.status}): ${JSON.stringify(errorData)}`);
-        }
-
-        const data = await response.json();
-
-        if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-            throw new Error('Respuesta inválida de Gemma API');
-        }
-
-        return data.choices[0].message.content;
-    } catch (error) {
-        console.error('❌ Error en Gemma Service:', error.message);
-        throw error;
-    }
-}
+import { callChatCompletion, MODELS } from './llmService.js';
 
 /**
  * Genera un título resumido para un chat basado en el primer mensaje
@@ -69,43 +16,22 @@ export async function generateChatTitle(firstMessage) {
 Responde SOLO con el título, sin comillas, sin explicaciones, sin etiquetas. Debe ser claro y reflejar el tema principal.`;
 
     try {
-        // Usar un modelo no-pensante para generar el título directamente
         const result = await callChatCompletion({
             messages: [{ role: 'user', content: prompt }],
-            model: 'Qwen/Qwen2.5-72B-Instruct',
+            model: MODELS.DEFAULT,
             temperature: 0.5,
             maxTokens: 100,
-            timeoutMs: 15000,
+            timeoutMs: 20000,
             maxRetries: 1,
-            extraBody: { chat_template_kwargs: { enable_thinking: false } },
         });
 
-        let title = (result?.content || '').trim();
-        // Limpiar posibles etiquetas <think> de modelos de razonamiento
-        title = title.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-        title = title.replace(/<\/?think>/gi, '').trim();
-        // Limpiar comillas envolventes
-        title = title.replace(/^["'«»]|["'«»]$/g, '').trim();
-        title = title.slice(0, 60);
-        return title || 'Nueva conversación';
-    } catch (primaryError) {
-        console.warn('LLM principal falló para título, intentando Gemma:', primaryError.message);
-
-        // Fallback a Gemma si el LLM principal falla
-        try {
-            const title = await callGemma([
-                { role: 'user', content: prompt }
-            ], {
-                temperature: 0.5,
-                maxTokens: 50,
-            });
-
-            const cleanTitle = title.trim().replace(/^["']|["']$/g, '').slice(0, 60);
-            return cleanTitle || 'Nueva conversación';
-        } catch (gemmaError) {
-            console.error('Error generando título de chat (todos los modelos fallaron):', gemmaError.message);
-            return 'Nueva conversación';
-        }
+        let cleanTitle = (result?.content || '').trim();
+        cleanTitle = cleanTitle.replace(/^["'«»]|["'«»]$/g, '').trim();
+        cleanTitle = cleanTitle.slice(0, 60);
+        return cleanTitle || 'Nueva conversación';
+    } catch (error) {
+        console.error('Error generando título de chat:', error.message);
+        return 'Nueva conversación';
     }
 }
 
@@ -139,14 +65,16 @@ Ejemplos válidos (usa variaciones diferentes):
 Responde SOLO con el saludo, sin comillas ni explicaciones.`;
 
     try {
-        const greeting = await callGemma([
-            { role: 'user', content: prompt }
-        ], {
+        const result = await callChatCompletion({
+            messages: [{ role: 'user', content: prompt }],
+            model: MODELS.DEFAULT,
             temperature: 0.9,
-            maxTokens: 50,
+            maxTokens: 80,
+            timeoutMs: 20000,
+            maxRetries: 1,
         });
 
-        return greeting.trim();
+        return (result?.content || '').trim() || getGreeting(userName, 'es');
     } catch (error) {
         console.error('Error generando saludo inicial:', error);
         return getGreeting(userName, 'es');
@@ -179,12 +107,16 @@ Responde en formato JSON con esta estructura:
 }`;
 
     try {
-        const response = await callGemma([
-            { role: 'user', content: prompt }
-        ], {
+        const result = await callChatCompletion({
+            messages: [{ role: 'user', content: prompt }],
+            model: MODELS.DEFAULT,
             temperature: 0.3,
             maxTokens: 2048,
+            timeoutMs: 30000,
+            maxRetries: 1,
         });
+
+        const response = result?.content || '';
 
         // Intentar parsear la respuesta como JSON
         try {
@@ -199,7 +131,7 @@ Responde en formato JSON con esta estructura:
                 };
             }
         } catch (parseError) {
-            console.warn('No se pudo parsear respuesta JSON de Gemma, usando contenido original');
+            console.warn('No se pudo parsear respuesta JSON, usando contenido original');
         }
 
         // Si no se puede parsear, devolver el contenido original
@@ -209,7 +141,7 @@ Responde en formato JSON con esta estructura:
             palabrasClave: [],
         };
     } catch (error) {
-        console.error('Error transcribiendo contenido con Gemma:', error);
+        console.error('Error transcribiendo contenido:', error);
         return {
             transcripcion: fileContent,
             resumen: '',
@@ -236,14 +168,16 @@ ${text}
 Responde SOLO con el resumen, sin introducción ni explicaciones.`;
 
     try {
-        const optimized = await callGemma([
-            { role: 'user', content: prompt }
-        ], {
+        const result = await callChatCompletion({
+            messages: [{ role: 'user', content: prompt }],
+            model: MODELS.DEFAULT,
             temperature: 0.3,
             maxTokens: Math.floor(maxLength / 2),
+            timeoutMs: 30000,
+            maxRetries: 1,
         });
 
-        return optimized.trim();
+        return (result?.content || '').trim() || text.slice(0, maxLength) + '...';
     } catch (error) {
         console.error('Error optimizando texto:', error);
         // Si falla, truncar directamente
