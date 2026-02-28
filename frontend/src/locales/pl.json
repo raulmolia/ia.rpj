@@ -401,51 +401,312 @@
     "iosNote": "Ikona pojawi się obok aplikacji. Jeśli włączysz format \"pulpit\", będzie lepiej wyświetlana. iOS zachowuje niektóre paski Safari, ale dostęp jest bezpośredni."
   },
   "guide": {
-    "title": "Przewodnik dokumentacji",
-    "subtitle": "Przeglądaj bazę wiedzy asystenta",
-    "backToChat": "Powrót do czatu",
-    "infoTab": "Informacje",
-    "repositoryTab": "Repozytorium",
-    "loading": "Ładowanie...",
-    "whatIsRepository": "Czym jest repozytorium dokumentów?",
-    "whatIsRepositoryDesc1": "Repozytorium dokumentów to wektorowa baza wiedzy zawierająca dokumentację istotną dla duszpasterstwa młodzieży. Dokumenty te zostały przetworzone i zapisane jako wektory semantyczne, których asystent używa do wzbogacania swoich odpowiedzi o specyficzne treści dostarczone przez instytucje uczestniczące w RPJ.",
-    "whatIsRepositoryDesc2": "Dokumenty są zindeksowane w bazie wektorowej i nie można ich pobierać ani otwierać bezpośrednio z tego interfejsu, ale możesz sprawdzić, jakie treści są dostępne i jak są skategoryzowane.",
-    "tagsTitle": "Etykiety klasyfikacji",
-    "tagsDesc": "Dokumenty są zorganizowane za pomocą etykiet tematycznych:",
-    "tagProgramaciones": "Programy:",
-    "tagProgramacionesDesc": "Plany działań według tematów, grup wiekowych i celów.",
-    "tagDinamicas": "Dynamiki:",
-    "tagDinamicasDesc": "Gry i zajęcia grupowe do pracy nad tematem.",
-    "tagCelebraciones": "Celebracje:",
-    "tagCelebracionesDesc": "Eucharystie i celebracje Słowa",
-    "tagOraciones": "Modlitwy:",
-    "tagOracionesDesc": "Teksty, medytacje i dynamiki duchowości.",
-    "tagConsulta": "Referencje:",
-    "tagConsultaDesc": "Materiały referencyjne na tematy duszpasterstwa młodzieży.",
-    "tagPastoralGenerico": "Ogólne duszpasterstwo:",
-    "tagPastoralGenericoDesc": "Treści duszpasterskie bez konkretnej kategorii.",
-    "tagRevistas": "Czasopisma:",
-    "tagRevistasDesc": "Wydawnictwa periodyczne, biuletyny i artykuły",
-    "tagContenidoMixto": "Treści mieszane:",
-    "tagContenidoMixtoDesc": "Dokumenty z różnymi rodzajami treści.",
-    "tagOtros": "Inne:",
-    "tagOtrosDesc": "Jakikolwiek inny typ dokumentu",
-    "howAIUsesTitle": "Jak IA RPJ używa dokumentów",
-    "howAIUsesDesc": "Gdy wykonujesz zapytanie, asystent automatycznie przeszukuje odpowiednie dokumenty na podstawie wykrytej intencji (dynamiki, modlitwy, programy, itp.). Najbardziej trafne fragmenty są włączane jako kontekst do generowania dokładniejszych i bardziej spersonalizowanych odpowiedzi dla Twojej organizacji. Wyszukiwanie odbywa się poprzez podobieństwo wektorowe, co pozwala znaleźć odpowiednie treści nawet gdy słowa użyte w Twoim pytaniu nie pasują dokładnie.",
-    "loginRequired": "Musisz się zalogować, aby zobaczyć repozytorium",
-    "noPermission": "Nie masz uprawnień do przeglądania repozytorium dokumentów",
-    "loadError": "Błąd podczas ładowania dokumentów",
-    "connectionError": "Błąd połączenia podczas ładowania dokumentów",
-    "noDocuments": "Brak dostępnych dokumentów w repozytorium",
-    "tableTitle": "Tytuł",
-    "tableDescription": "Wygenerowany opis",
-    "tableTags": "Etykiety",
-    "noDescription": "Bez opisu",
-    "show": "Pokaż",
-    "ofDocuments": "z {count} dokumentów",
-    "page": "Strona {current} z {total}",
-    "repositoryNote": "Wyświetlane dokumenty są przechowywane w bazie wektorowej i są używane przez asystenta do dostarczania kontekstowych odpowiedzi.",
-    "loginButton": "Zaloguj się"
+    "pageTitle": "Guía de uso",
+    "backToChat": "Volver al chat",
+    "sidebarTitle": "Asistente IA RPJ",
+    "sidebarSubtitle": "Guía completa de uso",
+    "sidebar": {
+      "introduccion": "Introducción",
+      "primeros-pasos": "Primeros pasos",
+      "crear-cuenta": "Crear una cuenta",
+      "iniciar-sesion": "Iniciar sesión",
+      "cambiar-contrasena": "Cambiar contraseña",
+      "tu-perfil": "Tu perfil",
+      "chat-ia": "El Chat IA",
+      "crear-conversacion": "Crear conversación",
+      "categorias-consulta": "Categorías de consulta",
+      "escribir-prompt": "Escribir un buen prompt",
+      "modo-deep-think": "Modo Deep Think",
+      "modo-lienzo": "Modo Lienzo (Canvas)",
+      "adjuntar-archivos": "Adjuntar archivos",
+      "dictar-por-voz": "Dictar por voz",
+      "feedback-respuestas": "Feedback de respuestas",
+      "compartir-contenido": "Compartir contenido",
+      "descargar-respuestas": "Descargar respuestas",
+      "conversaciones": "Conversaciones",
+      "gestionar-conversaciones": "Gestionar conversaciones",
+      "buscar-conversaciones": "Buscar conversaciones",
+      "archivar-eliminar": "Archivar y eliminar",
+      "conectores": "Conectores",
+      "conector-google-drive": "Google Drive",
+      "conector-google-docs": "Google Docs",
+      "personalizacion": "Personalización",
+      "tema-claro-oscuro": "Tema claro / oscuro",
+      "idioma": "Idioma",
+      "fuente-chat": "Fuente del chat",
+      "instalar-movil": "Instalar en el móvil",
+      "android-chrome": "Android (Chrome)",
+      "ios-safari": "iOS (Safari)",
+      "planes-limites": "Planes y límites",
+      "plan-free": "Plan gratuito (FREE)",
+      "plan-pro": "Plan PRO",
+      "preguntas-frecuentes": "Preguntas frecuentes",
+      "contacto-soporte": "Contacto y soporte"
+    },
+    "sections": {
+      "primerosPasos": {
+        "title": "Primeros pasos",
+        "intro": "Antes de comenzar a utilizar el Asistente IA RPJ, necesitas crear tu cuenta y familiarizarte con el acceso a la plataforma. A continuación te mostramos cómo hacerlo paso a paso."
+      },
+      "crearCuenta": {
+        "title": "Crear una cuenta",
+        "desc": "Para acceder al asistente, primero necesitas registrarte con tus datos:",
+        "step1": "Accede a la página de registro desde el enlace \"Crear cuenta\" en la pantalla de inicio de sesión.",
+        "step2": "Introduce tu nombre completo, correo electrónico y una contraseña segura.",
+        "step3": "Indica tu diócesis y el nombre de tu grupo o parroquia si lo deseas.",
+        "step4": "Acepta los términos de uso y pulsa \"Registrarse\".",
+        "step5": "Recibirás un correo de confirmación. Revisa tu bandeja de entrada (y la carpeta de spam) para activar tu cuenta."
+      },
+      "iniciarSesion": {
+        "title": "Iniciar sesión",
+        "desc": "Una vez creada tu cuenta, acceder es muy sencillo:",
+        "step1": "Introduce tu correo electrónico y contraseña en la pantalla de inicio de sesión.",
+        "step2": "Pulsa \"Iniciar sesión\". Si marcas la opción \"Recordarme\", no tendrás que volver a escribir tus datos.",
+        "step3": "Si olvidaste tu contraseña, pulsa \"¿Has olvidado tu contraseña?\" y sigue las instrucciones del correo que recibirás."
+      },
+      "cambiarContrasena": {
+        "title": "Cambiar contraseña",
+        "desc": "Puedes cambiar tu contraseña en cualquier momento desde la configuración de tu perfil. La nueva contraseña debe cumplir los siguientes requisitos:",
+        "req1": "Mínimo 8 caracteres de longitud.",
+        "req2": "Al menos una letra mayúscula.",
+        "req3": "Al menos un número."
+      },
+      "tuPerfil": {
+        "title": "Tu perfil",
+        "desc": "Desde tu perfil puedes gestionar tu información personal y preferencias:",
+        "item1": "Consultar tus estadísticas de uso: conversaciones, mensajes enviados y documentos consultados.",
+        "item2": "Gestionar tu suscripción y configurar notificaciones.",
+        "item3": "Editar tu nombre y correo electrónico."
+      },
+      "chatIA": {
+        "title": "El Chat IA",
+        "intro": "El chat es el corazón de la aplicación. Aquí puedes mantener conversaciones con la IA para crear actividades, dinámicas, oraciones, programaciones y mucho más. Cada conversación se guarda automáticamente para que puedas retomar donde lo dejaste."
+      },
+      "crearConversacion": {
+        "title": "Crear una conversación",
+        "desc": "Iniciar una nueva conversación es muy sencillo:",
+        "step1": "Pulsa el botón \"+ Nueva conversación\" en el panel lateral o en la parte superior.",
+        "step2": "Selecciona la categoría que mejor se ajuste a tu consulta (dinámicas, oraciones, celebraciones, programaciones o consulta general).",
+        "step3": "Escribe tu mensaje y la IA te responderá con sugerencias adaptadas a tu grupo y contexto."
+      },
+      "categorias": {
+        "title": "Categorías de consulta",
+        "desc": "Al crear una conversación puedes elegir una categoría para que la IA adapte mejor sus respuestas:",
+        "dinamicas": {
+          "name": "Dinámicas y Actividades",
+          "desc": "Juegos, talleres y actividades grupales adaptadas por edades y temáticas."
+        },
+        "oraciones": {
+          "name": "Oraciones",
+          "desc": "Oraciones personales y grupales, momentos de reflexión y meditaciones guiadas."
+        },
+        "celebraciones": {
+          "name": "Celebraciones",
+          "desc": "Preparación de Eucaristías, celebraciones de la Palabra y momentos litúrgicos."
+        },
+        "programaciones": {
+          "name": "Programaciones",
+          "desc": "Planificación de encuentros, retiros, campamentos y trimestres completos."
+        },
+        "consulta": {
+          "name": "Consulta general",
+          "desc": "Cualquier otra consulta pastoral, formativa o de acompañamiento juvenil."
+        }
+      },
+      "escribirPrompt": {
+        "title": "Escribir un buen prompt",
+        "desc": "La calidad de la respuesta depende mucho de cómo formules tu pregunta. Cuanto más contexto incluyas, mejor será la respuesta de la IA.",
+        "exampleTitle": "Ejemplo comparativo",
+        "badLabel": "Prompt poco específico",
+        "badExample": "\"Dame una dinámica para jóvenes.\"",
+        "goodLabel": "Prompt detallado",
+        "goodExample": "\"Necesito una dinámica de 30 minutos para un grupo de 15 jóvenes de 16-18 años sobre la amistad, que se pueda hacer en un salón parroquial y que incluya trabajo en pequeños grupos.\"",
+        "tip1": "Indica la edad del grupo y el número de participantes.",
+        "tip2": "Especifica el tiempo disponible y el espacio donde se realizará.",
+        "tip3": "Detalla el tema o temática que quieres trabajar.",
+        "tip4": "Si necesitas materiales concretos o un formato específico, menciónalo."
+      },
+      "deepThink": {
+        "title": "Modo Deep Think",
+        "desc": "El modo Deep Think permite que la IA dedique más tiempo a pensar y razonar antes de responder. Es ideal para peticiones complejas donde necesitas respuestas más elaboradas y profundas.",
+        "tip1": "Actívalo desde el icono del cerebro junto al campo de texto del chat.",
+        "tip2": "Úsalo para programaciones completas, retiros o preparaciones litúrgicas detalladas.",
+        "tip3": "Las respuestas pueden tardar un poco más, pero serán más completas y estructuradas."
+      },
+      "modoLienzo": {
+        "title": "Modo Lienzo (Canvas)",
+        "desc": "El modo Lienzo es una funcionalidad exclusiva para usuarios PRO que abre un editor visual junto al chat. Te permite editar en tiempo real el contenido generado por la IA con un editor de texto enriquecido.",
+        "tip1": "Actívalo desde el icono de lienzo en la barra inferior del chat.",
+        "tip2": "Puedes editar títulos, listas, negritas, cursivas y más directamente sobre el texto generado.",
+        "tip3": "El contenido del lienzo se guarda automáticamente con tu conversación.",
+        "tip4": "Es ideal para refinar actividades, ajustar textos de oraciones o personalizar programaciones antes de compartirlas."
+      },
+      "adjuntarArchivos": {
+        "title": "Adjuntar archivos",
+        "desc": "Puedes adjuntar archivos a tus mensajes para que la IA los analice y utilice como contexto en sus respuestas.",
+        "format1": "Documentos PDF, Word (.doc, .docx) y texto plano (.txt).",
+        "format2": "Imágenes (.jpg, .png) — la IA puede analizar su contenido visual.",
+        "format3": "Tamaño máximo recomendado: 10 MB por archivo."
+      },
+      "dictarVoz": {
+        "title": "Dictar por voz",
+        "desc": "Si prefieres hablar en lugar de escribir, puedes usar la función de dictado por voz:",
+        "step1": "Pulsa el icono del micrófono junto al campo de texto.",
+        "step2": "Habla con claridad tu consulta. La aplicación transcribirá tu voz a texto automáticamente.",
+        "step3": "Revisa el texto transcrito y pulsa enviar cuando estés conforme."
+      },
+      "feedback": {
+        "title": "Feedback de respuestas",
+        "desc": "Tu opinión nos ayuda a mejorar. Después de cada respuesta de la IA puedes valorarla:",
+        "tip1": "Pulsa el icono de pulgar arriba (👍) si la respuesta fue útil o el de pulgar abajo (👎) si no lo fue.",
+        "tip2": "Opcionalmente puedes añadir un comentario describiendo qué mejorarías."
+      },
+      "compartir": {
+        "title": "Compartir contenido",
+        "desc": "Puedes compartir las respuestas de la IA con otros miembros de tu equipo pastoral:",
+        "mode1": "Envío por correo electrónico: introduce la dirección del destinatario y el contenido se enviará formateado.",
+        "mode2": "Copiar enlace: genera un enlace que cualquier usuario registrado puede abrir."
+      },
+      "descargar": {
+        "title": "Descargar respuestas",
+        "desc": "Descarga las respuestas de la IA en distintos formatos para usarlas fuera de la plataforma:",
+        "format1": "PDF: documento formateado listo para imprimir o compartir.",
+        "format2": "Word (.docx): documento editable que puedes modificar libremente."
+      },
+      "conversaciones": {
+        "title": "Conversaciones",
+        "intro": "Todas tus conversaciones se guardan automáticamente. Puedes acceder a ellas en cualquier momento desde el panel lateral izquierdo."
+      },
+      "gestionarConversaciones": {
+        "title": "Gestionar conversaciones",
+        "desc": "Desde el panel lateral puedes organizar tus conversaciones de forma sencilla:",
+        "tip1": "Renombra una conversación haciendo clic en su nombre o en el icono de editar.",
+        "tip2": "Las conversaciones se ordenan automáticamente por fecha, mostrando las más recientes primero.",
+        "tip3": "Puedes fijar conversaciones importantes para que aparezcan siempre arriba."
+      },
+      "buscarConversaciones": {
+        "title": "Buscar conversaciones",
+        "desc": "Utiliza la barra de búsqueda en la parte superior del panel lateral para encontrar conversaciones por título o contenido. La búsqueda se realiza en tiempo real mientras escribes."
+      },
+      "archivarEliminar": {
+        "title": "Archivar y eliminar",
+        "desc": "Si quieres limpiar tu lista de conversaciones tienes dos opciones:",
+        "tip1": "Archivar: la conversación desaparece de la lista principal pero se conserva y puedes recuperarla en cualquier momento.",
+        "tip2": "Eliminar: la conversación y todos sus mensajes se borran permanentemente. Esta acción no se puede deshacer."
+      },
+      "conectores": {
+        "title": "Conectores",
+        "intro": "Los conectores son integraciones exclusivas para usuarios PRO que permiten conectar la IA con servicios externos para ampliar sus capacidades."
+      },
+      "canva": {
+        "title": "Canva",
+        "desc": "Conecta tu cuenta de Canva para crear diseños visuales directamente desde las respuestas de la IA:",
+        "tip1": "Genera automáticamente presentaciones, carteles y publicaciones para redes sociales a partir del contenido creado.",
+        "tip2": "Elige entre plantillas prediseñadas adaptadas a la pastoral juvenil.",
+        "tip3": "Edita el diseño final en Canva con un solo clic."
+      },
+      "googleDrive": {
+        "title": "Google Drive",
+        "desc": "Vincula tu Google Drive para guardar y acceder a tus documentos directamente:",
+        "tip1": "Guarda automáticamente las respuestas de la IA en tu Drive.",
+        "tip2": "Importa documentos desde Drive para que la IA los analice como contexto.",
+        "tip3": "Organiza tu contenido en carpetas específicas para cada grupo o trimestre."
+      },
+      "googleDocs": {
+        "title": "Google Docs",
+        "desc": "Exporta el contenido generado directamente a Google Docs para editarlo colaborativamente:",
+        "tip1": "Envía actividades, programaciones u oraciones como documentos editables de Google Docs.",
+        "tip2": "Comparte los documentos con tu equipo para trabajar juntos en tiempo real.",
+        "tip3": "Mantén un historial de versiones de todos los materiales generados."
+      },
+      "personalizacion": {
+        "title": "Personalización",
+        "intro": "La aplicación se adapta a tus preferencias. Puedes personalizar la apariencia y el idioma para que la experiencia sea más cómoda."
+      },
+      "tema": {
+        "title": "Tema claro / oscuro",
+        "desc": "Alterna entre el tema claro y el tema oscuro pulsando el icono de sol/luna en la esquina superior derecha. La aplicación recuerda tu preferencia para futuras visitas."
+      },
+      "idioma": {
+        "title": "Idioma",
+        "desc": "Cambia el idioma de la interfaz desde el selector de idioma en la parte superior de la aplicación. La IA también responderá en el idioma seleccionado.",
+        "list": "Idiomas disponibles: Español, English, Français, Italiano, Português, Magyar, Polski, Català, Galego y Euskara."
+      },
+      "fuente": {
+        "title": "Fuente del chat",
+        "desc": "Personaliza la tipografía del chat eligiendo entre varias fuentes disponibles en la configuración. Puedes seleccionar la fuente que mejor se adapte a tu lectura sin que afecte al resto de la interfaz."
+      },
+      "instalarMovil": {
+        "title": "Instalar en el móvil"
+      },
+      "planesLimites": {
+        "title": "Planes y límites",
+        "intro": "La IA RPJ ofrece dos planes para adaptarse a tus necesidades. Los límites se reinician cada mes natural."
+      },
+      "planFree": {
+        "title": "🆓 Plan Gratuito (FREE)",
+        "desc": "El plan gratuito te permite comenzar a usar la IA sin coste alguno, con acceso a las funcionalidades básicas:",
+        "limit1": "Hasta 30 mensajes al día.",
+        "limit2": "Máximo 10 conversaciones activas.",
+        "limit3": "Acceso a todas las categorías de consulta.",
+        "limit4": "Descarga en PDF y Word.",
+        "limit5": "Sin acceso a conectores, modo lienzo ni Deep Think."
+      },
+      "planPro": {
+        "title": "⭐ Plan PRO",
+        "desc": "El plan PRO desbloquea todas las funcionalidades avanzadas para animadores y equipos que necesitan más:",
+        "benefit1": "Mensajes ilimitados cada día, hasta llegar al límite de tokens establecido por el plan.",
+        "benefit2": "Conversaciones ilimitadas.",
+        "benefit3": "Acceso al modo Lienzo (Canvas) para edición visual.",
+        "benefit4": "Acceso a conectores (Google Drive, Google Docs).",
+        "benefit5": "Modo Deep Think para respuestas más elaboradas."
+      },
+      "rolesPermisos": {
+        "title": "Roles y permisos",
+        "desc": "Cada usuario tiene un rol que determina a qué funcionalidades puede acceder. El rol se asigna al crear la cuenta o puede ser cambiado por un administrador.",
+        "colRol": "Rol",
+        "colAcceso": "Acceso",
+        "roles": {
+          "usuario": {
+            "name": "Usuario",
+            "access": "Chat con la IA, gestión de conversaciones propias, personalización y descargas."
+          },
+          "pro": {
+            "name": "Usuario PRO",
+            "access": "Todo lo anterior más conectores, modo lienzo, Deep Think y mensajes ilimitados."
+          },
+          "documentador": {
+            "name": "Documentador",
+            "access": "Puede subir y gestionar documentos en la base documental de la IA."
+          },
+          "admin": {
+            "name": "Administrador",
+            "access": "Gestión completa de usuarios, documentación, estadísticas y configuración del sistema."
+          }
+        }
+      },
+      "faq": {
+        "title": "Preguntas frecuentes",
+        "q1": "¿La IA sustituye al animador o catequista?",
+        "a1": "No. La IA es una herramienta de apoyo que te ayuda a crear recursos y preparar actividades, pero el acompañamiento personal y el discernimiento pastoral siempre dependen de ti.",
+        "q2": "¿Se guardan mis conversaciones?",
+        "a2": "Sí, todas tus conversaciones se guardan de forma segura en tu cuenta. Solo tú puedes verlas a menos que decidas compartirlas.",
+        "q3": "¿Puedo usar la IA en otro idioma?",
+        "a3": "Sí. Cambia el idioma de la interfaz y la IA te responderá también en ese idioma. Actualmente soportamos 10 idiomas.",
+        "q4": "¿Cuántos mensajes puedo enviar al día?",
+        "a4": "Con el plan FREE puedes enviar hasta 30 mensajes diarios. Con el plan PRO los mensajes son ilimitados, hasta llegar al límite de tokens establecido por el plan.",
+        "q5": "¿Puedo generar contenido para distintas edades?",
+        "a5": "Sí. Indica en tu mensaje el rango de edad de tu grupo y la IA adaptará el contenido automáticamente.",
+        "q6": "¿Qué hago si la respuesta de la IA no es correcta o adecuada?",
+        "a6": "Usa el feedback (👎) para indicarnos que la respuesta no fue útil. También puedes reformular tu pregunta con más detalle para obtener un resultado mejor."
+      },
+      "contacto": {
+        "title": "Contacto y soporte",
+        "desc": "Si tienes dudas, sugerencias o necesitas ayuda técnica, no dudes en ponerte en contacto con nosotros. Estaremos encantados de ayudarte.",
+        "emailLabel": "Escríbenos a:",
+        "web": "O visita nuestra web:"
+      }
+    }
   },
   "errors": {
     "generic": "Wystąpił błąd",
