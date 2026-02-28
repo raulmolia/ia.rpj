@@ -58,6 +58,7 @@ model Usuario {
   feedbacksMensajes FeedbackMensaje[]
   logs              LogSistema[]
   conectores        Conector[]
+  costesIA          RegistroCosteIA[]
 
   @@map("usuarios")
 }
@@ -374,51 +375,51 @@ enum TipoConector {
 
 // Estado de un conector
 enum EstadoConector {
-  ACTIVO       // Token válido y operativo
-  ERROR        // Token expirado o revocado, requiere reconexión
-  INACTIVO     // Pausado por el usuario
+  ACTIVO // Token válido y operativo
+  ERROR // Token expirado o revocado, requiere reconexión
+  INACTIVO // Pausado por el usuario
 }
 
 // Conector de un usuario con un servicio externo
 model Conector {
-  id                  String         @id @default(cuid())
-  usuarioId           String
-  tipo                TipoConector
-  estado              EstadoConector @default(ACTIVO)
-  tokenAcceso         String         @db.LongText   // cifrado AES-256-GCM
-  tokenActualizacion  String?        @db.Text        // cifrado AES-256-GCM
-  tokenExpiracion     DateTime?
-  config              Json?          // metadatos extras (nombre cuenta, scope, etc.)
-  fechaCreacion       DateTime       @default(now())
-  fechaActualizacion  DateTime       @updatedAt
+  id                 String         @id @default(cuid())
+  usuarioId          String
+  tipo               TipoConector
+  estado             EstadoConector @default(ACTIVO)
+  tokenAcceso        String         @db.LongText // cifrado AES-256-GCM
+  tokenActualizacion String?        @db.Text // cifrado AES-256-GCM
+  tokenExpiracion    DateTime?
+  config             Json? // metadatos extras (nombre cuenta, scope, etc.)
+  fechaCreacion      DateTime       @default(now())
+  fechaActualizacion DateTime       @updatedAt
 
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@unique([usuarioId, tipo])
-  @@index([usuarioId],  name: "idx_conectores_usuario")
-  @@index([tipo],       name: "idx_conectores_tipo")
+  @@index([usuarioId], name: "idx_conectores_usuario")
+  @@index([tipo], name: "idx_conectores_tipo")
   @@map("conectores")
 }
 
 // ===== LOGS DEL SISTEMA =====
 
 model LogSistema {
-  id           String      @id @default(cuid())
-  nivel        NivelLog
-  categoria    CategoriaLog
-  mensaje      String      @db.Text
-  detalles     Json?
-  usuarioId    String?
-  ip           String?
-  duracionMs   Int?
-  fechaCreacion DateTime   @default(now())
+  id            String       @id @default(cuid())
+  nivel         NivelLog
+  categoria     CategoriaLog
+  mensaje       String       @db.Text
+  detalles      Json?
+  usuarioId     String?
+  ip            String?
+  duracionMs    Int?
+  fechaCreacion DateTime     @default(now())
 
   usuario Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
 
-  @@index([nivel],          name: "idx_logs_nivel")
-  @@index([categoria],      name: "idx_logs_categoria")
-  @@index([usuarioId],      name: "idx_logs_usuario")
-  @@index([fechaCreacion],  name: "idx_logs_fecha")
+  @@index([nivel], name: "idx_logs_nivel")
+  @@index([categoria], name: "idx_logs_categoria")
+  @@index([usuarioId], name: "idx_logs_usuario")
+  @@index([fechaCreacion], name: "idx_logs_fecha")
   @@map("logs_sistema")
 }
 
@@ -439,4 +440,32 @@ enum CategoriaLog {
   API
 }
 
+// ===== REGISTRO DE COSTES IA (OpenRouter) =====
 
+model RegistroCosteIA {
+  id                 String   @id @default(cuid())
+  generationId       String?  @unique // ID de generación de OpenRouter (gen-...)
+  mensajeId          String? // ID del MensajeConversacion asociado
+  usuarioId          String? // Usuario que generó el gasto
+  modelo             String // Modelo usado (ej: qwen/qwen3-30b-a3b)
+  tokensEntrada      Int      @default(0) // prompt_tokens
+  tokensSalida       Int      @default(0) // completion_tokens
+  tokensRazonamiento Int      @default(0) // reasoning_tokens (si aplica)
+  tokensCacheados    Int      @default(0) // cached_tokens (si aplica)
+  costeEntrada       Float    @default(0) // Coste en USD de tokens de entrada
+  costeSalida        Float    @default(0) // Coste en USD de tokens de salida
+  costeTotal         Float    @default(0) // Coste total en USD de la generación
+  duracionMs         Int? // Duración de la respuesta
+  tipoOperacion      String   @default("chat") // chat, thinking, tools, canvas, transcripcion
+  exito              Boolean  @default(true) // Si la generación fue exitosa
+  detalles           Json? // Datos extra (native_tokens, etc.)
+  fechaCreacion      DateTime @default(now())
+
+  usuario Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  @@index([usuarioId], name: "idx_coste_ia_usuario")
+  @@index([modelo], name: "idx_coste_ia_modelo")
+  @@index([fechaCreacion], name: "idx_coste_ia_fecha")
+  @@index([tipoOperacion], name: "idx_coste_ia_operacion")
+  @@map("registros_coste_ia")
+}

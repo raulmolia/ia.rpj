@@ -9,6 +9,7 @@ import { hasActiveCanvaConnector, CANVA_TOOLS, executeCanvaTool } from '../servi
 import { hasActiveGoogleConnector } from '../services/googleOAuthService.js';
 import { GOOGLE_DRIVE_TOOLS, executeGoogleDriveTool } from '../services/googleDriveService.js';
 import { GOOGLE_DOCS_TOOLS, executeGoogleDocsTool } from '../services/googleDocsService.js';
+import { registrarCosteGeneracion } from '../services/openRouterCostService.js';
 import {
     detectIntentFromText,
     resolveIntent,
@@ -1109,6 +1110,15 @@ REGLAS ABSOLUTAS:
                 descripcion: conversation.descripcion || trimmedMessage.slice(0, 200),
             },
         });
+
+        // Registrar coste de la generación IA en la tabla de costes
+        registrarCosteGeneracion({
+            llmResponse,
+            usuarioId: req.user?.id || null,
+            mensajeId: assistantMessageRecord.id,
+            tipoOperacion: canvasMode ? 'canvas' : (useThinkingModel ? 'thinking' : (toolPasses > 0 ? 'tools' : 'chat')),
+            exito: true,
+        }).catch(err => console.warn('[CostTracking] Error registrando coste:', err.message));
 
         // Generar título automático con Gemma si es el primer mensaje del usuario
         let updatedTitle = null;

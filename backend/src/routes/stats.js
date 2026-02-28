@@ -3,6 +3,7 @@ import express from 'express';
 import prismaPackage from '@prisma/client';
 import chromaService from '../services/chromaService.js';
 import { authenticate, authorize } from '../middleware/auth.js';
+import { obtenerResumenCostes, consultarCreditos, consultarEstadoKey } from '../services/openRouterCostService.js';
 
 const { PrismaClient } = prismaPackage;
 const router = express.Router();
@@ -612,6 +613,29 @@ router.get('/feedback', async (req, res) => {
     } catch (error) {
         console.error('❌ Error en /stats/feedback:', error.message);
         res.status(500).json({ error: 'Error obteniendo estadísticas de feedback', details: error.message });
+    }
+});
+
+// ===== COSTES IA (OpenRouter) =====
+router.get('/costes-ia', async (req, res) => {
+    try {
+        const resumen = await obtenerResumenCostes();
+        res.json(resumen);
+    } catch (error) {
+        console.error('❌ Error en /stats/costes-ia:', error.message);
+        res.status(500).json({ error: 'Error obteniendo estadísticas de costes IA', details: error.message });
+    }
+});
+
+// Consultar créditos/saldo de OpenRouter en tiempo real
+router.get('/costes-ia/creditos', async (req, res) => {
+    try {
+        const creditos = await consultarCreditos();
+        const estadoKey = await consultarEstadoKey();
+        res.json({ creditos, estadoKey });
+    } catch (error) {
+        console.error('❌ Error en /stats/costes-ia/creditos:', error.message);
+        res.status(500).json({ error: 'Error consultando créditos de OpenRouter', details: error.message });
     }
 });
 

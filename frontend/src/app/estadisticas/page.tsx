@@ -7,6 +7,7 @@ import {
     BarChart3,
     Brain,
     Database,
+    DollarSign,
     FileText,
     Loader2,
     MessageSquare,
@@ -17,6 +18,10 @@ import {
     TrendingUp,
     ThumbsUp,
     ThumbsDown,
+    Zap,
+    AlertTriangle,
+    CreditCard,
+    Clock,
 } from "lucide-react"
 import {
     Bar,
@@ -144,6 +149,34 @@ type FeedbackData = {
     recientes: { id: string; tipo: string; intencion: string | null; fechaCreacion: string; usuario: { nombre: string; apellidos: string; email: string } | null; mensaje: { content: string } | null }[]
 }
 
+type CostesIAData = {
+    totales: {
+        costeTotal: number; costeEntrada: number; costeSalida: number
+        tokensEntrada: number; tokensSalida: number; tokensRazonamiento: number; tokensCacheados: number
+        peticiones: number; costeMediaPorPeticion: number; duracionMediaMs: number
+    }
+    periodos: {
+        hoy: { coste: number; peticiones: number }
+        semana: { coste: number; peticiones: number }
+        mes: { coste: number; peticiones: number }
+    }
+    costePorModelo: { modelo: string; costeTotal: number; tokensEntrada: number; tokensSalida: number; peticiones: number; costeMedia: number; duracionMediaMs: number }[]
+    costePorOperacion: { tipoOperacion: string; costeTotal: number; tokensEntrada: number; tokensSalida: number; peticiones: number }[]
+    gastoDiario: { dia: string; peticiones: number; costeTotal: number; tokensEntrada: number; tokensSalida: number }[]
+    gastoMensual: { mes: string; peticiones: number; costeTotal: number; tokensEntrada: number; tokensSalida: number }[]
+    gastoPorUsuario: { nombre: string; email: string; peticiones: number; costeTotal: number; tokensEntrada: number; tokensSalida: number }[]
+    tasaExito: { total: number; errores: number; porcentaje: number }
+}
+
+type CreditosData = {
+    creditos: {
+        disponible: boolean; totalCreditos?: number | null; creditosUsados?: number | null; creditosRestantes?: number | null; error?: string
+    }
+    estadoKey: {
+        disponible: boolean; label?: string | null; limit?: number | null; limitRemaining?: number | null; usage?: number | null; error?: string
+    }
+}
+
 // ===== Helper components =====
 function StatCard({ title, value, description, icon: Icon }: { title: string; value: string | number; description?: string; icon: React.ElementType }) {
     return (
@@ -225,6 +258,8 @@ export default function EstadisticasPage() {
     const [intenciones, setIntenciones] = useState<IntencionesData | null>(null)
     const [herramientas, setHerramientas] = useState<HerramientasData | null>(null)
     const [feedback, setFeedback] = useState<FeedbackData | null>(null)
+    const [costesIA, setCostesIA] = useState<CostesIAData | null>(null)
+    const [creditosOR, setCreditosOR] = useState<CreditosData | null>(null)
 
     const canAccess = useMemo(
         () => Boolean(isAuthenticated && user && ALLOWED_ROLES.has(user.rol ?? "")),
@@ -299,6 +334,15 @@ export default function EstadisticasPage() {
                 case "feedback": {
                     const data = await fetchData("feedback")
                     if (data) setFeedback(data)
+                    break
+                }
+                case "costes-ia": {
+                    const [costesData, creditosData] = await Promise.all([
+                        fetchData("costes-ia"),
+                        fetchData("costes-ia/creditos"),
+                    ])
+                    if (costesData) setCostesIA(costesData)
+                    if (creditosData) setCreditosOR(creditosData)
                     break
                 }
             }
@@ -413,6 +457,9 @@ export default function EstadisticasPage() {
                         </TabsTrigger>
                         <TabsTrigger value="feedback" className="gap-1.5 text-xs md:text-sm data-[state=active]:bg-[#94c120] data-[state=active]:text-white">
                             <ThumbsUp className="h-3.5 w-3.5" /> Feedback
+                        </TabsTrigger>
+                        <TabsTrigger value="costes-ia" className="gap-1.5 text-xs md:text-sm data-[state=active]:bg-[#94c120] data-[state=active]:text-white">
+                            <DollarSign className="h-3.5 w-3.5" /> Costes IA
                         </TabsTrigger>
                     </TabsList>
 
@@ -1163,6 +1210,269 @@ export default function EstadisticasPage() {
                                                 ))}
                                             </TableBody>
                                         </Table>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        ) : null}
+                    </TabsContent>
+
+                    {/* ===== TAB: COSTES IA ===== */}
+                    <TabsContent value="costes-ia">
+                        {loading && !costesIA ? <LoadingSkeleton /> : costesIA ? (
+                            <div className="space-y-6">
+                                {/* Créditos OpenRouter en tiempo real */}
+                                {creditosOR && (
+                                    <Card className="border-[#94c120]/30 bg-[#94c120]/5 dark:bg-[#94c120]/10">
+                                        <CardHeader className="pb-3">
+                                            <CardTitle className="text-base flex items-center gap-2">
+                                                <CreditCard className="h-4 w-4 text-[#94c120]" />
+                                                Saldo OpenRouter (tiempo real)
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            {creditosOR.creditos.disponible ? (
+                                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                                    <div>
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400">Créditos totales</p>
+                                                        <p className="text-xl font-bold text-gray-900 dark:text-white">${(creditosOR.creditos.totalCreditos ?? 0).toFixed(4)}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400">Usados</p>
+                                                        <p className="text-xl font-bold text-gray-900 dark:text-white">${(creditosOR.creditos.creditosUsados ?? 0).toFixed(4)}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400">Restantes</p>
+                                                        <p className="text-xl font-bold text-[#94c120]">${(creditosOR.creditos.creditosRestantes ?? 0).toFixed(4)}</p>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                                                    <AlertTriangle className="h-4 w-4" />
+                                                    <span className="text-sm">{creditosOR.creditos.error || 'No se pudieron obtener los créditos. Configura OPENROUTER_MANAGEMENT_KEY en .env para consultar el saldo.'}</span>
+                                                </div>
+                                            )}
+                                            {creditosOR.estadoKey.disponible && (
+                                                <div className="mt-3 pt-3 border-t border-[#94c120]/20 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                                    {creditosOR.estadoKey.label && (
+                                                        <div>
+                                                            <p className="text-xs text-gray-500">API Key</p>
+                                                            <p className="text-sm font-medium">{creditosOR.estadoKey.label}</p>
+                                                        </div>
+                                                    )}
+                                                    {creditosOR.estadoKey.limit != null && (
+                                                        <div>
+                                                            <p className="text-xs text-gray-500">Límite</p>
+                                                            <p className="text-sm font-medium">${creditosOR.estadoKey.limit}</p>
+                                                        </div>
+                                                    )}
+                                                    {creditosOR.estadoKey.limitRemaining != null && (
+                                                        <div>
+                                                            <p className="text-xs text-gray-500">Límite restante</p>
+                                                            <p className="text-sm font-medium">${creditosOR.estadoKey.limitRemaining}</p>
+                                                        </div>
+                                                    )}
+                                                    {creditosOR.estadoKey.usage != null && (
+                                                        <div>
+                                                            <p className="text-xs text-gray-500">Uso acumulado</p>
+                                                            <p className="text-sm font-medium">${creditosOR.estadoKey.usage}</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                )}
+
+                                {/* Cards de resumen de períodos */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <StatCard title="Gasto total" value={`$${costesIA.totales.costeTotal.toFixed(4)}`} description={`${costesIA.totales.peticiones.toLocaleString('es-ES')} peticiones`} icon={DollarSign} />
+                                    <StatCard title="Gasto hoy" value={`$${costesIA.periodos.hoy.coste.toFixed(4)}`} description={`${costesIA.periodos.hoy.peticiones} peticiones`} icon={Zap} />
+                                    <StatCard title="Gasto esta semana" value={`$${costesIA.periodos.semana.coste.toFixed(4)}`} description={`${costesIA.periodos.semana.peticiones} peticiones`} icon={Activity} />
+                                    <StatCard title="Gasto este mes" value={`$${costesIA.periodos.mes.coste.toFixed(4)}`} description={`${costesIA.periodos.mes.peticiones} peticiones`} icon={TrendingUp} />
+                                </div>
+
+                                {/* Cards de tokens y rendimiento */}
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                                    <StatCard title="Tokens entrada" value={formatNumber(costesIA.totales.tokensEntrada)} icon={Brain} />
+                                    <StatCard title="Tokens salida" value={formatNumber(costesIA.totales.tokensSalida)} icon={Brain} />
+                                    <StatCard title="Tokens razonam." value={formatNumber(costesIA.totales.tokensRazonamiento)} icon={Brain} />
+                                    <StatCard title="Tokens cacheados" value={formatNumber(costesIA.totales.tokensCacheados)} icon={Brain} />
+                                    <StatCard title="Coste medio/pet." value={`$${costesIA.totales.costeMediaPorPeticion.toFixed(6)}`} icon={DollarSign} />
+                                    <StatCard title="Tasa de éxito" value={`${costesIA.tasaExito.porcentaje}%`} description={`${costesIA.tasaExito.errores} errores`} icon={Activity} />
+                                </div>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    {/* Gasto diario últimos 30 días - Line */}
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="text-base">Gasto diario (últimos 30 días)</CardTitle>
+                                            <CardDescription>Coste acumulado en USD por día</CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                            {costesIA.gastoDiario.length > 0 ? (
+                                                <ChartContainer config={{ costeTotal: { label: "Coste ($)", color: COLORS.green }, peticiones: { label: "Peticiones", color: COLORS.gray } }} className="h-[280px]">
+                                                    <LineChart data={costesIA.gastoDiario}>
+                                                        <CartesianGrid strokeDasharray="3 3" stroke={COLORS.grayLight} />
+                                                        <XAxis dataKey="dia" tick={{ fontSize: 10 }} tickFormatter={(v) => v.slice(5)} />
+                                                        <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v}`} />
+                                                        <ChartTooltip content={<ChartTooltipContent />} />
+                                                        <Line type="monotone" dataKey="costeTotal" stroke={COLORS.green} strokeWidth={2} dot={false} name="Coste ($)" />
+                                                    </LineChart>
+                                                </ChartContainer>
+                                            ) : (
+                                                <p className="text-sm text-muted-foreground text-center py-8">Aún no hay datos de gasto diario.</p>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+
+                                    {/* Gasto mensual - Bar */}
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="text-base">Gasto mensual</CardTitle>
+                                            <CardDescription>Evolución del gasto por mes</CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                            {costesIA.gastoMensual.length > 0 ? (
+                                                <ChartContainer config={{ costeTotal: { label: "Coste ($)", color: COLORS.green } }} className="h-[280px]">
+                                                    <BarChart data={costesIA.gastoMensual}>
+                                                        <CartesianGrid strokeDasharray="3 3" stroke={COLORS.grayLight} />
+                                                        <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                                                        <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v}`} />
+                                                        <ChartTooltip content={<ChartTooltipContent />} />
+                                                        <Bar dataKey="costeTotal" fill={COLORS.green} radius={[4, 4, 0, 0]} name="Coste ($)" />
+                                                    </BarChart>
+                                                </ChartContainer>
+                                            ) : (
+                                                <p className="text-sm text-muted-foreground text-center py-8">Aún no hay datos de gasto mensual.</p>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                </div>
+
+                                {/* Coste por modelo */}
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="text-base">Coste por modelo de IA</CardTitle>
+                                        <CardDescription>Desglose de gasto y uso de tokens por cada modelo</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        {costesIA.costePorModelo.length > 0 ? (
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Modelo</TableHead>
+                                                        <TableHead className="text-right">Peticiones</TableHead>
+                                                        <TableHead className="text-right">Tokens entrada</TableHead>
+                                                        <TableHead className="text-right">Tokens salida</TableHead>
+                                                        <TableHead className="text-right">Coste total</TableHead>
+                                                        <TableHead className="text-right">Coste medio</TableHead>
+                                                        <TableHead className="text-right">Duración media</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {costesIA.costePorModelo.map((m, i) => (
+                                                        <TableRow key={i}>
+                                                            <TableCell>
+                                                                <span className="font-mono bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded text-xs">
+                                                                    {m.modelo}
+                                                                </span>
+                                                            </TableCell>
+                                                            <TableCell className="text-right">{m.peticiones.toLocaleString('es-ES')}</TableCell>
+                                                            <TableCell className="text-right">{formatNumber(m.tokensEntrada)}</TableCell>
+                                                            <TableCell className="text-right">{formatNumber(m.tokensSalida)}</TableCell>
+                                                            <TableCell className="text-right font-semibold text-[#94c120]">${m.costeTotal.toFixed(4)}</TableCell>
+                                                            <TableCell className="text-right">${m.costeMedia.toFixed(6)}</TableCell>
+                                                            <TableCell className="text-right">{formatMs(m.duracionMediaMs)}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground text-center py-8">Aún no hay datos de coste por modelo.</p>
+                                        )}
+                                    </CardContent>
+                                </Card>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    {/* Coste por tipo de operación */}
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="text-base">Coste por tipo de operación</CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            {costesIA.costePorOperacion.length > 0 ? (
+                                                <ChartContainer config={Object.fromEntries(costesIA.costePorOperacion.map((o, i) => [o.tipoOperacion, { label: o.tipoOperacion, color: PIE_COLORS[i % PIE_COLORS.length] }]))} className="h-[280px]">
+                                                    <PieChart>
+                                                        <Pie data={costesIA.costePorOperacion} dataKey="costeTotal" nameKey="tipoOperacion" cx="50%" cy="50%" outerRadius={90} label={({ tipoOperacion, costeTotal }) => `${tipoOperacion} ($${costeTotal.toFixed(4)})`}>
+                                                            {costesIA.costePorOperacion.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                                                        </Pie>
+                                                        <ChartTooltip content={<ChartTooltipContent />} />
+                                                    </PieChart>
+                                                </ChartContainer>
+                                            ) : (
+                                                <p className="text-sm text-muted-foreground text-center py-8">Aún no hay datos.</p>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+
+                                    {/* Peticiones diarias - Bar */}
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="text-base">Peticiones diarias</CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            {costesIA.gastoDiario.length > 0 ? (
+                                                <ChartContainer config={{ peticiones: { label: "Peticiones", color: COLORS.green } }} className="h-[280px]">
+                                                    <BarChart data={costesIA.gastoDiario}>
+                                                        <CartesianGrid strokeDasharray="3 3" stroke={COLORS.grayLight} />
+                                                        <XAxis dataKey="dia" tick={{ fontSize: 10 }} tickFormatter={(v) => v.slice(5)} />
+                                                        <YAxis tick={{ fontSize: 11 }} />
+                                                        <ChartTooltip content={<ChartTooltipContent />} />
+                                                        <Bar dataKey="peticiones" fill={COLORS.green} radius={[2, 2, 0, 0]} />
+                                                    </BarChart>
+                                                </ChartContainer>
+                                            ) : (
+                                                <p className="text-sm text-muted-foreground text-center py-8">Aún no hay datos.</p>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                </div>
+
+                                {/* Gasto por usuario */}
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="text-base">Top 10 usuarios por gasto</CardTitle>
+                                        <CardDescription>Usuarios que más recursos de IA han consumido</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        {costesIA.gastoPorUsuario.length > 0 ? (
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Nombre</TableHead>
+                                                        <TableHead>Email</TableHead>
+                                                        <TableHead className="text-right">Peticiones</TableHead>
+                                                        <TableHead className="text-right">Tokens entrada</TableHead>
+                                                        <TableHead className="text-right">Tokens salida</TableHead>
+                                                        <TableHead className="text-right">Coste total</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {costesIA.gastoPorUsuario.map((u, i) => (
+                                                        <TableRow key={i}>
+                                                            <TableCell className="font-medium">{u.nombre}</TableCell>
+                                                            <TableCell className="text-gray-500">{u.email}</TableCell>
+                                                            <TableCell className="text-right">{u.peticiones}</TableCell>
+                                                            <TableCell className="text-right">{formatNumber(u.tokensEntrada)}</TableCell>
+                                                            <TableCell className="text-right">{formatNumber(u.tokensSalida)}</TableCell>
+                                                            <TableCell className="text-right font-semibold text-[#94c120]">${u.costeTotal.toFixed(4)}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground text-center py-8">Aún no hay datos de gasto por usuario.</p>
+                                        )}
                                     </CardContent>
                                 </Card>
                             </div>
