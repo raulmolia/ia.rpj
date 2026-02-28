@@ -30,7 +30,7 @@ router.get('/', async (req, res) => {
             where: { usuarioId: req.user.id },
             include: {
                 conversaciones: {
-                    select: { id: true, titulo: true, fechaActualizacion: true, categoria: true },
+                    select: { id: true, titulo: true, fechaActualizacion: true, intencionPrincipal: true },
                     orderBy: { fechaActualizacion: 'desc' },
                 },
                 compartidas: {
@@ -50,7 +50,7 @@ router.get('/', async (req, res) => {
                 carpeta: {
                     include: {
                         conversaciones: {
-                            select: { id: true, titulo: true, fechaActualizacion: true, categoria: true },
+                            select: { id: true, titulo: true, fechaActualizacion: true, intencionPrincipal: true },
                             orderBy: { fechaActualizacion: 'desc' },
                         },
                         usuario: { select: { id: true, nombre: true, email: true } },
@@ -105,7 +105,7 @@ router.post('/', async (req, res) => {
             },
         });
 
-        await logService.log('carpetas.crear', req.user.id, { carpetaId: carpeta.id, nombre: carpeta.nombre });
+        await logService.log('INFO', 'API', 'Carpeta creada', { usuarioId: req.user.id, detalles: { carpetaId: carpeta.id, nombre: carpeta.nombre } });
 
         res.status(201).json(carpeta);
     } catch (error) {
@@ -185,7 +185,7 @@ router.delete('/:id', async (req, res) => {
 
         await prisma.carpetaTrabajo.delete({ where: { id: req.params.id } });
 
-        await logService.log('carpetas.eliminar', req.user.id, { carpetaId: carpeta.id, nombre: carpeta.nombre });
+        await logService.log('INFO', 'API', 'Carpeta eliminada', { usuarioId: req.user.id, detalles: { carpetaId: carpeta.id, nombre: carpeta.nombre } });
 
         res.json({ success: true });
     } catch (error) {
@@ -336,11 +336,11 @@ router.post('/:id/compartir', async (req, res) => {
             },
         });
 
-        await logService.log('carpetas.compartir', req.user.id, {
+        await logService.log('INFO', 'API', 'Carpeta compartida', { usuarioId: req.user.id, detalles: {
             carpetaId: carpeta.id,
             destinoId: destUser.id,
             permisos: compartida.permisos,
-        });
+        } });
 
         res.json({
             success: true,

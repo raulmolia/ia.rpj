@@ -9,7 +9,7 @@ export type CarpetaConversacion = {
     id: string
     titulo: string | null
     fechaActualizacion: string | null
-    categoria: string | null
+    intencionPrincipal: string | null
 }
 
 export type CarpetaCompartidaUsuario = {
