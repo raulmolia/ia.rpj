@@ -149,6 +149,7 @@ function sanitizeConversation(conversation) {
         esCompartida: conversation.esCompartida || false,
         compartidaDesde: conversation.compartidaDesde || null,
         compartidaNombre: conversation.compartidaNombre || null,
+        carpetaId: conversation.carpetaId || null,
         fechaCreacion: conversation.fechaCreacion,
         fechaActualizacion: conversation.fechaActualizacion,
     };

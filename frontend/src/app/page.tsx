@@ -150,6 +150,7 @@ type Chat = {
     esCompartida?: boolean
     compartidaDesde?: string | null
     compartidaNombre?: string | null
+    carpetaId?: string | null
 }
 
 type QuickPrompt = {
@@ -419,7 +420,7 @@ export default function ChatHomePage() {
 
     const activeChat = useMemo(() => chats.find((chat) => chat.id === activeChatId) ?? null, [chats, activeChatId])
     const sidebarChats = useMemo(() => {
-        const visible = chats.filter((chat) => !chat.archived)
+        const visible = chats.filter((chat) => !chat.archived && !chat.carpetaId)
         // Cargar pins desde localStorage
         let pinnedIds: string[] = []
         try {
@@ -532,11 +533,19 @@ export default function ChatHomePage() {
     }, [carpetaEditing, carpetasHook])
 
     const handleAddChatToFolder = useCallback(async (carpetaId: string, conversacionId: string) => {
-        await carpetasHook.addConversacion(carpetaId, conversacionId)
+        const ok = await carpetasHook.addConversacion(carpetaId, conversacionId)
+        if (ok) {
+            // Actualizar carpetaId en el estado local para que desaparezca de "Conversaciones"
+            setChats((prev) => prev.map((c) => c.conversationId === conversacionId ? { ...c, carpetaId } : c))
+        }
     }, [carpetasHook])
 
     const handleRemoveChatFromFolder = useCallback(async (carpetaId: string, convId: string) => {
-        await carpetasHook.removeConversacion(carpetaId, convId)
+        const ok = await carpetasHook.removeConversacion(carpetaId, convId)
+        if (ok) {
+            // Quitar carpetaId para que reaparezca en "Conversaciones"
+            setChats((prev) => prev.map((c) => c.conversationId === convId ? { ...c, carpetaId: null } : c))
+        }
     }, [carpetasHook])
 
     const handleFolderChatSelect = useCallback((conversationId: string) => {
@@ -772,6 +781,7 @@ export default function ChatHomePage() {
                             esCompartida: conversation.esCompartida ?? false,
                             compartidaDesde: conversation.compartidaDesde ?? null,
                             compartidaNombre: conversation.compartidaNombre ?? null,
+                            carpetaId: conversation.carpetaId ?? null,
                             createdAt,
                         }
                     }
@@ -787,6 +797,7 @@ export default function ChatHomePage() {
                         esCompartida: conversation.esCompartida ?? false,
                         compartidaDesde: conversation.compartidaDesde ?? null,
                         compartidaNombre: conversation.compartidaNombre ?? null,
+                        carpetaId: conversation.carpetaId ?? null,
                     } satisfies Chat
                 })
 
