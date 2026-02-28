@@ -248,11 +248,13 @@ function buildContextFromChroma(results = []) {
         })
         .filter(Boolean);
 
+    // Instrucción estricta: solo citar las fuentes proporcionadas, nunca inventar
+    const sourceList = sourceNames.map((n, i) => `  ${i + 1}. ${n}`).join('\n');
     const sourceHint = sourceNames.length > 0
-        ? `\n\n**CITA DE FUENTES (OBLIGATORIO):** Al final de tu respuesta SIEMPRE añade una sección "📚 Fuentes consultadas:" seguida de una lista breve y natural de las fuentes documentales que hayas utilizado para elaborar tu respuesta. Menciona el título o descripción resumida de cada fuente. Si son fuentes web, indica el dominio. Ejemplo:\n\n📚 *Fuentes consultadas: Manual de dinámicas juveniles, Guía de pastoral de confirmación, materiales de pastoraljuvenil.es*\n\nEsta sección es OBLIGATORIA siempre que se te proporcione contexto documental. NO omitas las fuentes.`
+        ? `\n\n**CITA DE FUENTES (OBLIGATORIO — LISTA CERRADA):**\nAl final de tu respuesta SIEMPRE añade una sección "📚 Fuentes consultadas:" citando ÚNICAMENTE fuentes de esta lista:\n${sourceList}\n\nREGLAS ESTRICTAS:\n- Cita SOLO las fuentes de la lista anterior que hayas utilizado realmente en tu respuesta.\n- NUNCA inventes, imagines ni añadas fuentes que NO estén en la lista.\n- Si solo usaste 1 fuente, cita solo esa. No cites todas por defecto.\n- Si son fuentes web, indica el dominio.\n- Formato: 📚 *Fuentes consultadas: [nombre1], [nombre2]*`
         : '';
 
-    return `Contexto documental relevante (DEBES basar tu respuesta en estos documentos y citarlos al final):\n\n${sections.join('\n\n')}\n\nUsa estas referencias como base principal de tu respuesta. Puedes complementar con tu conocimiento pero SIEMPRE prioriza y cita el contenido documental proporcionado.${sourceHint}`;
+    return `Contexto documental relevante (DEBES basar tu respuesta en estos documentos y citar al final SOLO los que uses):\n\n${sections.join('\n\n')}\n\nUsa estas referencias como base principal de tu respuesta. Puedes complementar con tu conocimiento pero SIEMPRE prioriza y cita el contenido documental proporcionado.${sourceHint}`;
 }
 
 function logChatEvent(level = 'info', payload = {}) {
@@ -660,10 +662,16 @@ router.post('/', authenticate, async (req, res) => {
             }),
         ]);
 
-        // Combinar y ordenar por relevancia (distancia)
+        // Umbral máximo de distancia ChromaDB: resultados por encima se descartan por irrelevantes
+        const CHROMA_DISTANCE_THRESHOLD = parseFloat(process.env.CHROMA_DISTANCE_THRESHOLD) || 1.0;
+
+        // Combinar, filtrar por relevancia mínima y ordenar por distancia
         contextResults = [...documentResults, ...webResults, ...tempResults]
+            .filter((r) => r.distance != null && r.distance < CHROMA_DISTANCE_THRESHOLD)
             .sort((a, b) => (a.distance || 999) - (b.distance || 999))
             .slice(0, 5);
+
+        console.log(`[ChromaDB] Resultados relevantes: ${contextResults.length} (umbral: ${CHROMA_DISTANCE_THRESHOLD}, total sin filtrar: ${documentResults.length + webResults.length + tempResults.length})`);
 
         let contextPrompt = buildContextFromChroma(contextResults);
 
@@ -989,6 +997,33 @@ REGLAS ABSOLUTAS:
         if (canvaToolsActive) {
             cleanContent = cleanContent.replace(/\n*📚\s*\*?Fuentes consultadas[:\s].*$/gims, '').trim();
             cleanContent = cleanContent.replace(/\n*\*?Fuentes consultadas[:\s].*$/gims, '').trim();
+        } else {
+            // ── Post-procesado de fuentes: reemplazar sección del LLM por una controlada ──
+            // Esto garantiza que SOLO se citen documentos realmente proporcionados por ChromaDB
+            const fuentesRegex = /\n*📚\s*\*?Fuentes consultadas[:\s*][\s\S]*$/gim;
+
+            // Extraer nombres válidos de las fuentes que se proporcionaron al LLM
+            const validSourceNames = (contextResults || []).slice(0, 4).map(item => {
+                const title = item?.metadata?.titulo || '';
+                const url = item?.metadata?.url || item?.metadata?.pagina_url || '';
+                if (title) return title;
+                if (url) {
+                    try { return new URL(url).hostname.replace('www.', ''); } catch { return url; }
+                }
+                return null;
+            }).filter(Boolean);
+
+            // Siempre eliminar la sección generada por el LLM (puede contener fuentes inventadas)
+            cleanContent = cleanContent.replace(fuentesRegex, '').trim();
+            // También limpiar variantes sin emoji
+            cleanContent = cleanContent.replace(/\n*\*?Fuentes consultadas[:\s*][\s\S]*$/gim, '').trim();
+
+            // Reconstruir sección de fuentes SOLO con las fuentes reales de ChromaDB
+            if (validSourceNames.length > 0) {
+                const fuentesControladas = validSourceNames.join(', ');
+                cleanContent += `\n\n📚 *Fuentes consultadas: ${fuentesControladas}*`;
+            }
+            // Si no hay fuentes válidas, no se añade la sección (correcto)
         }
 
         llmResponse.content = cleanContent;

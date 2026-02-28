@@ -432,10 +432,34 @@ router.get('/users', authenticate, authorize(['ADMINISTRADOR']), async (req, res
     try {
         const users = await prisma.usuario.findMany({
             orderBy: { fechaCreacion: 'desc' },
+            include: {
+                _count: {
+                    select: {
+                        sesiones: true,
+                    },
+                },
+                conversaciones: {
+                    select: {
+                        _count: {
+                            select: {
+                                mensajes: { where: { rol: 'USUARIO' } },
+                            },
+                        },
+                    },
+                },
+            },
         });
 
         return res.json({
-            users: users.map(sanitizeUser),
+            users: users.map((u) => {
+                const { passwordHash, conversaciones, _count, ...safeUser } = u;
+                const totalMensajes = conversaciones.reduce((sum, c) => sum + c._count.mensajes, 0);
+                return {
+                    ...safeUser,
+                    totalMensajes,
+                    totalSesiones: _count.sesiones,
+                };
+            }),
         });
     } catch (error) {
         return res.status(500).json({

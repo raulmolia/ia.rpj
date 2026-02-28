@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dialog"
 import { useAuth } from "@/hooks/use-auth"
 import { ThemeToggleButton } from "@/components/theme-toggle"
+import { Checkbox } from "@/components/ui/checkbox"
 import { buildApiUrl } from "@/lib/utils"
 
 const ALLOWED_ROLES = new Set(["SUPERADMIN", "ADMINISTRADOR"])
@@ -66,6 +67,8 @@ type ManagedUser = {
     telefono?: string | null
     experiencia?: number | null
     tipoSuscripcion?: string | null
+    totalMensajes?: number
+    totalSesiones?: number
 }
 
 const SUBSCRIPTION_OPTIONS = [
@@ -146,6 +149,13 @@ export default function AdminPage() {
     const [error, setError] = useState<string | null>(null)
     const [formState, setFormState] = useState<UserFormState>(INITIAL_FORM_STATE)
     
+    // Estado para el diálogo de nuevo usuario
+    const [createDialogOpen, setCreateDialogOpen] = useState(false)
+
+    // Paginación
+    const [itemsPerPage, setItemsPerPage] = useState<number>(25)
+    const [currentPage, setCurrentPage] = useState<number>(1)
+
     // Estado para el diálogo de edición
     const [editDialogOpen, setEditDialogOpen] = useState(false)
     const [editingUser, setEditingUser] = useState<ManagedUser | null>(null)
@@ -222,6 +232,18 @@ export default function AdminPage() {
         return () => clearTimeout(timer)
     }, [feedback])
 
+    // Paginación
+    const totalPages = Math.ceil(users.length / itemsPerPage)
+    const paginatedUsers = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage
+        return users.slice(startIndex, startIndex + itemsPerPage)
+    }, [users, currentPage, itemsPerPage])
+
+    // Reset paginación cuando cambian los usuarios
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [users.length])
+
     const handleFormChange = (field: keyof UserFormState) => (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { value } = event.target
         setFormState((prev) => ({
@@ -292,6 +314,7 @@ export default function AdminPage() {
             }
 
             setFormState(INITIAL_FORM_STATE)
+            setCreateDialogOpen(false)
             fetchUsers()
         } catch (err) {
             const message = err instanceof Error ? err.message : "No se pudo crear el usuario"
@@ -444,6 +467,10 @@ export default function AdminPage() {
                     </div>
                     <div className="flex items-center gap-2">
                         <ThemeToggleButton />
+                        <Button variant="outline" onClick={() => { setFormState(INITIAL_FORM_STATE); setCreateDialogOpen(true) }}>
+                            <UserPlus className="mr-2 h-4 w-4" aria-hidden="true" />
+                            Nuevo usuario
+                        </Button>
                         {user?.rol === "SUPERADMIN" && (
                             <Button variant="outline" onClick={() => router.push("/admin/logs")}>
                                 <Activity className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -457,170 +484,26 @@ export default function AdminPage() {
                     </div>
                 </header>
 
-                <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
-                    <section className="rounded-2xl border border-border/70 bg-card p-6 shadow-sm">
-                        <header className="flex items-center gap-3">
-                            <UserPlus className="h-5 w-5 text-primary" aria-hidden="true" />
-                            <h2 className="text-lg font-semibold">Nuevo usuario</h2>
-                        </header>
-                        <p className="mt-3 text-sm text-muted-foreground">
-                            Completa los datos principales. Podrás editar información adicional más adelante desde el perfil de cada usuario.
-                        </p>
-
-                        <form className="mt-5 space-y-4" onSubmit={handleCreateUser}>
-                            <div className="grid gap-2">
-                                <Label htmlFor="admin-nombre">Nombre *</Label>
-                                <Input id="admin-nombre" value={formState.nombre} onChange={handleFormChange("nombre")} required placeholder="Nombre" />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="admin-apellidos">Apellidos</Label>
-                                <Input id="admin-apellidos" value={formState.apellidos} onChange={handleFormChange("apellidos")} placeholder="Apellidos" />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="admin-email">Email *</Label>
-                                <Input id="admin-email" type="email" value={formState.email} onChange={handleFormChange("email")} required autoComplete="email" placeholder="nombre@dominio.com" />
-                            </div>
-                            
-                            <div className="grid gap-3 rounded-lg border border-border/50 bg-muted/30 p-3">
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        id="admin-generar-password"
-                                        type="checkbox"
-                                        checked={formState.generarPassword}
-                                        onChange={(e) => setFormState(prev => ({ ...prev, generarPassword: e.target.checked }))}
-                                        className="h-4 w-4 rounded border-gray-300"
-                                    />
-                                    <Label htmlFor="admin-generar-password" className="text-sm font-medium cursor-pointer">
-                                        Generar contraseña automática
-                                    </Label>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        id="admin-enviar-email"
-                                        type="checkbox"
-                                        checked={formState.enviarEmail}
-                                        onChange={(e) => setFormState(prev => ({ ...prev, enviarEmail: e.target.checked }))}
-                                        className="h-4 w-4 rounded border-gray-300"
-                                    />
-                                    <Label htmlFor="admin-enviar-email" className="text-sm font-medium cursor-pointer">
-                                        Enviar email con credenciales
-                                    </Label>
-                                </div>
-                                <p className="text-xs text-muted-foreground">
-                                    {formState.generarPassword 
-                                        ? "Se generará una contraseña segura que el usuario deberá cambiar en su primer login."
-                                        : "Deberás especificar una contraseña temporal manualmente."}
-                                </p>
-                            </div>
-                            
-                            {!formState.generarPassword && (
-                                <div className="grid gap-2">
-                                    <Label htmlFor="admin-password">Contraseña temporal *</Label>
-                                    <Input 
-                                        id="admin-password" 
-                                        type="password" 
-                                        value={formState.password} 
-                                        onChange={handleFormChange("password")} 
-                                        required={!formState.generarPassword}
-                                        placeholder="Mínimo 8 caracteres" 
-                                    />
-                                </div>
+                <section className="rounded-2xl border border-border/70 bg-card p-6 shadow-sm">
+                    <header className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                            <Users className="h-5 w-5 text-primary" aria-hidden="true" />
+                            <h2 className="text-lg font-semibold">Usuarios registrados</h2>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={fetchUsers} disabled={loadingUsers}>
+                            {loadingUsers ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                                    Actualizando…
+                                </>
+                            ) : (
+                                "Actualizar"
                             )}
-                            
-                            <div className="grid gap-2">
-                                <Label htmlFor="admin-telefono">Teléfono</Label>
-                                <Input id="admin-telefono" value={formState.telefono} onChange={handleFormChange("telefono")} placeholder="Teléfono de contacto" />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="admin-organizacion">Organización</Label>
-                                <Input id="admin-organizacion" value={formState.organizacion} onChange={handleFormChange("organizacion")} placeholder="Nombre de la organización" />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="admin-cargo">Cargo</Label>
-                                <Input id="admin-cargo" value={formState.cargo} onChange={handleFormChange("cargo")} placeholder="Ej. Coordinador de grupo" />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="admin-experiencia">Experiencia (años)</Label>
-                                <Input id="admin-experiencia" type="number" min="0" value={formState.experiencia} onChange={handleFormChange("experiencia")} placeholder="0" />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="admin-rol">Rol</Label>
-                                <Select
-                                    value={formState.rol}
-                                    onValueChange={(value) => {
-                                        setFormState((prev) => ({ ...prev, rol: value }))
-                                    }}
-                                >
-                                    <SelectTrigger id="admin-rol">
-                                        <SelectValue placeholder="Seleccionar rol" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {availableRoleOptions.map((option) => (
-                                            <SelectItem key={option.value} value={option.value}>
-                                                {option.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="admin-suscripcion">Tipo de suscripción</Label>
-                                <Select
-                                    value={formState.tipoSuscripcion}
-                                    onValueChange={(value) => {
-                                        setFormState((prev) => ({ ...prev, tipoSuscripcion: value }))
-                                    }}
-                                >
-                                    <SelectTrigger id="admin-suscripcion">
-                                        <SelectValue placeholder="Seleccionar suscripción" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {SUBSCRIPTION_OPTIONS.map((option) => (
-                                            <SelectItem key={option.value} value={option.value}>
-                                                <span className="flex items-center gap-2">
-                                                    <span className={`inline-block h-2 w-2 rounded-full ${
-                                                        option.value === 'PRO' ? 'bg-red-500' : 'bg-emerald-500'
-                                                    }`} />
-                                                    {option.label}
-                                                </span>
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <Button type="submit" className="w-full" disabled={creatingUser}>
-                                {creatingUser ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
-                                        Creando usuario…
-                                    </>
-                                ) : (
-                                    "Crear usuario"
-                                )}
-                            </Button>
-                        </form>
-                    </section>
-
-                    <section className="rounded-2xl border border-border/70 bg-card p-6 shadow-sm">
-                        <header className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-3">
-                                <Users className="h-5 w-5 text-primary" aria-hidden="true" />
-                                <h2 className="text-lg font-semibold">Usuarios registrados</h2>
-                            </div>
-                            <Button variant="ghost" size="sm" onClick={fetchUsers} disabled={loadingUsers}>
-                                {loadingUsers ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
-                                        Actualizando…
-                                    </>
-                                ) : (
-                                    "Actualizar"
-                                )}
-                            </Button>
-                        </header>
-                        <p className="mt-3 text-sm text-muted-foreground">
-                            Gestiona los accesos existentes. Solo puedes modificar usuarios con un rol inferior al tuyo.
-                        </p>
+                        </Button>
+                    </header>
+                    <p className="mt-3 text-sm text-muted-foreground">
+                        Gestiona los accesos existentes. Solo puedes modificar usuarios con un rol inferior al tuyo.
+                    </p>
 
                         <div className="mt-5 overflow-hidden rounded-xl border border-border/70">
                             <table className="min-w-full divide-y divide-border">
@@ -629,18 +512,21 @@ export default function AdminPage() {
                                         <th className="px-4 py-3">Usuario</th>
                                         <th className="px-4 py-3">Rol</th>
                                         <th className="px-4 py-3">Estado</th>
+                                        <th className="px-4 py-3">Fecha alta</th>
+                                        <th className="px-4 py-3 text-center">Iteraciones</th>
+                                        <th className="px-4 py-3 text-center">Sesiones</th>
                                         <th className="px-4 py-3 text-right">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border/70 bg-background/80">
-                                    {users.length === 0 && (
+                                    {paginatedUsers.length === 0 && (
                                         <tr>
-                                            <td colSpan={4} className="px-4 py-6 text-center text-sm text-muted-foreground">
+                                            <td colSpan={7} className="px-4 py-6 text-center text-sm text-muted-foreground">
                                                 No hay usuarios registrados todavía.
                                             </td>
                                         </tr>
                                     )}
-                                    {users.map((managedUser) => {
+                                    {paginatedUsers.map((managedUser) => {
                                         const targetPriority = ROLE_PRIORITY[managedUser.rol] ?? 0
                                         const canManageUser = currentPriority > targetPriority && user?.id !== managedUser.id
                                         const subscription = getEffectiveSubscription(managedUser.rol, managedUser.tipoSuscripcion)
@@ -669,6 +555,15 @@ export default function AdminPage() {
                                                     <span className={managedUser.activo ? "rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" : "rounded-full bg-rose-100 px-3 py-1 text-xs font-medium text-rose-700 dark:bg-rose-950 dark:text-rose-300"}>
                                                         {managedUser.activo ? "Activo" : "Inactivo"}
                                                     </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-muted-foreground">
+                                                    {managedUser.fechaCreacion ? new Date(managedUser.fechaCreacion).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—"}
+                                                </td>
+                                                <td className="px-4 py-3 text-center text-sm">
+                                                    {managedUser.totalMensajes ?? 0}
+                                                </td>
+                                                <td className="px-4 py-3 text-center text-sm">
+                                                    {managedUser.totalSesiones ?? 0}
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <div className="flex justify-end">
@@ -706,9 +601,253 @@ export default function AdminPage() {
                                 </tbody>
                             </table>
                         </div>
+
+                        {/* Paginación */}
+                        {users.length > 0 && (
+                            <div className="mt-4 flex flex-col items-center justify-between gap-4 sm:flex-row">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm text-muted-foreground">Mostrar</span>
+                                    <Select
+                                        value={itemsPerPage.toString()}
+                                        onValueChange={(value) => {
+                                            setItemsPerPage(Number(value))
+                                            setCurrentPage(1)
+                                        }}
+                                    >
+                                        <SelectTrigger className="w-[80px]">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="25">25</SelectItem>
+                                            <SelectItem value="50">50</SelectItem>
+                                            <SelectItem value="100">100</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <span className="text-sm text-muted-foreground">
+                                        de {users.length} usuarios
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(1)}
+                                        disabled={currentPage === 1}
+                                    >
+                                        Primera
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                                        disabled={currentPage === 1}
+                                    >
+                                        Anterior
+                                    </Button>
+                                    <span className="text-sm text-muted-foreground px-2">
+                                        Página {currentPage} de {totalPages || 1}
+                                    </span>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                                        disabled={currentPage >= totalPages}
+                                    >
+                                        Siguiente
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(totalPages)}
+                                        disabled={currentPage >= totalPages}
+                                    >
+                                        Última
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                     </section>
-                </div>
             </div>
+
+            {/* Diálogo de creación de nuevo usuario */}
+            <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Nuevo usuario</DialogTitle>
+                        <DialogDescription>
+                            Crea un nuevo perfil de usuario. Los campos marcados con * son obligatorios.
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    <form onSubmit={handleCreateUser} className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="create-nombre">Nombre *</Label>
+                            <Input 
+                                id="create-nombre" 
+                                value={formState.nombre} 
+                                onChange={handleFormChange("nombre")}
+                                placeholder="Nombre del usuario" 
+                                required
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="create-apellidos">Apellidos</Label>
+                            <Input 
+                                id="create-apellidos" 
+                                value={formState.apellidos} 
+                                onChange={handleFormChange("apellidos")}
+                                placeholder="Apellidos" 
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="create-email">Email *</Label>
+                            <Input 
+                                id="create-email" 
+                                type="email"
+                                value={formState.email} 
+                                onChange={handleFormChange("email")}
+                                placeholder="nombre@dominio.com" 
+                                required
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="create-telefono">Teléfono</Label>
+                            <Input 
+                                id="create-telefono" 
+                                value={formState.telefono} 
+                                onChange={handleFormChange("telefono")}
+                                placeholder="Teléfono de contacto" 
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="create-organizacion">Organización</Label>
+                            <Input 
+                                id="create-organizacion" 
+                                value={formState.organizacion} 
+                                onChange={handleFormChange("organizacion")}
+                                placeholder="Nombre de la organización" 
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="create-cargo">Cargo</Label>
+                            <Input 
+                                id="create-cargo" 
+                                value={formState.cargo} 
+                                onChange={handleFormChange("cargo")}
+                                placeholder="Ej. Coordinador de grupo" 
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="create-experiencia">Experiencia (años)</Label>
+                            <Input 
+                                id="create-experiencia" 
+                                type="number"
+                                min="0"
+                                value={formState.experiencia} 
+                                onChange={handleFormChange("experiencia")}
+                                placeholder="0" 
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="create-rol">Rol</Label>
+                            <Select
+                                value={formState.rol}
+                                onValueChange={(value) => setFormState(prev => ({ ...prev, rol: value }))}
+                            >
+                                <SelectTrigger id="create-rol">
+                                    <SelectValue placeholder="Seleccionar rol" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {availableRoleOptions.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                            {option.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="create-suscripcion">Tipo de suscripción</Label>
+                            <Select
+                                value={formState.tipoSuscripcion}
+                                onValueChange={(value) => setFormState(prev => ({ ...prev, tipoSuscripcion: value }))}
+                            >
+                                <SelectTrigger id="create-suscripcion">
+                                    <SelectValue placeholder="Seleccionar suscripción" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {SUBSCRIPTION_OPTIONS.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                            <span className="flex items-center gap-2">
+                                                <span className={`inline-block h-2 w-2 rounded-full ${
+                                                    option.value === 'PRO' ? 'bg-red-500' : 'bg-emerald-500'
+                                                }`} />
+                                                {option.label}
+                                            </span>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-3 rounded-lg border border-border/70 p-4">
+                            <h4 className="text-sm font-medium">Contraseña y notificación</h4>
+                            <div className="flex items-center gap-2">
+                                <Checkbox 
+                                    id="create-generar-password" 
+                                    checked={formState.generarPassword}
+                                    onCheckedChange={(checked) => setFormState(prev => ({ ...prev, generarPassword: checked === true }))}
+                                />
+                                <Label htmlFor="create-generar-password" className="text-sm font-normal cursor-pointer">
+                                    Generar contraseña automática
+                                </Label>
+                            </div>
+                            {!formState.generarPassword && (
+                                <div className="grid gap-2">
+                                    <Label htmlFor="create-password">Contraseña *</Label>
+                                    <Input 
+                                        id="create-password" 
+                                        type="password"
+                                        value={formState.password} 
+                                        onChange={handleFormChange("password")}
+                                        placeholder="Contraseña del usuario" 
+                                        required={!formState.generarPassword}
+                                    />
+                                </div>
+                            )}
+                            <div className="flex items-center gap-2">
+                                <Checkbox 
+                                    id="create-enviar-email" 
+                                    checked={formState.enviarEmail}
+                                    onCheckedChange={(checked) => setFormState(prev => ({ ...prev, enviarEmail: checked === true }))}
+                                />
+                                <Label htmlFor="create-enviar-email" className="text-sm font-normal cursor-pointer">
+                                    Enviar credenciales por email al usuario
+                                </Label>
+                            </div>
+                        </div>
+
+                        <DialogFooter className="pt-2">
+                            <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)}>
+                                Cancelar
+                            </Button>
+                            <Button type="submit" disabled={creatingUser}>
+                                {creatingUser ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Creando…
+                                    </>
+                                ) : (
+                                    <>
+                                        <UserPlus className="mr-2 h-4 w-4" />
+                                        Crear usuario
+                                    </>
+                                )}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
 
             {/* Diálogo de edición de usuario */}
             <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
