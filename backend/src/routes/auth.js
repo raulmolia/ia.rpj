@@ -1,11 +1,19 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
+import { writeFile, mkdir } from 'fs/promises';
+import { existsSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join, extname } from 'path';
 import prismaPackage from '@prisma/client';
 import { authenticate, authorize, getRolePriority } from '../middleware/auth.js';
 import { sendWelcomeEmail, sendPasswordResetEmail, generateRandomPassword } from '../services/emailService.js';
 import logService from '../services/logService.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const { PrismaClient } = prismaPackage;
 const PrismaEnums = prismaPackage.$Enums || {};
@@ -810,6 +818,74 @@ router.delete('/users/:id', authenticate, authorize(['ADMINISTRADOR']), async (r
         return res.status(500).json({
             error: 'Error eliminando usuario',
             message: error.message,
+        });
+    }
+});
+
+// Configurar multer para subida de avatar
+const avatarStorage = multer.memoryStorage();
+const avatarUpload = multer({
+    storage: avatarStorage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+    fileFilter: (req, file, cb) => {
+        const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (allowed.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error(`Tipo de archivo no permitido: ${file.mimetype}. Solo se permiten imágenes (JPG, PNG, WebP).`));
+        }
+    },
+});
+
+/**
+ * POST /api/auth/avatar
+ * Sube una imagen de avatar para el usuario autenticado
+ */
+router.post('/avatar', authenticate, avatarUpload.single('avatar'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: 'No se recibió ninguna imagen',
+            });
+        }
+
+        const userId = req.user.id;
+        const ext = extname(req.file.originalname).toLowerCase() || '.jpg';
+        const filename = `${userId}${ext}`;
+        const avatarsDir = join(__dirname, '..', '..', 'storage', 'avatars');
+
+        // Asegurar que existe el directorio
+        if (!existsSync(avatarsDir)) {
+            await mkdir(avatarsDir, { recursive: true });
+        }
+
+        // Guardar archivo
+        const filePath = join(avatarsDir, filename);
+        await writeFile(filePath, req.file.buffer);
+
+        // Construir URL pública del avatar (relativa, se resuelve desde el frontend)
+        const avatarUrl = `/api/avatars/${filename}?t=${Date.now()}`;
+
+        // Actualizar avatarUrl en la base de datos
+        await prisma.usuario.update({
+            where: { id: userId },
+            data: { avatarUrl },
+        });
+
+        console.log(`✅ Avatar subido para usuario ${userId}: ${filename}`);
+
+        return res.json({
+            success: true,
+            avatarUrl,
+            message: 'Avatar actualizado correctamente',
+        });
+    } catch (error) {
+        console.error('❌ Error subiendo avatar:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error al subir el avatar',
+            error: error.message,
         });
     }
 });

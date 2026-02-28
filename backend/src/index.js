@@ -111,6 +111,15 @@ app.use((req, res, next) => {
 // Usar las rutas API
 app.use('/api', apiRoutes);
 
+// Servir avatares de forma estática
+app.use('/api/avatars', express.static(join(__dirname, '..', 'storage', 'avatars'), {
+    maxAge: '7d',
+    etag: true,
+    setHeaders: (res) => {
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    },
+}));
+
 // Ruta 404 para rutas no encontradas
 app.use('*', (req, res) => {
     res.status(404).json({

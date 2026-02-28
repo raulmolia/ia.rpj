@@ -59,6 +59,9 @@ model Usuario {
   logs              LogSistema[]
   conectores        Conector[]
   costesIA          RegistroCosteIA[]
+  carpetas               CarpetaTrabajo[]
+  carpetasCompartidas    CarpetaCompartida[]
+  notificacionesCarpeta  CarpetaNotificacion[]
 
   @@map("usuarios")
 }
@@ -277,14 +280,70 @@ model Conversacion {
   compartidaDesde    String? // Email del usuario que compartió
   compartidaNombre   String? // Nombre del usuario que compartió
   esCompartida       Boolean  @default(false)
+  carpetaId          String? // Carpeta de trabajo a la que pertenece
   fechaCreacion      DateTime @default(now())
   fechaActualizacion DateTime @updatedAt
 
   usuario  Usuario?              @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
   mensajes MensajeConversacion[]
+  carpeta  CarpetaTrabajo?       @relation(fields: [carpetaId], references: [id], onDelete: SetNull)
 
   @@index([usuarioId], name: "idx_conversaciones_usuario")
+  @@index([carpetaId], name: "idx_conversaciones_carpeta")
   @@map("conversaciones")
+}
+
+// ─────────────────────────────────────────────────
+// Carpetas de trabajo (solo Pro)
+// ─────────────────────────────────────────────────
+
+model CarpetaTrabajo {
+  id                 String   @id @default(cuid())
+  nombre             String
+  icono              String   @default("FolderOpen") // Nombre del icono Lucide
+  color              String   @default("#f59e0b") // Color hex
+  usuarioId          String // Propietario
+  fechaCreacion      DateTime @default(now())
+  fechaActualizacion DateTime @updatedAt
+
+  usuario        Usuario              @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  conversaciones Conversacion[]
+  compartidas    CarpetaCompartida[]
+  notificaciones CarpetaNotificacion[]
+
+  @@index([usuarioId], name: "idx_carpetas_usuario")
+  @@map("carpetas_trabajo")
+}
+
+model CarpetaCompartida {
+  id            String   @id @default(cuid())
+  carpetaId     String
+  usuarioId     String // Usuario con quien se comparte
+  permisos      String   @default("lectura") // lectura | escritura
+  fechaCreacion DateTime @default(now())
+
+  carpeta CarpetaTrabajo @relation(fields: [carpetaId], references: [id], onDelete: Cascade)
+  usuario Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([carpetaId, usuarioId])
+  @@index([usuarioId], name: "idx_carpeta_compartida_usuario")
+  @@map("carpetas_compartidas")
+}
+
+model CarpetaNotificacion {
+  id            String   @id @default(cuid())
+  carpetaId     String
+  usuarioId     String // Usuario que recibe la notificación
+  tipo          String   @default("cambio") // cambio | nueva_conversacion | compartida
+  mensaje       String
+  leida         Boolean  @default(false)
+  fechaCreacion DateTime @default(now())
+
+  carpeta CarpetaTrabajo @relation(fields: [carpetaId], references: [id], onDelete: Cascade)
+  usuario Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId, leida], name: "idx_notif_carpeta_usuario")
+  @@map("carpetas_notificaciones")
 }
 
 model MensajeConversacion {

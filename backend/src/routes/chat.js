@@ -1306,6 +1306,60 @@ REGLAS ABSOLUTAS:
     }
 });
 
+// Renombrar una conversación
+router.patch('/:id', authenticate, async (req, res) => {
+    const { id } = req.params;
+    const userId = req.user?.id || null;
+    const { titulo } = req.body || {};
+
+    try {
+        if (!titulo || typeof titulo !== 'string' || titulo.trim().length === 0) {
+            return res.status(400).json({
+                error: 'Título inválido',
+                message: 'El título no puede estar vacío',
+            });
+        }
+
+        const conversation = await prisma.conversacion.findUnique({
+            where: { id },
+            select: { id: true, usuarioId: true },
+        });
+
+        if (!conversation) {
+            return res.status(404).json({ error: 'Conversación no encontrada' });
+        }
+
+        if (conversation.usuarioId && conversation.usuarioId !== userId) {
+            return res.status(403).json({
+                error: 'Acceso denegado',
+                message: 'No puedes renombrar esta conversación',
+            });
+        }
+
+        const trimmedTitle = titulo.trim().substring(0, 200);
+
+        await prisma.conversacion.update({
+            where: { id },
+            data: { titulo: trimmedTitle },
+        });
+
+        logChatEvent('info', {
+            event: 'chat.conversation.renamed',
+            conversationId: id,
+            userId,
+            newTitle: trimmedTitle,
+        });
+
+        return res.json({ success: true, titulo: trimmedTitle });
+    } catch (error) {
+        console.error('❌ Error renombrando conversación:', error);
+        return res.status(500).json({
+            error: 'No se pudo renombrar la conversación',
+            message: error.message,
+        });
+    }
+});
+
 router.delete('/:id', authenticate, async (req, res) => {
     const { id } = req.params;
     const userId = req.user?.id || null;

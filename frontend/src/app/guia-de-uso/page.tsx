@@ -90,6 +90,8 @@ const GUIDE_STRUCTURE: SidebarItem[] = [
             { id: "gestionar-conversaciones" },
             { id: "buscar-conversaciones" },
             { id: "archivar-eliminar" },
+            { id: "carpetas-trabajo", badge: "PRO" },
+            { id: "fuentes-consultadas" },
         ],
     },
     {
@@ -938,6 +940,36 @@ export default function GuiaDeUsoPage() {
                                     t("sections.archivarEliminar.tip2"),
                                 ]}
                             />
+
+                            <SubSectionTitle
+                                id="carpetas-trabajo"
+                                icon={<FolderOpen className="h-5 w-5" />}
+                                badge="PRO"
+                            >
+                                {t("sections.carpetasTrabajo.title")}
+                            </SubSectionTitle>
+                            <Paragraph>
+                                {t("sections.carpetasTrabajo.desc")}
+                            </Paragraph>
+                            <TipList
+                                items={[
+                                    t("sections.carpetasTrabajo.tip1"),
+                                    t("sections.carpetasTrabajo.tip2"),
+                                    t("sections.carpetasTrabajo.tip3"),
+                                    t("sections.carpetasTrabajo.tip4"),
+                                    t("sections.carpetasTrabajo.tip5"),
+                                ]}
+                            />
+
+                            <SubSectionTitle
+                                id="fuentes-consultadas"
+                                icon={<BookOpen className="h-5 w-5" />}
+                            >
+                                {t("sections.fuentesConsultadas.title")}
+                            </SubSectionTitle>
+                            <Paragraph>
+                                {t("sections.fuentesConsultadas.desc")}
+                            </Paragraph>
 
                             {/* ════════ 5. CONECTORES (PRO) ════════ */}
                             <SectionTitle

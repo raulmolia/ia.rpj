@@ -46,6 +46,8 @@ import {
     Mic,
     Square,
     PenLine,
+    Pin,
+    PinOff,
     Flame,
     BookMarked,
     BarChart3,
@@ -59,6 +61,8 @@ import {
     X,
     HardDrive,
     Upload,
+    Camera,
+    FolderOpen,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -97,7 +101,7 @@ import { cn, buildApiUrl } from "@/lib/utils"
 import { ThemeToggleButton } from "@/components/theme-toggle"
 import { LanguageSelector } from "@/components/language-selector"
 import { UsageStats } from "@/components/usage-stats"
-import { downloadAsPDF, downloadAsWord } from "@/lib/document-generator"
+import { downloadAsPDF, downloadAsWord, stripSourcesSection, extractSourcesText } from "@/lib/document-generator"
 import { ChangePasswordModal } from "@/components/change-password-modal"
 import { ConnectoresPanel } from "@/components/conectores-panel"
 import { CanvasDialog } from "@/components/canvas"
@@ -107,6 +111,10 @@ import { useToast } from "@/hooks/use-toast"
 import { CanvaDesignCards, type CanvaDesign } from "@/components/canva-design-cards"
 import { CanvaThinkingBox } from "@/components/canva-thinking-box"
 import { GoogleDrivePicker } from "@/components/google-drive-picker"
+import { useCarpetas, type Carpeta } from "@/hooks/use-carpetas"
+import { CarpetasSidebar } from "@/components/carpetas-sidebar"
+import { CarpetaDialog } from "@/components/carpeta-dialog"
+import { CarpetaShareDialog } from "@/components/carpeta-share-dialog"
 
 type MessageRole = "usuario" | "asistente"
 
@@ -135,6 +143,7 @@ type Chat = {
     createdAt: Date
     messages: ChatMessage[]
     archived?: boolean
+    pinned?: boolean
     intent?: string | null
     hasLoaded?: boolean
     isLoading?: boolean
@@ -218,7 +227,7 @@ type ProfileFormState = {
 
 export default function ChatHomePage() {
     const router = useRouter()
-    const { user, status, isAuthenticated, token, logout, updateProfile } = useAuth()
+    const { user, status, isAuthenticated, token, logout, updateProfile, refreshUser } = useAuth()
     const t = useTranslations()
     const { locale, setLocale, locales, localeNames } = useLocale()
     const { toast } = useToast()
@@ -285,6 +294,8 @@ export default function ChatHomePage() {
     const [searchQuery, setSearchQuery] = useState("")
     const [searchResults, setSearchResults] = useState<Chat[]>([])
     const [isSearching, setIsSearching] = useState(false)
+    const [renamingChatId, setRenamingChatId] = useState<string | null>(null)
+    const [renameValue, setRenameValue] = useState("")
     const scrollRef = useRef<HTMLDivElement | null>(null)
     const activeChatIdRef = useRef<string>("")
     const promptTextareaRef = useRef<HTMLTextAreaElement | null>(null)
@@ -407,7 +418,20 @@ export default function ChatHomePage() {
     }, [quickPrompts, selectedQuickPrompts, selectedSubOption])
 
     const activeChat = useMemo(() => chats.find((chat) => chat.id === activeChatId) ?? null, [chats, activeChatId])
-    const sidebarChats = useMemo(() => chats.filter((chat) => !chat.archived), [chats])
+    const sidebarChats = useMemo(() => {
+        const visible = chats.filter((chat) => !chat.archived)
+        // Cargar pins desde localStorage
+        let pinnedIds: string[] = []
+        try {
+            const stored = localStorage.getItem("pinnedChats")
+            pinnedIds = stored ? JSON.parse(stored) : []
+        } catch { /* ignore */ }
+        // Separar fijados y no fijados
+        const pinned = visible.filter((c) => pinnedIds.includes(c.conversationId ?? c.id))
+        const unpinned = visible.filter((c) => !pinnedIds.includes(c.conversationId ?? c.id))
+        // Fijados primero (más nuevos arriba), luego el resto
+        return [...pinned.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()), ...unpinned]
+    }, [chats])
     const archivedChats = useMemo(() => chats.filter((chat) => chat.archived), [chats])
     const messageCount = activeChat?.messages.length ?? 0
 
@@ -459,6 +483,69 @@ export default function ChatHomePage() {
         }
         return tipoSuscripcion === "PRO"
     }, [userRole, tipoSuscripcion])
+
+    // ── Carpetas de trabajo (solo Pro) ──
+    const isProUser = useMemo(() => {
+        const rolesConAcceso = ["SUPERADMIN", "ADMINISTRADOR", "DOCUMENTADOR", "DOCUMENTADOR_JUNIOR"]
+        return rolesConAcceso.includes(userRole) || tipoSuscripcion === "PRO"
+    }, [userRole, tipoSuscripcion])
+
+    const carpetasHook = useCarpetas(token ?? null, isProUser)
+    const [carpetaDialogOpen, setCarpetaDialogOpen] = useState(false)
+    const [carpetaEditing, setCarpetaEditing] = useState<Carpeta | null>(null)
+    const [carpetaShareDialogOpen, setCarpetaShareDialogOpen] = useState(false)
+    const [carpetaSharing, setCarpetaSharing] = useState<Carpeta | null>(null)
+    const [carpetaSaving, setCarpetaSaving] = useState(false)
+
+    const handleCreateFolder = useCallback(() => {
+        setCarpetaEditing(null)
+        setCarpetaDialogOpen(true)
+    }, [])
+
+    const handleEditFolder = useCallback((carpeta: Carpeta) => {
+        setCarpetaEditing(carpeta)
+        setCarpetaDialogOpen(true)
+    }, [])
+
+    const handleShareFolder = useCallback((carpeta: Carpeta) => {
+        setCarpetaSharing(carpeta)
+        setCarpetaShareDialogOpen(true)
+    }, [])
+
+    const handleDeleteFolder = useCallback(async (carpetaId: string) => {
+        if (!confirm(t("folders.confirmDelete"))) return
+        await carpetasHook.eliminarCarpeta(carpetaId)
+    }, [carpetasHook, t])
+
+    const handleSaveFolder = useCallback(async (nombre: string, icono: string, color: string) => {
+        setCarpetaSaving(true)
+        try {
+            if (carpetaEditing) {
+                await carpetasHook.actualizarCarpeta(carpetaEditing.id, { nombre, icono, color })
+            } else {
+                await carpetasHook.crearCarpeta(nombre, icono, color)
+            }
+            setCarpetaDialogOpen(false)
+        } finally {
+            setCarpetaSaving(false)
+        }
+    }, [carpetaEditing, carpetasHook])
+
+    const handleAddChatToFolder = useCallback(async (carpetaId: string, conversacionId: string) => {
+        await carpetasHook.addConversacion(carpetaId, conversacionId)
+    }, [carpetasHook])
+
+    const handleRemoveChatFromFolder = useCallback(async (carpetaId: string, convId: string) => {
+        await carpetasHook.removeConversacion(carpetaId, convId)
+    }, [carpetasHook])
+
+    const handleFolderChatSelect = useCallback((conversationId: string) => {
+        // Buscar chat por conversationId
+        const chat = chats.find(c => c.conversationId === conversationId)
+        if (chat) {
+            setActiveChatId(chat.id)
+        }
+    }, [chats])
 
     const { mustChangePassword, clearPasswordChangeFlag } = useAuth()
 
@@ -1013,7 +1100,7 @@ export default function ChatHomePage() {
 
             // Si modo Canvas está activo, abrir el editor con la respuesta
             if (isCanvasMode && data.message.content) {
-                setCanvasContent(data.message.content)
+                setCanvasContent(stripSourcesSection(data.message.content))
                 setCanvasMessageId(assistantMessage.id)
                 setCanvasOpen(true)
                 setIsCanvasMode(false) // Reset after opening
@@ -1297,6 +1384,51 @@ export default function ChatHomePage() {
         setProfileFeedback("Perfil actualizado correctamente")
     }
 
+    const avatarInputRef = useRef<HTMLInputElement | null>(null)
+    const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+
+    const handleAvatarUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0]
+        if (!file || !token) return
+
+        setIsUploadingAvatar(true)
+        setProfileFeedback(null)
+
+        try {
+            const formData = new FormData()
+            formData.append("avatar", file)
+
+            const response = await fetch(buildApiUrl("/api/auth/avatar"), {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+                body: formData,
+            })
+
+            if (!response.ok) {
+                const body = await response.json().catch(() => null)
+                throw new Error(body?.message || "Error al subir el avatar")
+            }
+
+            const data = await response.json()
+            setProfileForm((prev) => ({ ...prev, avatarUrl: data.avatarUrl }))
+            setProfileFeedback("Avatar actualizado correctamente")
+
+            // Refrescar datos del usuario para que el avatar se refleje en toda la app
+            if (typeof refreshUser === "function") {
+                await refreshUser()
+            }
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Error al subir el avatar"
+            setProfileFeedback(message)
+        } finally {
+            setIsUploadingAvatar(false)
+            // Limpiar el input para poder subir el mismo archivo de nuevo
+            if (avatarInputRef.current) avatarInputRef.current.value = ""
+        }
+    }
+
     const handleSelectChat = (chatId: string) => {
         setActiveChatId(chatId)
         const targetChat = chats.find((chat) => chat.id === chatId)
@@ -1530,6 +1662,79 @@ export default function ChatHomePage() {
             setShareFeedback(t("chat.couldNotCopy"))
         }
     }
+
+    const isChatPinned = useCallback((chat: Chat): boolean => {
+        try {
+            const stored = localStorage.getItem("pinnedChats")
+            const pinnedIds: string[] = stored ? JSON.parse(stored) : []
+            return pinnedIds.includes(chat.conversationId ?? chat.id)
+        } catch { return false }
+    }, [])
+
+    const handleTogglePinChat = useCallback((chat: Chat) => {
+        const key = chat.conversationId ?? chat.id
+        try {
+            const stored = localStorage.getItem("pinnedChats")
+            let pinnedIds: string[] = stored ? JSON.parse(stored) : []
+            if (pinnedIds.includes(key)) {
+                pinnedIds = pinnedIds.filter((id) => id !== key)
+            } else {
+                pinnedIds = [key, ...pinnedIds]
+            }
+            localStorage.setItem("pinnedChats", JSON.stringify(pinnedIds))
+            // Forzar re-render de sidebarChats
+            setChats((prev) => [...prev])
+        } catch { /* ignore */ }
+    }, [])
+
+    const handleStartRename = useCallback((chat: Chat) => {
+        setRenamingChatId(chat.id)
+        setRenameValue(chat.title)
+    }, [])
+
+    const handleConfirmRename = useCallback(async () => {
+        if (!renamingChatId || !renameValue.trim()) {
+            setRenamingChatId(null)
+            setRenameValue("")
+            return
+        }
+
+        const chat = chats.find((c) => c.id === renamingChatId)
+        if (!chat) {
+            setRenamingChatId(null)
+            setRenameValue("")
+            return
+        }
+
+        const newTitle = renameValue.trim()
+
+        // Actualizar localmente inmediatamente
+        setChats((prev) => prev.map((c) =>
+            c.id === renamingChatId ? { ...c, title: newTitle } : c
+        ))
+
+        // Persistir en el backend si hay conversationId
+        if (chat.conversationId && token) {
+            try {
+                const response = await fetch(buildApiUrl(`/api/chat/${chat.conversationId}`), {
+                    method: "PATCH",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ titulo: newTitle }),
+                })
+                if (!response.ok) {
+                    console.error("Error renombrando conversación")
+                }
+            } catch (error) {
+                console.error("Error renombrando conversación:", error)
+            }
+        }
+
+        setRenamingChatId(null)
+        setRenameValue("")
+    }, [renamingChatId, renameValue, chats, token])
 
     useEffect(() => {
         if (status === "authenticated" && token) {
@@ -2139,7 +2344,7 @@ export default function ChatHomePage() {
         <div className="flex h-screen overflow-hidden bg-background text-foreground">
             <aside
                 className={cn(
-                    "relative z-10 flex h-full flex-col border-r border-border/50 bg-muted/40 backdrop-blur transition-all duration-300",
+                    "relative z-10 flex h-full flex-col bg-muted/40 backdrop-blur transition-all duration-300 shadow-[4px_0_16px_-4px_rgba(0,0,0,0.1)] dark:shadow-[4px_0_16px_-4px_rgba(0,0,0,0.3)]",
                     sidebarWidthClass,
                 )}
             >
@@ -2257,7 +2462,7 @@ export default function ChatHomePage() {
                         <button
                             type="button"
                             onClick={handleCreateNewChat}
-                            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[11px] font-normal text-foreground transition-colors hover:bg-muted"
                         >
                             <PenSquare className="h-4 w-4" aria-hidden="true" />
                             <span>{t("sidebar.newConversation")}</span>
@@ -2267,7 +2472,7 @@ export default function ChatHomePage() {
                         <button
                             type="button"
                             onClick={() => setIsSearchDialogOpen(true)}
-                            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[11px] font-normal text-foreground transition-colors hover:bg-muted"
                         >
                             <Search className="h-4 w-4" aria-hidden="true" />
                             <span>{t("sidebar.searchConversations")}</span>
@@ -2278,10 +2483,26 @@ export default function ChatHomePage() {
                             <div className="border-t border-border/40" />
                         </div>
 
+                        {/* Carpetas de trabajo (solo Pro) */}
+                        {isProUser && (
+                            <CarpetasSidebar
+                                carpetas={carpetasHook.todasLasCarpetas}
+                                activeChatConversationId={activeChat?.conversationId ?? null}
+                                onSelectChat={handleFolderChatSelect}
+                                onCreateFolder={handleCreateFolder}
+                                onEditFolder={handleEditFolder}
+                                onShareFolder={handleShareFolder}
+                                onDeleteFolder={handleDeleteFolder}
+                                onRemoveConversation={handleRemoveChatFromFolder}
+                                onMarkNotificationsRead={carpetasHook.marcarNotificacionesLeidas}
+                                userId={user?.id ?? ""}
+                            />
+                        )}
+
                         {/* Título Conversaciones */}
                         <button
                             onClick={() => setIsChatsListCollapsed(!isChatsListCollapsed)}
-                            className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                            className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-[11px] font-medium text-foreground transition-colors hover:bg-muted"
                         >
                             <div className="flex items-center gap-3">
                                 <MessageSquare className="h-4 w-4" aria-hidden="true" />
@@ -2311,22 +2532,27 @@ export default function ChatHomePage() {
 
                                 {sidebarChats.map((chat) => {
                                     const isActive = chat.id === activeChatId
-                                    const truncatedTitle = chat.title.length > 25 ? chat.title.substring(0, 25) + '...' : chat.title
+                                    const truncatedTitle = chat.title.length > 28 ? chat.title.substring(0, 28) + '…' : chat.title
+                                    const pinned = isChatPinned(chat)
+                                    const isRenaming = renamingChatId === chat.id
 
                                     return (
                                         <div
                                             key={chat.id}
                                             className={cn(
-                                                "group relative flex cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2.5 transition-colors",
+                                                "group relative flex cursor-pointer items-center justify-between gap-1.5 rounded-lg px-3 py-2 transition-colors",
                                                 isActive ? "bg-primary/10" : "hover:bg-muted/50",
                                             )}
-                                            onClick={() => handleSelectChat(chat.id)}
+                                            onClick={() => !isRenaming && handleSelectChat(chat.id)}
                                         >
-                                            <div className="flex min-w-0 flex-1 items-center gap-2">
+                                            <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                                                {pinned && (
+                                                    <Pin className="h-3 w-3 flex-shrink-0 text-primary/60 rotate-45" />
+                                                )}
                                                 {chat.esCompartida && (
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
-                                                            <Mail className="h-3.5 w-3.5 flex-shrink-0 text-primary/70" />
+                                                            <Mail className="h-3 w-3 flex-shrink-0 text-primary/70" />
                                                         </TooltipTrigger>
                                                         <TooltipContent side="right" className="max-w-xs">
                                                             <p className="text-xs">
@@ -2338,23 +2564,92 @@ export default function ChatHomePage() {
                                                         </TooltipContent>
                                                     </Tooltip>
                                                 )}
-                                                <span className="truncate text-xs">
-                                                    {truncatedTitle}
-                                                </span>
+                                                {isRenaming ? (
+                                                    <input
+                                                        type="text"
+                                                        value={renameValue}
+                                                        onChange={(e) => setRenameValue(e.target.value)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === "Enter") {
+                                                                e.preventDefault()
+                                                                void handleConfirmRename()
+                                                            }
+                                                            if (e.key === "Escape") {
+                                                                setRenamingChatId(null)
+                                                                setRenameValue("")
+                                                            }
+                                                        }}
+                                                        onBlur={() => void handleConfirmRename()}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="flex-1 bg-transparent text-[11px] leading-tight outline-none border-b border-primary/40 py-0.5"
+                                                        autoFocus
+                                                    />
+                                                ) : (
+                                                    <span className="truncate text-[11px] leading-tight">
+                                                        {truncatedTitle}
+                                                    </span>
+                                                )}
                                             </div>
 
+                                            {!isRenaming && (
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="h-7 w-7 flex-shrink-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 hover:bg-muted"
+                                                        className="h-6 w-6 flex-shrink-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 hover:bg-muted"
                                                         onClick={(e) => e.stopPropagation()}
                                                     >
-                                                        <MoreHorizontal className="h-4 w-4" />
+                                                        <MoreHorizontal className="h-3.5 w-3.5" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end" className="w-44">
+                                                <DropdownMenuContent align="end" className="w-48">
+                                                    <DropdownMenuItem
+                                                        onSelect={(event) => {
+                                                            event.preventDefault()
+                                                            handleStartRename(chat)
+                                                        }}
+                                                    >
+                                                        <PenLine className="mr-2 h-4 w-4" aria-hidden="true" /> {t("sidebar.rename")}
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onSelect={(event) => {
+                                                            event.preventDefault()
+                                                            handleTogglePinChat(chat)
+                                                        }}
+                                                    >
+                                                        {pinned ? (
+                                                            <><PinOff className="mr-2 h-4 w-4" aria-hidden="true" /> {t("sidebar.unpinChat")}</>
+                                                        ) : (
+                                                            <><Pin className="mr-2 h-4 w-4" aria-hidden="true" /> {t("sidebar.pinChat")}</>
+                                                        )}
+                                                    </DropdownMenuItem>
+                                                    {/* Mover a carpeta (solo Pro) */}
+                                                    {isProUser && carpetasHook.carpetasPropias.length > 0 && chat.conversationId && (
+                                                        <DropdownMenuSub>
+                                                            <DropdownMenuSubTrigger>
+                                                                <FolderOpen className="mr-2 h-4 w-4" aria-hidden="true" />
+                                                                {t("folders.moveToFolder")}
+                                                            </DropdownMenuSubTrigger>
+                                                            <DropdownMenuSubContent className="w-48">
+                                                                {carpetasHook.carpetasPropias.map((carpeta) => (
+                                                                    <DropdownMenuItem
+                                                                        key={carpeta.id}
+                                                                        onSelect={(event) => {
+                                                                            event.preventDefault()
+                                                                            if (chat.conversationId) {
+                                                                                void handleAddChatToFolder(carpeta.id, chat.conversationId)
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        <span className="mr-2 h-3 w-3 rounded-full inline-block" style={{ backgroundColor: carpeta.color }} />
+                                                                        <span className="truncate text-xs">{carpeta.nombre}</span>
+                                                                    </DropdownMenuItem>
+                                                                ))}
+                                                            </DropdownMenuSubContent>
+                                                        </DropdownMenuSub>
+                                                    )}
+                                                    <DropdownMenuSeparator />
                                                     <DropdownMenuItem
                                                         onSelect={(event) => {
                                                             event.preventDefault()
@@ -2372,6 +2667,7 @@ export default function ChatHomePage() {
                                                         <Archive className="mr-2 h-4 w-4" aria-hidden="true" />
                                                         {t("sidebar.archive")}
                                                     </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
                                                     <DropdownMenuItem
                                                         className="text-destructive"
                                                         onSelect={(event) => {
@@ -2383,6 +2679,7 @@ export default function ChatHomePage() {
                                                     </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
+                                            )}
                                         </div>
                                     )
                                 })}
@@ -2404,9 +2701,14 @@ export default function ChatHomePage() {
                                         <DropdownMenuTrigger asChild>
                                             <button
                                                 type="button"
-                                                className="flex h-12 w-12 mx-auto items-center justify-center rounded-full bg-[#94c120] text-sm font-semibold uppercase text-white hover:bg-[#7ba619] transition-colors"
+                                                className="mx-auto overflow-hidden rounded-full transition-transform hover:scale-105"
                                             >
-                                                {initials}
+                                                <Avatar className="h-12 w-12">
+                                                    {user?.avatarUrl ? (
+                                                        <AvatarImage src={user.avatarUrl} alt={user.nombre || "Avatar"} />
+                                                    ) : null}
+                                                    <AvatarFallback style={{ backgroundColor: '#94c120', color: 'white' }} className="text-sm font-semibold uppercase">{initials}</AvatarFallback>
+                                                </Avatar>
                                             </button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent
@@ -2478,9 +2780,12 @@ export default function ChatHomePage() {
                                         type="button"
                                         className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2 text-left transition hover:border-border/60"
                                     >
-                                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#94c120] text-sm font-semibold uppercase text-white">
-                                            {initials}
-                                        </div>
+                                        <Avatar className="h-12 w-12">
+                                            {user?.avatarUrl ? (
+                                                <AvatarImage src={user.avatarUrl} alt={user.nombre || "Avatar"} />
+                                            ) : null}
+                                            <AvatarFallback style={{ backgroundColor: '#94c120', color: 'white' }} className="text-sm font-semibold uppercase">{initials}</AvatarFallback>
+                                        </Avatar>
                                         <div className="flex flex-col">
                                             <span className="text-sm font-medium leading-tight">{user?.nombre || user?.email}</span>
                                             <span className="text-xs uppercase tracking-wide text-muted-foreground">{user?.rol}</span>
@@ -2675,7 +2980,7 @@ export default function ChatHomePage() {
                                                             type="button"
                                                             className="focus:outline-none"
                                                             onClick={() => {
-                                                                setCanvasContent(message.content)
+                                                                setCanvasContent(stripSourcesSection(message.content))
                                                                 setCanvasMessageId(message.id)
                                                                 setCanvasOpen(true)
                                                             }}
@@ -2717,8 +3022,16 @@ export default function ChatHomePage() {
                                                             },
                                                         }}
                                                     >
-                                                        {message.content}
+                                                        {stripSourcesSection(message.content)}
                                                     </ReactMarkdown>
+                                                    {/* Caja ámbar de fuentes consultadas */}
+                                                    {extractSourcesText(message.content) && (
+                                                        <div className="mt-3 rounded-lg bg-amber-100 dark:bg-amber-900/40 border border-amber-200 dark:border-amber-800 px-3 py-2">
+                                                            <p className="text-[10px] leading-relaxed text-amber-700 dark:text-amber-400 m-0">
+                                                                📚 <span className="font-medium">Fuentes consultadas:</span> {extractSourcesText(message.content)}
+                                                            </p>
+                                                        </div>
+                                                    )}
                                                     {/* Tarjetas de diseños de Canva */}
                                                     {message.canvaDesigns && message.canvaDesigns.length > 0 && (
                                                         <CanvaDesignCards designs={message.canvaDesigns} templateSearchUrl={message.templateSearchUrl} />
@@ -2859,7 +3172,10 @@ export default function ChatHomePage() {
                                             )}
                                         </div>
                                         {message.role === "usuario" && (
-                                            <Avatar className="h-9 w-9" style={{ backgroundColor: '#94c120' }}>
+                                            <Avatar className="h-9 w-9">
+                                                {user?.avatarUrl ? (
+                                                    <AvatarImage src={user.avatarUrl} alt={user.nombre || "Avatar"} />
+                                                ) : null}
                                                 <AvatarFallback style={{ backgroundColor: '#94c120', color: 'white' }}>{initials}</AvatarFallback>
                                             </Avatar>
                                         )}
@@ -2930,8 +3246,44 @@ export default function ChatHomePage() {
                             <Input id="profile-experiencia" type="number" min="0" value={profileForm.experiencia} onChange={handleProfileInputChange("experiencia")} placeholder={t("profile.experiencePlaceholder")} />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="profile-avatar">{t("profile.avatar")}</Label>
-                            <Input id="profile-avatar" value={profileForm.avatarUrl} onChange={handleProfileInputChange("avatarUrl")} placeholder="https://..." autoComplete="url" />
+                            <Label>{t("profile.avatar")}</Label>
+                            <div className="flex items-center gap-4">
+                                <div className="relative">
+                                    <Avatar className="h-16 w-16">
+                                        {profileForm.avatarUrl ? (
+                                            <AvatarImage src={profileForm.avatarUrl} alt="Avatar" />
+                                        ) : null}
+                                        <AvatarFallback style={{ backgroundColor: '#94c120', color: 'white', fontSize: '1.25rem' }}>{initials}</AvatarFallback>
+                                    </Avatar>
+                                    <button
+                                        type="button"
+                                        onClick={() => avatarInputRef.current?.click()}
+                                        disabled={isUploadingAvatar}
+                                        className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md hover:bg-primary/90 transition-colors disabled:opacity-50"
+                                    >
+                                        <Camera className="h-3.5 w-3.5" />
+                                    </button>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => avatarInputRef.current?.click()}
+                                        disabled={isUploadingAvatar}
+                                    >
+                                        {isUploadingAvatar ? t("profile.saving") : t("profile.changeAvatar")}
+                                    </Button>
+                                    <p className="text-[10px] text-muted-foreground">JPG, PNG o WebP. Máx 5 MB.</p>
+                                </div>
+                                <input
+                                    ref={avatarInputRef}
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp"
+                                    className="hidden"
+                                    onChange={handleAvatarUpload}
+                                />
+                            </div>
                         </div>
                         <p className="text-xs text-muted-foreground">{t("auth.email")}: {user?.email}</p>
                         {profileFeedback && (
@@ -3329,6 +3681,29 @@ export default function ChatHomePage() {
                 onOpenChange={setIsDrivePickerOpen}
                 token={token ?? ""}
                 onFilesSelected={handleDriveFilesSelected}
+            />
+
+            {/* Carpetas de trabajo - Diálogos */}
+            <CarpetaDialog
+                open={carpetaDialogOpen}
+                onOpenChange={setCarpetaDialogOpen}
+                carpeta={carpetaEditing}
+                onSave={handleSaveFolder}
+                saving={carpetaSaving}
+            />
+            <CarpetaShareDialog
+                open={carpetaShareDialogOpen}
+                onOpenChange={setCarpetaShareDialogOpen}
+                carpeta={carpetaSharing}
+                onShare={async (email, permisos) => {
+                    if (!carpetaSharing) return false
+                    return await carpetasHook.compartirCarpeta(carpetaSharing.id, email, permisos)
+                }}
+                onUnshare={async (userId) => {
+                    if (!carpetaSharing) return false
+                    return await carpetasHook.dejarDeCompartir(carpetaSharing.id, userId)
+                }}
+                onSearchUsers={carpetasHook.buscarUsuariosPro}
             />
         </div>
     )

@@ -2,6 +2,32 @@ import { jsPDF } from "jspdf"
 import { saveAs } from "file-saver"
 
 // ────────────────────────────────────────────────
+// Utilidad: eliminar sección "Fuentes consultadas"
+// ────────────────────────────────────────────────
+
+/**
+ * Elimina la sección "📚 Fuentes consultadas" del contenido markdown.
+ * Se usa antes de exportar a PDF/Word y en modo lienzo.
+ */
+export function stripSourcesSection(content: string): string {
+    return content
+        .replace(/\n*📚\s*\*?Fuentes consultadas[:\s][\s\S]*$/gim, '')
+        .replace(/\n*\*?Fuentes consultadas[:\s][\s\S]*$/gim, '')
+        .trim()
+}
+
+/**
+ * Extrae solo el texto de la sección "📚 Fuentes consultadas" (sin el encabezado).
+ * Devuelve null si no hay fuentes.
+ */
+export function extractSourcesText(content: string): string | null {
+    const match = content.match(/📚\s*\*?Fuentes consultadas[:\s*]+(.+)/im)
+    if (!match) return null
+    // Quitar asteriscos de markdown italic
+    return match[1].replace(/\*+/g, '').trim() || null
+}
+
+// ────────────────────────────────────────────────
 // Tipos
 // ────────────────────────────────────────────────
 
@@ -259,7 +285,10 @@ function estimateInlineHeight(
 }
 
 // Función para generar PDF mejorada con formato inline
-export async function downloadAsPDF(content: string, filename: string = "respuesta-ia.pdf") {
+export async function downloadAsPDF(rawContent: string, filename: string = "respuesta-ia.pdf") {
+    // Eliminar sección "Fuentes consultadas" antes de exportar
+    const content = stripSourcesSection(rawContent)
+
     const doc = new jsPDF({
         orientation: "portrait",
         unit: "mm",
@@ -436,7 +465,10 @@ export async function downloadAsPDF(content: string, filename: string = "respues
 // Word – Exportación con formato inline rico
 // ────────────────────────────────────────────────
 
-export async function downloadAsWord(content: string, filename: string = "respuesta.docx"): Promise<void> {
+export async function downloadAsWord(rawContent: string, filename: string = "respuesta.docx"): Promise<void> {
+    // Eliminar sección "Fuentes consultadas" antes de exportar
+    const content = stripSourcesSection(rawContent)
+
     // Cargar logo
     const logoUrl = `/Logotipo RPJ.jpg?v=${Date.now()}`
     let logoBase64 = ""
