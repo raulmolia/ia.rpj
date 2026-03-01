@@ -1797,7 +1797,7 @@ export default function ChatHomePage() {
         return null
     }
 
-    const sidebarWidthClass = isSidebarCollapsed ? "w-20" : "w-80"
+    const sidebarWidthClass = isSidebarCollapsed ? "w-16" : "w-80"
 
     // Considerar que no hay mensajes si solo está el saludo inicial del asistente
     const userMessages = activeChat?.messages.filter(m => m.role === "usuario") || []
@@ -2362,8 +2362,8 @@ export default function ChatHomePage() {
                 {/* Logo y título */}
                 <div className="flex items-center justify-between px-4 pt-6 pb-4">
                     {isSidebarCollapsed ? (
-                        <span className="relative inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-white shadow-md mx-auto">
-                            <Image src="/LogotipoRPJ_circulo.png" alt="RPJ" width={48} height={48} priority className="object-cover" />
+                        <span className="relative inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-white shadow-md mx-auto">
+                            <Image src="/LogotipoRPJ_circulo.png" alt="RPJ" width={36} height={36} priority className="object-cover" />
                         </span>
                     ) : (
                         <>
@@ -2395,7 +2395,7 @@ export default function ChatHomePage() {
 
                 {/* Botones de acción - mismo padding y espaciado */}
                 {isSidebarCollapsed ? (
-                    <div className="flex flex-col gap-2 px-2">
+                    <div className="flex flex-col gap-1 px-2">
                         {/* Nueva conversación - colapsado */}
                         <TooltipProvider>
                             <Tooltip delayDuration={0}>
@@ -2404,9 +2404,9 @@ export default function ChatHomePage() {
                                         variant="ghost"
                                         size="icon"
                                         onClick={handleCreateNewChat}
-                                        className="h-10 w-10 rounded-xl hover:bg-muted text-foreground"
+                                        className="h-8 w-8 rounded-lg hover:bg-muted text-foreground mx-auto"
                                     >
-                                        <PenSquare className="h-5 w-5" />
+                                        <PenSquare className="h-4 w-4" />
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent side="right">
@@ -2423,9 +2423,9 @@ export default function ChatHomePage() {
                                         variant="ghost"
                                         size="icon"
                                         onClick={() => setIsSearchDialogOpen(true)}
-                                        className="h-10 w-10 rounded-xl hover:bg-muted text-foreground"
+                                        className="h-8 w-8 rounded-lg hover:bg-muted text-foreground mx-auto"
                                     >
-                                        <Search className="h-5 w-5" />
+                                        <Search className="h-4 w-4" />
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent side="right">
@@ -2433,6 +2433,27 @@ export default function ChatHomePage() {
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
+
+                        {/* Carpetas de trabajo - colapsado (solo Pro) */}
+                        {isProUser && carpetasHook.todasLasCarpetas.length > 0 && (
+                            <TooltipProvider>
+                                <Tooltip delayDuration={0}>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => setIsSidebarCollapsed(false)}
+                                            className="h-8 w-8 rounded-lg hover:bg-muted text-foreground mx-auto"
+                                        >
+                                            <FolderOpen className="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="right">
+                                        <p>{t("folders.title")}</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        )}
 
                         {/* Conversaciones - colapsado */}
                         <TooltipProvider>
@@ -2442,9 +2463,9 @@ export default function ChatHomePage() {
                                         variant="ghost"
                                         size="icon"
                                         onClick={() => setIsSidebarCollapsed(false)}
-                                        className="h-10 w-10 rounded-xl hover:bg-muted text-foreground"
+                                        className="h-8 w-8 rounded-lg hover:bg-muted text-foreground mx-auto"
                                     >
-                                        <MessageSquare className="h-5 w-5" />
+                                        <MessageSquare className="h-4 w-4" />
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent side="right">
@@ -2461,10 +2482,10 @@ export default function ChatHomePage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => setIsSidebarCollapsed(false)}
-                            className="h-9 w-9 mx-auto mb-2 text-foreground"
+                            className="h-7 w-7 mx-auto mb-2 text-foreground"
                             aria-label={t("sidebar.showMenu")}
                         >
-                            <ChevronsRight className="h-4 w-4" />
+                            <ChevronsRight className="h-3.5 w-3.5" />
                         </Button>
                     </div>
                 ) : (
@@ -2714,11 +2735,11 @@ export default function ChatHomePage() {
                                                 type="button"
                                                 className="mx-auto overflow-hidden rounded-full transition-transform hover:scale-105"
                                             >
-                                                <Avatar className="h-12 w-12">
+                                                <Avatar className="h-9 w-9">
                                                     {user?.avatarUrl ? (
                                                         <AvatarImage src={user.avatarUrl} alt={user.nombre || "Avatar"} />
                                                     ) : null}
-                                                    <AvatarFallback style={{ backgroundColor: '#94c120', color: 'white' }} className="text-sm font-semibold uppercase">{initials}</AvatarFallback>
+                                                    <AvatarFallback style={{ backgroundColor: '#94c120', color: 'white' }} className="text-xs font-semibold uppercase">{initials}</AvatarFallback>
                                                 </Avatar>
                                             </button>
                                         </DropdownMenuTrigger>
