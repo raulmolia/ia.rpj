@@ -39,6 +39,7 @@ export const FOLDER_ICONS: Record<string, LucideIcon> = {
 
 // ── Colores disponibles ──
 export const FOLDER_COLORS = [
+    "#000000", // black
     "#f59e0b", // amber
     "#ef4444", // red
     "#3b82f6", // blue
@@ -132,9 +133,6 @@ export function CarpetasSidebar({
                 <div className="flex items-center gap-3">
                     <FolderOpen className="h-4 w-4" aria-hidden="true" />
                     <span>{t("folders.title")}</span>
-                    <Badge variant="secondary" className="h-4 px-1.5 text-[9px] font-normal">
-                        {carpetas.length}
-                    </Badge>
                 </div>
                 <div className="flex items-center gap-1">
                     <span

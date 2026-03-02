@@ -150,6 +150,7 @@ function SidebarNav({
 }) {
     const t = useTranslations("guide")
     const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+    const navRef = useRef<HTMLElement>(null)
 
     // Abrir la sección padre cuando cambia el activeSection
     useEffect(() => {
@@ -157,6 +158,15 @@ function SidebarNav({
             if (item.children?.some((c) => c.id === activeSection)) {
                 setExpanded((prev) => ({ ...prev, [item.id]: true }))
             }
+        }
+    }, [activeSection])
+
+    // Scroll del sidebar al ítem activo
+    useEffect(() => {
+        if (!navRef.current) return
+        const activeEl = navRef.current.querySelector(`[data-nav-id="${activeSection}"]`)
+        if (activeEl) {
+            activeEl.scrollIntoView({ behavior: "smooth", block: "nearest" })
         }
     }, [activeSection])
 
@@ -177,7 +187,7 @@ function SidebarNav({
     }
 
     return (
-        <nav className="flex flex-col gap-0.5 text-sm">
+        <nav ref={navRef} className="flex flex-col gap-0.5 text-sm">
             {GUIDE_STRUCTURE.map((item) => {
                 const isActive = activeSection === item.id
                 const hasChildren = !!item.children?.length
@@ -189,6 +199,7 @@ function SidebarNav({
                 return (
                     <div key={item.id}>
                         <button
+                            data-nav-id={item.id}
                             onClick={() => handleClick(item.id, hasChildren)}
                             className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors ${
                                 isActive || hasActiveChild
@@ -229,6 +240,7 @@ function SidebarNav({
                                     return (
                                         <button
                                             key={child.id}
+                                            data-nav-id={child.id}
                                             onClick={() =>
                                                 handleChildClick(child.id)
                                             }
@@ -317,7 +329,7 @@ export default function GuiaDeUsoPage() {
         <h2
             id={id}
             data-section
-            className="mt-16 mb-6 scroll-mt-24 text-2xl font-bold tracking-tight text-foreground first:mt-0 flex items-center gap-2"
+            className="mt-16 mb-6 scroll-mt-24 text-2xl font-extrabold tracking-tight text-foreground first:mt-0 flex items-center gap-2 border-b-2 border-primary/30 pb-3"
         >
             {icon && <span className="text-primary">{icon}</span>}
             {children}
@@ -460,9 +472,9 @@ export default function GuiaDeUsoPage() {
                         <div className="p-4">
                             {/* Logo pequeño */}
                             <div className="mb-6 flex items-center gap-3 px-2">
-                                <div className="relative h-10 w-10 shrink-0">
+                                <div className="relative h-10 w-10 shrink-0 rounded-full overflow-hidden">
                                     <Image
-                                        src="/LogotipoRPJ.png"
+                                        src="/LogotipoRPJ_circulo.png"
                                         alt="Logo RPJ"
                                         fill
                                         className="object-contain"

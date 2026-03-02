@@ -988,7 +988,7 @@ export default function ChatHomePage() {
                                     intent: initialData.intent ?? chat.intent ?? null,
                                     title: initialData.title ?? chat.title,
                                     messages: [...chat.messages, {
-                                        id: createId(),
+                                        id: initialData.message?.id || createId(),
                                         role: "asistente",
                                         content: initialData.message?.content || "",
                                         createdAt: new Date().toISOString(),
@@ -1072,7 +1072,7 @@ export default function ChatHomePage() {
             }
 
             const assistantMessage: ChatMessage = {
-                id: createId(),
+                id: data.message.id || createId(),
                 role: "asistente",
                 content: data.message.content,
                 isWorkContent: data.message.isWorkContent ?? undefined,
@@ -2954,11 +2954,6 @@ export default function ChatHomePage() {
                                         key={message.id}
                                         className={cn("flex gap-4", message.role === "usuario" ? "justify-end" : "justify-start")}
                                     >
-                                        {message.role === "asistente" && (
-                                            <Avatar className="h-9 w-9">
-                                                <AvatarFallback>IA</AvatarFallback>
-                                            </Avatar>
-                                        )}
                                         <div
                                             className={cn(
                                                 "relative max-w-[85%] text-sm leading-relaxed",
@@ -3059,9 +3054,20 @@ export default function ChatHomePage() {
                                                     {/* Caja ámbar de fuentes consultadas */}
                                                     {extractSourcesText(message.content) && (
                                                         <div className="mt-3 rounded-lg bg-amber-100 dark:bg-amber-900/40 border border-amber-200 dark:border-amber-800 px-3 py-2">
-                                                            <p className="text-[10px] leading-relaxed text-amber-700 dark:text-amber-400 m-0">
-                                                                📚 <span className="font-medium">Fuentes consultadas:</span> {extractSourcesText(message.content)}
+                                                            <p className="text-[10px] font-medium leading-relaxed text-amber-700 dark:text-amber-400 m-0 mb-1">
+                                                                📚 Fuentes consultadas:
                                                             </p>
+                                                            <ul className="m-0 pl-4 list-disc space-y-0.5">
+                                                                {extractSourcesText(message.content)!.split(/[,;|]|\n/).map((src, i) => {
+                                                                    const trimmed = src.replace(/^[\s\-•]+/, '').trim()
+                                                                    if (!trimmed) return null
+                                                                    return (
+                                                                        <li key={i} className="text-[10px] leading-relaxed text-amber-700 dark:text-amber-400">
+                                                                            {trimmed}
+                                                                        </li>
+                                                                    )
+                                                                })}
+                                                            </ul>
                                                         </div>
                                                     )}
                                                     {/* Tarjetas de diseños de Canva */}
@@ -3113,17 +3119,19 @@ export default function ChatHomePage() {
                                                         onClick={async () => {
                                                             try {
                                                                 if (feedbackMap[message.id] === "POSITIVO") {
-                                                                    await fetch(buildApiUrl(`/api/feedback/${message.id}`), {
+                                                                    const response = await fetch(buildApiUrl(`/api/feedback/${message.id}`), {
                                                                         method: "DELETE",
                                                                         headers: { Authorization: `Bearer ${token}` },
                                                                     })
+                                                                    if (!response.ok) throw new Error("No se pudo eliminar feedback")
                                                                     setFeedbackMap(prev => { const n = { ...prev }; delete n[message.id]; return n })
                                                                 } else {
-                                                                    await fetch(buildApiUrl("/api/feedback"), {
+                                                                    const response = await fetch(buildApiUrl("/api/feedback"), {
                                                                         method: "POST",
                                                                         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                                                                         body: JSON.stringify({ mensajeId: message.id, tipo: "POSITIVO", intencion: activeChat?.intent || null }),
                                                                     })
+                                                                    if (!response.ok) throw new Error("No se pudo guardar feedback")
                                                                     setFeedbackMap(prev => ({ ...prev, [message.id]: "POSITIVO" }))
                                                                 }
                                                             } catch { console.error("Error al enviar feedback") }
@@ -3144,17 +3152,19 @@ export default function ChatHomePage() {
                                                         onClick={async () => {
                                                             try {
                                                                 if (feedbackMap[message.id] === "NEGATIVO") {
-                                                                    await fetch(buildApiUrl(`/api/feedback/${message.id}`), {
+                                                                    const response = await fetch(buildApiUrl(`/api/feedback/${message.id}`), {
                                                                         method: "DELETE",
                                                                         headers: { Authorization: `Bearer ${token}` },
                                                                     })
+                                                                    if (!response.ok) throw new Error("No se pudo eliminar feedback")
                                                                     setFeedbackMap(prev => { const n = { ...prev }; delete n[message.id]; return n })
                                                                 } else {
-                                                                    await fetch(buildApiUrl("/api/feedback"), {
+                                                                    const response = await fetch(buildApiUrl("/api/feedback"), {
                                                                         method: "POST",
                                                                         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                                                                         body: JSON.stringify({ mensajeId: message.id, tipo: "NEGATIVO", intencion: activeChat?.intent || null }),
                                                                     })
+                                                                    if (!response.ok) throw new Error("No se pudo guardar feedback")
                                                                     setFeedbackMap(prev => ({ ...prev, [message.id]: "NEGATIVO" }))
                                                                 }
                                                             } catch { console.error("Error al enviar feedback") }
@@ -3216,9 +3226,6 @@ export default function ChatHomePage() {
 
                                 {isThinking && (
                                     <div className="flex items-start gap-3 text-sm text-muted-foreground">
-                                        <Avatar className="h-9 w-9">
-                                            <AvatarFallback>IA</AvatarFallback>
-                                        </Avatar>
                                         <div className="flex flex-col gap-2">
                                             {hasActiveCanva && canvaToolEnabled ? (
                                                 <CanvaThinkingBox isActive={true} />

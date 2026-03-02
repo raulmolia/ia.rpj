@@ -363,6 +363,22 @@ export async function obtenerResumenCostes() {
             }),
         ]);
 
+        // Top de usuarios por gasto en el mes actual
+        const gastoPorUsuarioMes = await prisma.$queryRaw`
+            SELECT
+                u.nombre, u.apellidos, u.email,
+                COUNT(r.id) as peticiones,
+                SUM(r.costeTotal) as costeTotal,
+                SUM(r.tokensEntrada) as tokensEntrada,
+                SUM(r.tokensSalida) as tokensSalida
+            FROM registros_coste_ia r
+            INNER JOIN usuarios u ON r.usuarioId = u.id
+            WHERE r.fechaCreacion >= ${inicioMes}
+            GROUP BY u.id, u.nombre, u.apellidos, u.email
+            ORDER BY costeTotal DESC
+            LIMIT 10
+        `;
+
         // Tasa de éxito
         const errores = await prisma.registroCosteIA.count({ where: { exito: false } });
 
@@ -415,6 +431,14 @@ export async function obtenerResumenCostes() {
                 tokensSalida: Number(m.tokensSalida),
             })),
             gastoPorUsuario: gastoPorUsuario.map(u => ({
+                nombre: `${u.nombre} ${u.apellidos || ''}`.trim(),
+                email: u.email,
+                peticiones: Number(u.peticiones),
+                costeTotal: Number(u.costeTotal),
+                tokensEntrada: Number(u.tokensEntrada),
+                tokensSalida: Number(u.tokensSalida),
+            })),
+            gastoPorUsuarioMes: gastoPorUsuarioMes.map(u => ({
                 nombre: `${u.nombre} ${u.apellidos || ''}`.trim(),
                 email: u.email,
                 peticiones: Number(u.peticiones),

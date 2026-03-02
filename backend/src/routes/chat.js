@@ -1198,6 +1198,7 @@ REGLAS ABSOLUTAS:
             intent: detectedIntent.id,
             title: updatedTitle || currentConversation?.titulo,
             message: {
+                id: assistantMessageRecord.id,
                 role: 'assistant',
                 content: assistantMessageRecord.contenido,
                 isWorkContent,
@@ -1296,6 +1297,7 @@ REGLAS ABSOLUTAS:
             conversationId: conversation.id,
             intent: detectedIntent.id,
             message: {
+                id: assistantMessageRecord?.id,
                 role: 'assistant',
                 content: assistantMessageRecord?.contenido || FALLBACK_MESSAGE,
                 isWorkContent: false,

@@ -335,7 +335,7 @@ export default function CanvasEditor({
         content: convertMarkdownToHtml(initialContent), // FIX Bug 1: convert markdown to HTML
         editorProps: {
             attributes: {
-                class: "prose prose-base dark:prose-invert max-w-none focus:outline-none min-h-[300px] px-8 sm:px-16 lg:px-24 py-10",
+                class: "prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[300px] px-12 sm:px-24 lg:px-36 xl:px-48 py-10 text-sm leading-relaxed",
             },
         },
         onUpdate: ({ editor }) => {
@@ -646,37 +646,36 @@ export default function CanvasEditor({
                     }
                     /* Headings */
                     .canvas-editor-container .ProseMirror h1 {
-                        font-size: 2rem;
-                        font-weight: 800;
-                        line-height: 1.2;
+                        font-size: 1.35rem;
+                        font-weight: 700;
+                        line-height: 1.3;
                         margin-top: 1.5em;
-                        margin-bottom: 0.6em;
-                        letter-spacing: -0.02em;
-                        border-bottom: 2px solid rgba(141, 198, 63, 0.3);
+                        margin-bottom: 0.5em;
+                        letter-spacing: -0.01em;
+                        border-bottom: 1px solid hsl(var(--border) / 0.5);
                         padding-bottom: 0.3em;
                     }
                     .canvas-editor-container .ProseMirror h2 {
-                        font-size: 1.55rem;
-                        font-weight: 700;
-                        line-height: 1.25;
-                        margin-top: 1.4em;
-                        margin-bottom: 0.5em;
-                        letter-spacing: -0.01em;
-                        color: hsl(var(--foreground) / 0.9);
-                    }
-                    .canvas-editor-container .ProseMirror h3 {
-                        font-size: 1.25rem;
+                        font-size: 1.15rem;
                         font-weight: 650;
                         line-height: 1.3;
                         margin-top: 1.3em;
-                        margin-bottom: 0.45em;
+                        margin-bottom: 0.4em;
+                        color: hsl(var(--foreground) / 0.9);
                     }
-                    .canvas-editor-container .ProseMirror h4 {
-                        font-size: 1.05rem;
+                    .canvas-editor-container .ProseMirror h3 {
+                        font-size: 1rem;
                         font-weight: 600;
                         line-height: 1.35;
-                        margin-top: 1.25em;
-                        margin-bottom: 0.4em;
+                        margin-top: 1.2em;
+                        margin-bottom: 0.35em;
+                    }
+                    .canvas-editor-container .ProseMirror h4 {
+                        font-size: 0.9rem;
+                        font-weight: 600;
+                        line-height: 1.4;
+                        margin-top: 1.1em;
+                        margin-bottom: 0.3em;
                         color: hsl(var(--foreground) / 0.8);
                     }
                     .canvas-editor-container .ProseMirror h1:first-child {
@@ -684,24 +683,26 @@ export default function CanvasEditor({
                     }
                     /* Paragraphs */
                     .canvas-editor-container .ProseMirror p {
-                        margin-bottom: 0.85em;
-                        line-height: 1.75;
+                        margin-bottom: 0.75em;
+                        line-height: 1.7;
+                        font-size: 0.875rem;
                         color: hsl(var(--foreground) / 0.88);
                     }
                     /* Lists */
                     .canvas-editor-container .ProseMirror ul {
                         margin-left: 1.25em;
-                        margin-bottom: 1em;
+                        margin-bottom: 0.85em;
                         list-style-type: disc;
                     }
                     .canvas-editor-container .ProseMirror ol {
                         margin-left: 1.25em;
-                        margin-bottom: 1em;
+                        margin-bottom: 0.85em;
                         list-style-type: decimal;
                     }
                     .canvas-editor-container .ProseMirror li {
-                        margin-bottom: 0.35em;
+                        margin-bottom: 0.25em;
                         line-height: 1.7;
+                        font-size: 0.875rem;
                         padding-left: 0.25em;
                     }
                     .canvas-editor-container .ProseMirror li p {

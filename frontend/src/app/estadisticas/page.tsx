@@ -165,6 +165,7 @@ type CostesIAData = {
     gastoDiario: { dia: string; peticiones: number; costeTotal: number; tokensEntrada: number; tokensSalida: number }[]
     gastoMensual: { mes: string; peticiones: number; costeTotal: number; tokensEntrada: number; tokensSalida: number }[]
     gastoPorUsuario: { nombre: string; email: string; peticiones: number; costeTotal: number; tokensEntrada: number; tokensSalida: number }[]
+    gastoPorUsuarioMes: { nombre: string; email: string; peticiones: number; costeTotal: number; tokensEntrada: number; tokensSalida: number }[]
     tasaExito: { total: number; errores: number; porcentaje: number }
 }
 
@@ -287,8 +288,14 @@ export default function EstadisticasPage() {
         try {
             switch (tab) {
                 case "resumen": {
-                    const data = await fetchData("resumen")
-                    if (data) setResumen(data)
+                    const [resumenData, costesData, creditosData] = await Promise.all([
+                        fetchData("resumen"),
+                        fetchData("costes-ia"),
+                        fetchData("costes-ia/creditos"),
+                    ])
+                    if (resumenData) setResumen(resumenData)
+                    if (costesData) setCostesIA(costesData)
+                    if (creditosData) setCreditosOR(creditosData)
                     break
                 }
                 case "usuarios": {
@@ -388,6 +395,31 @@ export default function EstadisticasPage() {
         setActiveTab(tab)
     }
 
+    const currentMonthKey = useMemo(() => {
+        const now = new Date()
+        const month = `${now.getMonth() + 1}`.padStart(2, "0")
+        return `${now.getFullYear()}-${month}`
+    }, [])
+
+    const resumenSeriesMes = useMemo(() => {
+        if (!costesIA?.gastoDiario) return []
+        return costesIA.gastoDiario
+            .filter((item) => item.dia.startsWith(currentMonthKey))
+            .map((item) => ({
+                dia: item.dia,
+                diaLabel: item.dia.slice(8),
+                tokens: (item.tokensEntrada || 0) + (item.tokensSalida || 0),
+                gasto: item.costeTotal || 0,
+            }))
+    }, [costesIA?.gastoDiario, currentMonthKey])
+
+    const topUsuariosResumen = useMemo(() => {
+        if (!costesIA) return []
+        const monthTop = Array.isArray(costesIA.gastoPorUsuarioMes) ? costesIA.gastoPorUsuarioMes : []
+        if (monthTop.length > 0) return monthTop
+        return Array.isArray(costesIA.gastoPorUsuario) ? costesIA.gastoPorUsuario : []
+    }, [costesIA])
+
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
             {/* Header */}
@@ -471,14 +503,104 @@ export default function EstadisticasPage() {
                                     <StatCard title="Usuarios totales" value={resumen.usuarios.total} description={`${resumen.usuarios.activos} activos`} icon={Users} />
                                     <StatCard title="Conversaciones" value={resumen.conversaciones} icon={MessageSquare} />
                                     <StatCard title="Mensajes totales" value={resumen.mensajes} icon={MessageSquare} />
-                                    <StatCard title="Documentos" value={resumen.documentos} description={`${resumen.fuentesWeb} fuentes web`} icon={FileText} />
+                                    <StatCard
+                                        title="Gastado mes"
+                                        value={costesIA ? `$${costesIA.periodos.mes.coste.toFixed(4)}` : "N/D"}
+                                        description={costesIA ? `${costesIA.periodos.mes.peticiones} peticiones` : undefined}
+                                        icon={DollarSign}
+                                    />
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                     <StatCard title="Tokens entrada" value={formatNumber(resumen.tokens.entrada)} icon={Brain} />
                                     <StatCard title="Tokens salida" value={formatNumber(resumen.tokens.salida)} icon={Brain} />
                                     <StatCard title="Tokens totales" value={formatNumber(resumen.tokens.total)} icon={Brain} />
-                                    <StatCard title="Docs ChromaDB" value={resumen.chromaDocumentos >= 0 ? resumen.chromaDocumentos : 'N/D'} icon={Database} />
+                                    <StatCard
+                                        title="Saldo restante OpenRouter"
+                                        value={creditosOR?.creditos?.disponible ? `$${(creditosOR.creditos.creditosRestantes ?? 0).toFixed(4)}` : "N/D"}
+                                        icon={CreditCard}
+                                    />
                                 </div>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="text-base">Tokens por día (mes actual)</CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            {resumenSeriesMes.length > 0 ? (
+                                                <ChartContainer config={{ tokens: { label: "Tokens", color: COLORS.green } }} className="h-[280px]">
+                                                    <LineChart data={resumenSeriesMes}>
+                                                        <CartesianGrid strokeDasharray="3 3" stroke={COLORS.grayLight} />
+                                                        <XAxis dataKey="diaLabel" tick={{ fontSize: 11 }} />
+                                                        <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatNumber(v)} />
+                                                        <ChartTooltip content={<ChartTooltipContent />} />
+                                                        <Line type="monotone" dataKey="tokens" stroke={COLORS.green} strokeWidth={2} dot={false} />
+                                                    </LineChart>
+                                                </ChartContainer>
+                                            ) : (
+                                                <p className="text-sm text-muted-foreground text-center py-8">Aún no hay consumo de tokens este mes.</p>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="text-base">Precio gastado por día (mes actual)</CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            {resumenSeriesMes.length > 0 ? (
+                                                <ChartContainer config={{ gasto: { label: "Gasto ($)", color: COLORS.black } }} className="h-[280px]">
+                                                    <LineChart data={resumenSeriesMes}>
+                                                        <CartesianGrid strokeDasharray="3 3" stroke={COLORS.grayLight} />
+                                                        <XAxis dataKey="diaLabel" tick={{ fontSize: 11 }} />
+                                                        <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${Number(v).toFixed(4)}`} />
+                                                        <ChartTooltip content={<ChartTooltipContent />} />
+                                                        <Line type="monotone" dataKey="gasto" stroke={COLORS.black} strokeWidth={2} dot={false} />
+                                                    </LineChart>
+                                                </ChartContainer>
+                                            ) : (
+                                                <p className="text-sm text-muted-foreground text-center py-8">Aún no hay gasto registrado este mes.</p>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                </div>
+
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="text-base">Top usuarios por gasto</CardTitle>
+                                        <CardDescription>Ranking del mes actual por coste de IA consumido</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        {topUsuariosResumen.length > 0 ? (
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Nombre</TableHead>
+                                                        <TableHead>Email</TableHead>
+                                                        <TableHead className="text-right">Peticiones</TableHead>
+                                                        <TableHead className="text-right">Tokens entrada</TableHead>
+                                                        <TableHead className="text-right">Tokens salida</TableHead>
+                                                        <TableHead className="text-right">Coste total</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {topUsuariosResumen.map((u, i) => (
+                                                        <TableRow key={i}>
+                                                            <TableCell className="font-medium">{u.nombre}</TableCell>
+                                                            <TableCell className="text-gray-500">{u.email}</TableCell>
+                                                            <TableCell className="text-right">{u.peticiones}</TableCell>
+                                                            <TableCell className="text-right">{formatNumber(u.tokensEntrada)}</TableCell>
+                                                            <TableCell className="text-right">{formatNumber(u.tokensSalida)}</TableCell>
+                                                            <TableCell className="text-right font-semibold text-[#94c120]">${u.costeTotal.toFixed(4)}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground text-center py-8">Aún no hay datos de gasto por usuario este mes.</p>
+                                        )}
+                                    </CardContent>
+                                </Card>
                             </div>
                         ) : null}
                     </TabsContent>
