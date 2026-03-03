@@ -635,7 +635,7 @@
         "desc": "Les carpetes de treball són una funcionalitat exclusiva per a usuaris PRO que permet organitzar les teves converses en projectes temàtics, de manera similar a les carpetes d'un explorador d'arxius.",
         "tip1": "Crea carpetes des del panell lateral prement el botó « + » al costat del títol « Carpetes de treball ».",
         "tip2": "Personalitza cada carpeta amb un nom, una icona i un color identificatiu per distingir-les fàcilment.",
-        "tip3": "Arrossega o assigna converses a les carpetes des del menú de cada conversa (opció « Moure a carpeta »).",
+        "tip3": "Assigna converses a les carpetes des del menú de cada conversa (opció « Moure a carpeta »).",
         "tip4": "Comparteix carpetes amb altres usuaris PRO. Pots assignar permisos de només lectura o lectura i escriptura.",
         "tip5": "Quan es fan canvis en una carpeta compartida, rebràs notificacions per mantenir-te al dia."
       },
@@ -646,13 +646,6 @@
       "conectores": {
         "title": "Conectores",
         "intro": "Los conectores son integraciones exclusivas para usuarios PRO que permiten conectar la IA con servicios externos para ampliar sus capacidades."
-      },
-      "canva": {
-        "title": "Canva",
-        "desc": "Conecta tu cuenta de Canva para crear diseños visuales directamente desde las respuestas de la IA:",
-        "tip1": "Genera automáticamente presentaciones, carteles y publicaciones para redes sociales a partir del contenido creado.",
-        "tip2": "Elige entre plantillas prediseñadas adaptadas a la pastoral juvenil.",
-        "tip3": "Edita el diseño final en Canva con un solo clic."
       },
       "googleDrive": {
         "title": "Google Drive",

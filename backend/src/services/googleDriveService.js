@@ -119,7 +119,7 @@ export async function trashFile(usuarioId, fileId) {
     return { success: true };
 }
 
-// ─── CANVA_TOOLS equivalente para LLM (tool definitions) ─────────────────────
+// ─── Tool definitions para LLM ───────────────────────────────────────────────
 
 export const GOOGLE_DRIVE_TOOLS = [
     {

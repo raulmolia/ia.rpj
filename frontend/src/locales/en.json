@@ -635,7 +635,7 @@
         "desc": "Work folders are an exclusive PRO feature that allows you to organize your conversations into thematic projects, similar to folders in a file explorer.",
         "tip1": "Create folders from the side panel by clicking the \"+\" button next to the \"Work Folders\" heading.",
         "tip2": "Customize each folder with a name, icon, and identifying color to easily distinguish them.",
-        "tip3": "Drag or assign conversations to folders from each conversation's menu (\"Move to folder\" option).",
+        "tip3": "Assign conversations to folders from each conversation's menu (\"Move to folder\" option).",
         "tip4": "Share folders with other PRO users. You can assign read-only or read-write permissions.",
         "tip5": "When changes are made in a shared folder, you'll receive notifications to stay up to date."
       },
@@ -646,13 +646,6 @@
       "conectores": {
         "title": "Conectores",
         "intro": "Los conectores son integraciones exclusivas para usuarios PRO que permiten conectar la IA con servicios externos para ampliar sus capacidades."
-      },
-      "canva": {
-        "title": "Canva",
-        "desc": "Conecta tu cuenta de Canva para crear diseños visuales directamente desde las respuestas de la IA:",
-        "tip1": "Genera automáticamente presentaciones, carteles y publicaciones para redes sociales a partir del contenido creado.",
-        "tip2": "Elige entre plantillas prediseñadas adaptadas a la pastoral juvenil.",
-        "tip3": "Edita el diseño final en Canva con un solo clic."
       },
       "googleDrive": {
         "title": "Google Drive",

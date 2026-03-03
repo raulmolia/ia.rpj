@@ -635,7 +635,7 @@
         "desc": "Les dossiers de travail sont une fonctionnalité exclusive pour les utilisateurs PRO qui permet d'organiser vos conversations en projets thématiques, similaire aux dossiers d'un explorateur de fichiers.",
         "tip1": "Créez des dossiers depuis le panneau latéral en cliquant sur le bouton « + » à côté du titre « Dossiers de travail ».",
         "tip2": "Personnalisez chaque dossier avec un nom, une icône et une couleur distinctive pour les distinguer facilement.",
-        "tip3": "Glissez ou assignez des conversations aux dossiers depuis le menu de chaque conversation (option « Déplacer vers un dossier »).",
+        "tip3": "Assignez des conversations aux dossiers depuis le menu de chaque conversation (option « Déplacer vers un dossier »).",
         "tip4": "Partagez des dossiers avec d'autres utilisateurs PRO. Vous pouvez attribuer des permissions en lecture seule ou en lecture-écriture.",
         "tip5": "Lorsque des modifications sont effectuées dans un dossier partagé, vous recevrez des notifications pour rester informé."
       },
@@ -646,13 +646,6 @@
       "conectores": {
         "title": "Conectores",
         "intro": "Los conectores son integraciones exclusivas para usuarios PRO que permiten conectar la IA con servicios externos para ampliar sus capacidades."
-      },
-      "canva": {
-        "title": "Canva",
-        "desc": "Conecta tu cuenta de Canva para crear diseños visuales directamente desde las respuestas de la IA:",
-        "tip1": "Genera automáticamente presentaciones, carteles y publicaciones para redes sociales a partir del contenido creado.",
-        "tip2": "Elige entre plantillas prediseñadas adaptadas a la pastoral juvenil.",
-        "tip3": "Edita el diseño final en Canva con un solo clic."
       },
       "googleDrive": {
         "title": "Google Drive",

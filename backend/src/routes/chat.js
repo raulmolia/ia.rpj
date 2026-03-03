@@ -5,7 +5,6 @@ import chromaService from '../services/chromaService.js';
 import { callChatCompletion, MODELS } from '../services/llmService.js';
 import gemmaService from '../services/gemmaService.js';
 import logService from '../services/logService.js';
-import { hasActiveCanvaConnector, CANVA_TOOLS, executeCanvaTool } from '../services/canvaConnectorService.js';
 import { hasActiveGoogleConnector } from '../services/googleOAuthService.js';
 import { GOOGLE_DRIVE_TOOLS, executeGoogleDriveTool } from '../services/googleDriveService.js';
 import { GOOGLE_DOCS_TOOLS, executeGoogleDocsTool } from '../services/googleDocsService.js';
@@ -552,7 +551,7 @@ router.get('/:id', authenticate, async (req, res) => {
 });
 
 router.post('/', authenticate, async (req, res) => {
-    const { message, conversationId, intent: rawIntent, tags: clientTags, useThinkingModel, attachments, canvasMode, useCanvaTools, useGoogleDriveTools, useGoogleDocsTools } = req.body || {};
+    const { message, conversationId, intent: rawIntent, tags: clientTags, useThinkingModel, attachments, canvasMode, useGoogleDriveTools, useGoogleDocsTools } = req.body || {};
 
     let conversation = null;
     let detectedIntent = DEFAULT_INTENT;
@@ -718,10 +717,9 @@ REGLAS ABSOLUTAS:
             { role: 'system', content: finalSystemPrompt + languageInstruction },
         ];
 
-        // ── Conectores: comprobar Canva / Google Drive / Google Docs ──
+        // ── Conectores: comprobar Google Drive / Google Docs ──
         const userIsPro = tipoSuscripcion === 'PRO' || USER_LIMITS[userRole]?.hasTools;
         let activeTools = [];
-        let canvaToolsActive = false;
         let googleDriveToolsActive = false;
         let googleDocsToolsActive = false;
 
@@ -776,59 +774,8 @@ REGLAS ABSOLUTAS:
             }
         }
 
-        // ── Canva tools ──
-        if (userIsPro && req.user?.id && useCanvaTools === true) {
-            try {
-                const canvaActive = await hasActiveCanvaConnector(req.user.id);
-                if (canvaActive) {
-                    activeTools = [...activeTools, ...CANVA_TOOLS];
-                    canvaToolsActive = true;
-                    llmMessages.push({
-                        role: 'system',
-                        content:
-                            'El usuario ha activado la integración con Canva. Tienes acceso a herramientas para crear lienzos en Canva.\n\n' +
-                            'IMPORTANTE: La API de Canva crea LIENZOS EN BLANCO del formato correcto. ' +
-                            'Tu trabajo es proporcionar contenido útil que el usuario pueda usar para rellenar el diseño.\n\n' +
-                            'HERRAMIENTAS DISPONIBLES:\n' +
-                            '• canva_create_designs — crea varios lienzos del MISMO tipo en Canva\n' +
-                            '• canva_list_designs — lista los diseños existentes del usuario\n' +
-                            '• canva_get_design — obtiene detalles de un diseño por su ID\n' +
-                            '• canva_export_design — exporta un diseño como PDF, PNG o JPG\n\n' +
-                            'FLUJO OBLIGATORIO CUANDO EL USUARIO PIDE CREAR UN DISEÑO:\n' +
-                            '1. USA canva_create_designs con count=3 y el design_type correcto. Mapeo:\n' +
-                            '   - cartel/póster/afiche/portada → poster\n' +
-                            '   - presentación/diapositivas → presentation\n' +
-                            '   - pizarra/brainstorming → whiteboard\n' +
-                            '   - documento/hoja/folio → doc\n' +
-                            '   - banner/cabecera/pancarta → banner\n' +
-                            '   - folleto/flyer/volante → flyer\n' +
-                            '   - post/publicación redes → social_post\n' +
-                            '   - historia/story → story\n' +
-                            '   - tarjeta/invitación/postal → card\n' +
-                            '2. title_base SIEMPRE descriptivo del tema.\n' +
-                            '3. NUNCA crees un diseño de cada tipo distinto. SIEMPRE 3 del MISMO tipo.\n' +
-                            '4. DESPUÉS de crear los lienzos, genera una respuesta RICA con:\n' +
-                            '   a) TEXTOS SUGERIDOS: título principal, subtítulo y textos que el usuario debería poner en el diseño.\n' +
-                            '   b) PALETA DE COLORES: 3-4 colores recomendados con códigos hex.\n' +
-                            '   c) ELEMENTOS SUGERIDOS: qué imágenes, iconos o elementos visuales usar.\n' +
-                            '   d) ESTRUCTURA/LAYOUT: descripción breve de cómo organizar los elementos.\n' +
-                            '   e) ENLACE A PLANTILLAS: incluye este enlace para buscar plantillas: ' +
-                            '`https://www.canva.com/templates/?query=TÉRMINO_DE_BÚSQUEDA` ' +
-                            'reemplazando TÉRMINO_DE_BÚSQUEDA por palabras clave relevantes en inglés separadas por +.\n' +
-                            '   f) Indica que los lienzos se han creado en su cuenta de Canva con el formato correcto, ' +
-                            'listos para personalizar con las sugerencias anteriores o usando una plantilla.\n' +
-                            '5. Los cards con enlaces a los lienzos se muestran automáticamente en la interfaz, NO los repitas en el texto.',
-                    });
-                    console.log('[Canva] Tools inyectadas al LLM');
-                }
-            } catch (e) {
-                console.error('[Canva] Error activando tools:', e.message);
-            }
-        }
-
-        // ── Inyectar contexto documental SOLO si NO hay tools Canva activas ──
-        // Cuando Canva está activo, las fuentes documentales no aportan nada y ensucian la respuesta
-        if (!canvaToolsActive && contextPrompt) {
+        // ── Inyectar contexto documental ──
+        if (contextPrompt) {
             llmMessages.push({ role: 'system', content: contextPrompt });
         }
 
@@ -840,24 +787,13 @@ REGLAS ABSOLUTAS:
         // Añadir mensaje del usuario
         llmMessages.push({ role: 'user', content: trimmedMessage });
 
-        // ── Detectar si el usuario pide crear/diseñar algo en Canva ──
-        // Si detectamos intención de creación, forzamos tool_choice = "required"
-        // para que el modelo NO simule la creación sino que llame a la tool real.
-        const CANVA_CREATION_REGEX = /\b(cre[aá]|crear|dise[ñn]|diseñar|haz|hacer|genera|generar|prepar[aáe]|necesito|quiero|hazme|dame|elabor[aáe])\b[\s\S]{0,60}\b(cartel|p[oó]ster|poster|presentaci[oó]n|diapositiva|pizarra|whiteboard|documento|banner|folleto|flyer|post|historia|story|tarjeta|invitaci[oó]n|portada|afiche|cancionero|díptico|tríptico|pancarta|cabecera)\b/i;
-        const userWantsCanvaCreation = activeTools.length > 0 && CANVA_CREATION_REGEX.test(trimmedMessage);
-        const toolChoiceSetting = userWantsCanvaCreation ? 'required' : 'auto';
-
-        if (userWantsCanvaCreation) {
-            console.log('[Canva] Intención de creación detectada → tool_choice: required');
-        }
-
         const llmCallOptions = {
             messages: llmMessages,
             model: useThinkingModel === true ? MODELS.THINKING : (activeTools.length > 0 ? MODELS.TOOLS : undefined),
             useThinking: useThinkingModel === true,
             // Los modelos de razonamiento (thinking) no admiten tools
             ...(activeTools.length > 0 && !useThinkingModel
-                ? { extraBody: { tools: activeTools, tool_choice: toolChoiceSetting, parallel_tool_calls: true } }
+                ? { extraBody: { tools: activeTools, tool_choice: 'auto', parallel_tool_calls: true } }
                 : {}),
         };
 
@@ -870,27 +806,7 @@ REGLAS ABSOLUTAS:
 
         // Debug: registrar si el modelo usó tools o no
         if (activeTools.length > 0) {
-            console.log(`[Canva] Respuesta LLM: finishReason=${llmResponse.finishReason}, toolCalls=${llmResponse.toolCalls?.length || 0}, contentLength=${(llmResponse.content || '').length}`);
-        }
-
-        // ── Retry: si el modelo respondió con texto pero debía haber llamado tools ──
-        // Detectar si el modelo "simuló" crear diseños sin llamar realmente a ninguna tool
-        if (
-            activeTools.length > 0 &&
-            llmResponse.finishReason !== 'tool_calls' &&
-            (!llmResponse.toolCalls || llmResponse.toolCalls.length === 0) &&
-            (userWantsCanvaCreation || /\b(he creado|creado.*diseño|creé|diseños.*canva)\b/i.test(llmResponse.content || ''))
-        ) {
-            console.warn('[Canva] ⚠️ Modelo respondió con texto sin llamar tools. Reintentando con tool_choice: required');
-            try {
-                llmResponse = await callChatCompletion({
-                    ...llmCallOptions,
-                    extraBody: { tools: activeTools, tool_choice: 'required', parallel_tool_calls: true },
-                });
-            } catch (retryError) {
-                console.error('[Canva] ❌ Retry con tool_choice:required también falló:', retryError.message);
-                // Mantener la respuesta original del primer intento
-            }
+            console.log(`[Tools] Respuesta LLM: finishReason=${llmResponse.finishReason}, toolCalls=${llmResponse.toolCalls?.length || 0}, contentLength=${(llmResponse.content || '').length}`);
         }
 
         // ── Tool-calling loop: ejecutar tools hasta obtener respuesta final (máx 5 pases) ──
@@ -924,7 +840,7 @@ REGLAS ABSOLUTAS:
                     } else if (toolName.startsWith('gdocs_')) {
                         toolResult = await executeGoogleDocsTool(req.user.id, toolName, toolArgs);
                     } else {
-                        toolResult = await executeCanvaTool(req.user.id, toolName, toolArgs);
+                        throw new Error(`Tool desconocida: ${toolName}`);
                     }
                     console.log(`[Tools] ✅ ${toolName} ejecutada correctamente`);
                 } catch (toolError) {
@@ -962,16 +878,11 @@ REGLAS ABSOLUTAS:
                 const toolResultsText = toolMessages.map(m => {
                     try {
                         const result = JSON.parse(m.content);
-                        // Si es un array (createMultipleDesigns), formatear cada diseño
                         if (Array.isArray(result)) {
                             return result.map(d => {
-                                if (d.edit_url) return `- **${d.title || d.type_label || 'Diseño'}**: [Abrir en Canva](${d.edit_url})`;
                                 if (d.error) return `- Error: ${d.error}`;
                                 return `- ${JSON.stringify(d)}`;
                             }).join('\n');
-                        }
-                        if (result.edit_url) {
-                            return `- **${result.title || result.type_label || 'Diseño'}**: [Abrir en Canva](${result.edit_url})`;
                         }
                         if (result.error) return `- Error: ${result.error}`;
                         return `- ${JSON.stringify(result)}`;
@@ -979,7 +890,7 @@ REGLAS ABSOLUTAS:
                 }).join('\n');
                 if (toolResultsText) {
                     llmResponse = {
-                        content: `He creado los diseños en Canva. Aquí tienes los enlaces:\n\n${toolResultsText}`,
+                        content: `Resultados de las herramientas:\n\n${toolResultsText}`,
                         finishReason: 'stop',
                         usage: null,
                     };
@@ -994,13 +905,9 @@ REGLAS ABSOLUTAS:
         cleanContent = cleanContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
         cleanContent = cleanContent.replace(/<\/?think>/gi, '').trim();
 
-        // Si hay tools Canva activas, eliminar secciones de "Fuentes consultadas" que no aplican
-        if (canvaToolsActive) {
-            cleanContent = cleanContent.replace(/\n*📚\s*\*?Fuentes consultadas[:\s].*$/gims, '').trim();
-            cleanContent = cleanContent.replace(/\n*\*?Fuentes consultadas[:\s].*$/gims, '').trim();
-        } else {
-            // ── Post-procesado de fuentes: reemplazar sección del LLM por una controlada ──
-            // Esto garantiza que SOLO se citen documentos realmente proporcionados por ChromaDB
+        // ── Post-procesado de fuentes: reemplazar sección del LLM por una controlada ──
+        // Esto garantiza que SOLO se citen documentos realmente proporcionados por ChromaDB
+        {
             const fuentesRegex = /\n*📚\s*\*?Fuentes consultadas[:\s*][\s\S]*$/gim;
 
             // Extraer nombres válidos de las fuentes que se proporcionaron al LLM
@@ -1024,63 +931,9 @@ REGLAS ABSOLUTAS:
                 const fuentesControladas = validSourceNames.join(', ');
                 cleanContent += `\n\n📚 *Fuentes consultadas: ${fuentesControladas}*`;
             }
-            // Si no hay fuentes válidas, no se añade la sección (correcto)
         }
 
         llmResponse.content = cleanContent;
-
-        // ── Extraer diseños de Canva de los resultados de tools ──
-        let canvaDesigns = [];
-        let toolSteps = [];
-        let templateSearchUrl = null;
-        if (toolPasses > 0) {
-            const toolMessages = llmMessages.filter(m => m.role === 'tool');
-            for (const tm of toolMessages) {
-                try {
-                    const parsed = JSON.parse(tm.content);
-                    // Nuevo formato: createMultipleDesigns devuelve { designs: [...], template_search_url, ... }
-                    if (parsed.designs && Array.isArray(parsed.designs)) {
-                        const designs = parsed.designs.filter(d => d.edit_url && !d.error);
-                        canvaDesigns.push(...designs);
-                        if (parsed.template_search_url) templateSearchUrl = parsed.template_search_url;
-                        if (designs.length > 0) {
-                            toolSteps.push({
-                                tool: 'canva_create_designs',
-                                status: 'success',
-                                summary: `Creados ${designs.length} lienzo(s) de tipo ${parsed.design_type_label || designs[0]?.type_label || 'desconocido'}`,
-                            });
-                        }
-                        // Registrar errores individuales
-                        const errors = parsed.designs.filter(d => d.error);
-                        for (const e of errors) {
-                            toolSteps.push({ tool: 'canva', status: 'error', summary: e.error });
-                        }
-                    }
-                    // Compatibilidad: formato antiguo array directo
-                    else if (Array.isArray(parsed)) {
-                        const designs = parsed.filter(d => d.edit_url && !d.error);
-                        canvaDesigns.push(...designs);
-                        if (designs.length > 0) {
-                            toolSteps.push({
-                                tool: 'canva_create_designs',
-                                status: 'success',
-                                summary: `Creados ${designs.length} diseño(s)`,
-                            });
-                        }
-                    } else if (parsed.edit_url && !parsed.error) {
-                        canvaDesigns.push(parsed);
-                        toolSteps.push({
-                            tool: 'canva_get_design',
-                            status: 'success',
-                            summary: `Diseño: ${parsed.title || 'Sin título'}`,
-                        });
-                    } else if (parsed.error) {
-                        toolSteps.push({ tool: 'canva', status: 'error', summary: parsed.error });
-                    }
-                } catch { /* no parseable, ignorar */ }
-            }
-            console.log(`[Canva] Diseños extraídos: ${canvaDesigns.length}, Pasos: ${toolSteps.length}, Templates: ${templateSearchUrl ? 'sí' : 'no'}`);
-        }
 
         // Clasificar si es entrega de trabajo o respuesta conversacional
         const isWorkContent = classifyAsWorkContent(cleanContent, canvasMode);
@@ -1107,9 +960,6 @@ REGLAS ABSOLUTAS:
                     role: 'assistant',
                     content: llmResponse.content,
                     isWorkContent,
-                    canvaDesigns: canvaDesigns.length > 0 ? canvaDesigns : undefined,
-                    toolSteps: toolSteps.length > 0 ? toolSteps : undefined,
-                    templateSearchUrl: templateSearchUrl || undefined,
                 },
                 usage: llmResponse.usage || null,
                 deleted: true,
@@ -1202,9 +1052,6 @@ REGLAS ABSOLUTAS:
                 role: 'assistant',
                 content: assistantMessageRecord.contenido,
                 isWorkContent,
-                canvaDesigns: canvaDesigns.length > 0 ? canvaDesigns : undefined,
-                toolSteps: toolSteps.length > 0 ? toolSteps : undefined,
-                templateSearchUrl: templateSearchUrl || undefined,
             },
             usage: llmResponse.usage || null,
         });

@@ -13,12 +13,9 @@ type EstadoConector = "ACTIVO" | "INACTIVO" | "ERROR"
 
 interface ConectorInfo {
     id: string
-    tipo: "CANVA" | "GOOGLE_DRIVE" | "GOOGLE_DOCS"
+    tipo: "GOOGLE_DRIVE" | "GOOGLE_DOCS"
     estado: EstadoConector
     config?: {
-        // Canva
-        canvaUserId?: string
-        canvaTeamId?: string
         // Google
         googleEmail?: string
         googleName?: string
@@ -35,15 +32,6 @@ interface ConectoresPanelProps {
 // ─── Definición de conectores disponibles ────────────────────────────────────
 
 const AVAILABLE_CONNECTORS = [
-    {
-        tipo: "CANVA" as const,
-        name: "Canva",
-        description: "Crea diseños, busca plantillas y exporta tus creaciones directamente desde el chat.",
-        tools: ["Listar diseños", "Crear diseños", "Buscar plantillas", "Exportar como PDF/PNG"],
-        logoSrc: "/canva-logo.svg",
-        docsUrl: "https://www.canva.dev/docs/connect/",
-        authPath: "canva",
-    },
     {
         tipo: "GOOGLE_DRIVE" as const,
         name: "Google Drive",
@@ -117,7 +105,7 @@ export function ConnectoresPanel({ token }: ConectoresPanelProps) {
         fetchConectores()
     }, [fetchConectores])
 
-    const handleConnect = async (tipo: "CANVA" | "GOOGLE_DRIVE" | "GOOGLE_DOCS") => {
+    const handleConnect = async (tipo: "GOOGLE_DRIVE" | "GOOGLE_DOCS") => {
         setActionLoading(tipo)
         setError(null)
         const def = AVAILABLE_CONNECTORS.find((c) => c.tipo === tipo)
@@ -292,13 +280,6 @@ export function ConnectoresPanel({ token }: ConectoresPanelProps) {
                                     )}
                                 </div>
                             </div>
-
-                            {/* Info cuenta Canva si está conectado */}
-                            {isConnected && conector!.config?.canvaUserId && (
-                                <p className="text-xs text-muted-foreground">
-                                    ID de cuenta Canva: <span className="font-mono">{conector!.config.canvaUserId}</span>
-                                </p>
-                            )}
 
                             {/* Info cuenta Google si está conectado */}
                             {isConnected && conector!.config?.googleEmail && (

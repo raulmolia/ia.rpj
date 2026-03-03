@@ -108,8 +108,7 @@ import { CanvasDialog } from "@/components/canvas"
 import { ShareDialog } from "@/components/share-dialog"
 import { useLocale, formatRelativeTime, type Locale } from "@/lib/locale-context"
 import { useToast } from "@/hooks/use-toast"
-import { CanvaDesignCards, type CanvaDesign } from "@/components/canva-design-cards"
-import { CanvaThinkingBox } from "@/components/canva-thinking-box"
+
 import { GoogleDrivePicker } from "@/components/google-drive-picker"
 import { useCarpetas, type Carpeta } from "@/hooks/use-carpetas"
 import { CarpetasSidebar } from "@/components/carpetas-sidebar"
@@ -118,12 +117,6 @@ import { CarpetaShareDialog } from "@/components/carpeta-share-dialog"
 
 type MessageRole = "usuario" | "asistente"
 
-type ToolStep = {
-    tool: string
-    status: 'success' | 'error'
-    summary: string
-}
-
 type ChatMessage = {
     id: string
     role: MessageRole
@@ -131,9 +124,6 @@ type ChatMessage = {
     createdAt?: string
     pending?: boolean
     isWorkContent?: boolean
-    canvaDesigns?: CanvaDesign[]
-    toolSteps?: ToolStep[]
-    templateSearchUrl?: string
 }
 
 type Chat = {
@@ -377,8 +367,6 @@ export default function ChatHomePage() {
     const [selectedSubOption, setSelectedSubOption] = useState<Record<string, QuickPromptSubOption | null>>({})
     const [isThinkingMode, setIsThinkingMode] = useState(false)
     const [isCanvasMode, setIsCanvasMode] = useState(false)
-    const [hasActiveCanva, setHasActiveCanva] = useState(false)
-    const [canvaToolEnabled, setCanvaToolEnabled] = useState(false)
     const [hasActiveGoogleDrive, setHasActiveGoogleDrive] = useState(false)
     const [hasActiveGoogleDocs, setHasActiveGoogleDocs] = useState(false)
     const [googleDriveToolEnabled, setGoogleDriveToolEnabled] = useState(false)
@@ -567,7 +555,7 @@ export default function ChatHomePage() {
         }
     }, [router, status])
 
-    // Detectar redirección de OAuth de conectores (?connector=canva&status=...)
+    // Detectar redirección de OAuth de conectores (?connector=google-drive&status=...)
     useEffect(() => {
         if (typeof window === "undefined") return
         const params = new URLSearchParams(window.location.search)
@@ -583,9 +571,7 @@ export default function ChatHomePage() {
             // Abrir configuración en la pestaña Conectores para confirmación visual
             setSettingsTab("conectores")
             setIsSettingsDialogOpen(true)
-            if (connector === "canva") {
-                setHasActiveCanva(true)
-            } else if (connector === "google-drive") {
+            if (connector === "google-drive") {
                 setHasActiveGoogleDrive(true)
             } else if (connector === "google-docs") {
                 setHasActiveGoogleDocs(true)
@@ -593,7 +579,7 @@ export default function ChatHomePage() {
         }
     }, [])
 
-    // Comprobar si el usuario tiene el conector de Canva activo
+    // Comprobar si el usuario tiene conectores activos
     useEffect(() => {
         if (!token || !hasTools) return
         fetch(buildApiUrl("/api/conectores"), {
@@ -602,10 +588,6 @@ export default function ChatHomePage() {
             .then((r) => r.ok ? r.json() : null)
             .then((data) => {
                 if (!data?.conectores) return
-                const canva = data.conectores.find(
-                    (c: { tipo: string; estado: string }) => c.tipo === "CANVA" && c.estado === "ACTIVO"
-                )
-                setHasActiveCanva(!!canva)
                 const gdrive = data.conectores.find(
                     (c: { tipo: string; estado: string }) => c.tipo === "GOOGLE_DRIVE" && c.estado === "ACTIVO"
                 )
@@ -865,6 +847,26 @@ export default function ChatHomePage() {
                 }))
                 : []
 
+            // Cargar feedback existente del usuario para los mensajes de esta conversación
+            if (token) {
+                try {
+                    const assistantMsgIds = messages.filter(m => m.role === "asistente").map(m => m.id)
+                    if (assistantMsgIds.length > 0) {
+                        const fbResponse = await fetch(buildApiUrl(`/api/feedback/by-messages`), {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                            body: JSON.stringify({ messageIds: assistantMsgIds }),
+                        })
+                        if (fbResponse.ok) {
+                            const fbData = await fbResponse.json()
+                            if (fbData.feedbacks && typeof fbData.feedbacks === "object") {
+                                setFeedbackMap(prev => ({ ...prev, ...fbData.feedbacks }))
+                            }
+                        }
+                    }
+                } catch { /* feedback load is non-critical */ }
+            }
+
             setChats((prevChats) =>
                 prevChats.map((chat) => {
                     if (chat.conversationId !== conversationId) {
@@ -1057,7 +1059,6 @@ export default function ChatHomePage() {
                     tags: tagsToSend.length > 0 ? tagsToSend : undefined,
                     useThinkingModel: isThinkingMode,
                     canvasMode: isCanvasMode || undefined,
-                    useCanvaTools: hasActiveCanva && canvaToolEnabled ? true : false,
                     useGoogleDriveTools: hasActiveGoogleDrive && googleDriveToolEnabled ? true : false,
                     useGoogleDocsTools: hasActiveGoogleDocs && googleDocsToolEnabled ? true : false,
                 }),
@@ -1077,9 +1078,6 @@ export default function ChatHomePage() {
                 content: data.message.content,
                 isWorkContent: data.message.isWorkContent ?? undefined,
                 createdAt: new Date().toISOString(),
-                canvaDesigns: data.message.canvaDesigns ?? undefined,
-                toolSteps: data.message.toolSteps ?? undefined,
-                templateSearchUrl: data.message.templateSearchUrl ?? undefined,
             }
 
             setChats((prevChats) =>
@@ -1137,7 +1135,7 @@ export default function ChatHomePage() {
             setIsThinking(false)
             abortControllerRef.current = null
         }
-    }, [activeChat, fetchConversations, inputValue, isThinking, token, selectedQuickPromptItems, isThinkingMode, isCanvasMode, attachedFiles, isUploadingFiles, loadConversationMessages, hasActiveCanva, canvaToolEnabled])
+    }, [activeChat, fetchConversations, inputValue, isThinking, token, selectedQuickPromptItems, isThinkingMode, isCanvasMode, attachedFiles, isUploadingFiles, loadConversationMessages])
 
     const handlePromptKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>) => {
         if (event.key !== "Enter" || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) {
@@ -1868,23 +1866,8 @@ export default function ChatHomePage() {
                         )}
 
                         {/* Badges de herramientas activas */}
-                        {((hasActiveCanva && canvaToolEnabled) || (hasActiveGoogleDrive && googleDriveToolEnabled) || (hasActiveGoogleDocs && googleDocsToolEnabled)) && (
+                        {((hasActiveGoogleDrive && googleDriveToolEnabled) || (hasActiveGoogleDocs && googleDocsToolEnabled)) && (
                             <div className="flex flex-wrap items-center gap-2">
-                                {hasActiveCanva && canvaToolEnabled && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setCanvaToolEnabled(false)}
-                                        className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition hover:opacity-70 border-violet-400 bg-violet-50 text-violet-700 dark:border-violet-500 dark:bg-violet-950/60 dark:text-violet-300"
-                                        title="Desactivar herramienta Canva"
-                                    >
-                                        <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true">
-                                            <circle cx="12" cy="12" r="12" fill="#7D2AE7"/>
-                                            <text x="12" y="17" textAnchor="middle" fill="white" fontSize="15" fontWeight="bold" fontFamily="sans-serif">C</text>
-                                        </svg>
-                                        Herramienta Canva
-                                        <X className="h-3 w-3 ml-0.5" aria-hidden="true" />
-                                    </button>
-                                )}
                                 {hasActiveGoogleDrive && googleDriveToolEnabled && (
                                     <button
                                         type="button"
@@ -2008,7 +1991,7 @@ export default function ChatHomePage() {
                                                 aria-label={t("tooltips.tools")}
                                             >
                                                 <Wrench className="h-4 w-4" aria-hidden="true" />
-                                                {(hasActiveCanva && canvaToolEnabled) || (hasActiveGoogleDrive && googleDriveToolEnabled) || (hasActiveGoogleDocs && googleDocsToolEnabled) ? (
+                                                {(hasActiveGoogleDrive && googleDriveToolEnabled) || (hasActiveGoogleDocs && googleDocsToolEnabled) ? (
                                                     <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
                                                 ) : null}
                                             </Button>
@@ -2028,26 +2011,11 @@ export default function ChatHomePage() {
                                             </DropdownMenuItem>
 
                                             {/* Conectores activos */}
-                                            {(hasActiveCanva || hasActiveGoogleDrive || hasActiveGoogleDocs) && (
+                                            {(hasActiveGoogleDrive || hasActiveGoogleDocs) && (
                                                 <>
                                                     <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground mt-1">
                                                         Conectores
                                                     </div>
-                                                    {hasActiveCanva && (
-                                                        <DropdownMenuItem
-                                                            className={cn(canvaToolEnabled && "bg-primary/10 text-primary")}
-                                                            onSelect={() => setCanvaToolEnabled(!canvaToolEnabled)}
-                                                        >
-                                                            <Plug className="mr-2 h-4 w-4" aria-hidden="true" />
-                                                            Canva
-                                                            <Badge
-                                                                variant={canvaToolEnabled ? "default" : "outline"}
-                                                                className="ml-auto text-[10px] px-1.5 py-0"
-                                                            >
-                                                                {canvaToolEnabled ? "ON" : "OFF"}
-                                                            </Badge>
-                                                        </DropdownMenuItem>
-                                                    )}
                                                     {hasActiveGoogleDrive && (
                                                         <DropdownMenuItem
                                                             className={cn(googleDriveToolEnabled && "bg-primary/10 text-primary")}
@@ -2952,7 +2920,7 @@ export default function ChatHomePage() {
                                 {activeChat && activeChat.messages.map((message, messageIndex) => (
                                     <div
                                         key={message.id}
-                                        className={cn("flex gap-4", message.role === "usuario" ? "justify-end" : "justify-start")}
+                                        className={cn("flex gap-4 group", message.role === "usuario" ? "justify-end" : "justify-start")}
                                     >
                                         <div
                                             className={cn(
@@ -3070,18 +3038,7 @@ export default function ChatHomePage() {
                                                             </ul>
                                                         </div>
                                                     )}
-                                                    {/* Tarjetas de diseños de Canva */}
-                                                    {message.canvaDesigns && message.canvaDesigns.length > 0 && (
-                                                        <CanvaDesignCards designs={message.canvaDesigns} templateSearchUrl={message.templateSearchUrl} />
-                                                    )}
-                                                    {/* Caja colapsable con pasos de Canva (solo si hubo toolSteps) */}
-                                                    {message.toolSteps && message.toolSteps.length > 0 && (
-                                                        <CanvaThinkingBox isActive={false} toolSteps={message.toolSteps} />
-                                                    )}
-                                                </div>
-                                            ) : (
-                                                <div className="whitespace-pre-wrap">{message.content}</div>
-                                            )}
+                                                </div>\n                                            ) : (\n                                                <div className=\"whitespace-pre-wrap\">{message.content}</div>\n                                            )}
 
                                             {/* Iconos de acción para trabajos finales */}
                                             {message.role === "asistente" && message.isWorkContent === true && (
@@ -3212,6 +3169,74 @@ export default function ChatHomePage() {
                                                     </button>
                                                 </div>
                                             )}
+
+                                            {/* Feedback para mensajes conversacionales (no work content) */}
+                                            {message.role === "asistente" && !message.isWorkContent && (
+                                                <div className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button
+                                                        type="button"
+                                                        className={cn(
+                                                            "inline-flex items-center rounded-md p-1.5 text-xs transition-colors",
+                                                            feedbackMap[message.id] === "POSITIVO"
+                                                                ? "text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20"
+                                                                : "text-muted-foreground/50 hover:text-foreground hover:bg-muted/60"
+                                                        )}
+                                                        onClick={async () => {
+                                                            try {
+                                                                if (feedbackMap[message.id] === "POSITIVO") {
+                                                                    const response = await fetch(buildApiUrl(`/api/feedback/${message.id}`), {
+                                                                        method: "DELETE",
+                                                                        headers: { Authorization: `Bearer ${token}` },
+                                                                    })
+                                                                    if (!response.ok) throw new Error("No se pudo eliminar feedback")
+                                                                    setFeedbackMap(prev => { const n = { ...prev }; delete n[message.id]; return n })
+                                                                } else {
+                                                                    const response = await fetch(buildApiUrl("/api/feedback"), {
+                                                                        method: "POST",
+                                                                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                                                                        body: JSON.stringify({ mensajeId: message.id, tipo: "POSITIVO", intencion: activeChat?.intent || null }),
+                                                                    })
+                                                                    if (!response.ok) throw new Error("No se pudo guardar feedback")
+                                                                    setFeedbackMap(prev => ({ ...prev, [message.id]: "POSITIVO" }))
+                                                                }
+                                                            } catch { console.error("Error al enviar feedback") }
+                                                        }}
+                                                    >
+                                                        <ThumbsUp className="h-3 w-3" />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className={cn(
+                                                            "inline-flex items-center rounded-md p-1.5 text-xs transition-colors",
+                                                            feedbackMap[message.id] === "NEGATIVO"
+                                                                ? "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20"
+                                                                : "text-muted-foreground/50 hover:text-foreground hover:bg-muted/60"
+                                                        )}
+                                                        onClick={async () => {
+                                                            try {
+                                                                if (feedbackMap[message.id] === "NEGATIVO") {
+                                                                    const response = await fetch(buildApiUrl(`/api/feedback/${message.id}`), {
+                                                                        method: "DELETE",
+                                                                        headers: { Authorization: `Bearer ${token}` },
+                                                                    })
+                                                                    if (!response.ok) throw new Error("No se pudo eliminar feedback")
+                                                                    setFeedbackMap(prev => { const n = { ...prev }; delete n[message.id]; return n })
+                                                                } else {
+                                                                    const response = await fetch(buildApiUrl("/api/feedback"), {
+                                                                        method: "POST",
+                                                                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                                                                        body: JSON.stringify({ mensajeId: message.id, tipo: "NEGATIVO", intencion: activeChat?.intent || null }),
+                                                                    })
+                                                                    if (!response.ok) throw new Error("No se pudo guardar feedback")
+                                                                    setFeedbackMap(prev => ({ ...prev, [message.id]: "NEGATIVO" }))
+                                                                }
+                                                            } catch { console.error("Error al enviar feedback") }
+                                                        }}
+                                                    >
+                                                        <ThumbsDown className="h-3 w-3" />
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                         {message.role === "usuario" && (
                                             <Avatar className="h-9 w-9">
@@ -3227,16 +3252,12 @@ export default function ChatHomePage() {
                                 {isThinking && (
                                     <div className="flex items-start gap-3 text-sm text-muted-foreground">
                                         <div className="flex flex-col gap-2">
-                                            {hasActiveCanva && canvaToolEnabled ? (
-                                                <CanvaThinkingBox isActive={true} />
-                                            ) : (
-                                                <div className="flex items-center gap-2 rounded-full border border-border/60 bg-card px-3 py-2">
-                                                    <span className="h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: "0ms" }} />
-                                                    <span className="h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: "120ms" }} />
-                                                    <span className="h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: "240ms" }} />
-                                                    <span className="text-xs font-medium text-muted-foreground">{t("chat.thinking")}</span>
-                                                </div>
-                                            )}
+                                            <div className="flex items-center gap-2 rounded-full border border-border/60 bg-card px-3 py-2">
+                                                <span className="h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: "0ms" }} />
+                                                <span className="h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: "120ms" }} />
+                                                <span className="h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: "240ms" }} />
+                                                <span className="text-xs font-medium text-muted-foreground">{t("chat.thinking")}</span>
+                                            </div>
                                         </div>
                                     </div>
                                 )}

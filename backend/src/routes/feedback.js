@@ -94,6 +94,38 @@ router.delete('/:mensajeId', authenticate, async (req, res) => {
     }
 });
 
+// POST /api/feedback/by-messages — Obtener feedback del usuario para una lista de mensajes
+router.post('/by-messages', authenticate, async (req, res) => {
+    const { messageIds } = req.body || {};
+
+    if (!Array.isArray(messageIds) || messageIds.length === 0) {
+        return res.json({ feedbacks: {} });
+    }
+
+    try {
+        const feedbacks = await prisma.feedbackMensaje.findMany({
+            where: {
+                mensajeId: { in: messageIds.slice(0, 200) },
+                usuarioId: req.user.id,
+            },
+            select: { mensajeId: true, tipo: true },
+        });
+
+        const feedbackMap = {};
+        for (const f of feedbacks) {
+            feedbackMap[f.mensajeId] = f.tipo;
+        }
+
+        return res.json({ feedbacks: feedbackMap });
+    } catch (error) {
+        console.error('❌ Error obteniendo feedback por mensajes:', error);
+        return res.status(500).json({
+            error: 'Error interno',
+            message: 'No se pudieron obtener los feedbacks',
+        });
+    }
+});
+
 // GET /api/feedback/stats — Estadísticas de feedback (admin)
 router.get('/stats', authenticate, async (req, res) => {
     const ADMIN_ROLES = ['SUPERADMIN', 'ADMINISTRADOR'];

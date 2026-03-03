@@ -635,7 +635,7 @@
         "desc": "Os cartafoles de traballo son unha funcionalidade exclusiva para usuarios PRO que permite organizar as túas conversas en proxectos temáticos, de xeito similar aos cartafoles dun explorador de ficheiros.",
         "tip1": "Crea cartafoles desde o panel lateral premendo o botón « + » ao lado do título « Cartafoles de traballo ».",
         "tip2": "Personaliza cada cartafol cun nome, unha icona e unha cor identificativa para distinguilos facilmente.",
-        "tip3": "Arrastra ou asigna conversas aos cartafoles desde o menú de cada conversa (opción « Mover a cartafol »).",
+        "tip3": "Asigna conversas aos cartafoles desde o menú de cada conversa (opción « Mover a cartafol »).",
         "tip4": "Comparte cartafoles con outros usuarios PRO. Podes asignar permisos de só lectura ou lectura e escritura.",
         "tip5": "Cando se fan cambios nun cartafol compartido, recibirás notificacións para manterte ao día."
       },
@@ -646,13 +646,6 @@
       "conectores": {
         "title": "Conectores",
         "intro": "Los conectores son integraciones exclusivas para usuarios PRO que permiten conectar la IA con servicios externos para ampliar sus capacidades."
-      },
-      "canva": {
-        "title": "Canva",
-        "desc": "Conecta tu cuenta de Canva para crear diseños visuales directamente desde las respuestas de la IA:",
-        "tip1": "Genera automáticamente presentaciones, carteles y publicaciones para redes sociales a partir del contenido creado.",
-        "tip2": "Elige entre plantillas prediseñadas adaptadas a la pastoral juvenil.",
-        "tip3": "Edita el diseño final en Canva con un solo clic."
       },
       "googleDrive": {
         "title": "Google Drive",

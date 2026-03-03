@@ -635,7 +635,7 @@
         "desc": "Foldery robocze to funkcja dostępna wyłącznie dla użytkowników PRO, która pozwala organizować rozmowy w tematyczne projekty, podobnie jak foldery w eksploratorze plików.",
         "tip1": "Twórz foldery z panelu bocznego, klikając przycisk « + » obok nagłówka « Foldery robocze ».",
         "tip2": "Dostosuj każdy folder, nadając mu nazwę, ikonę i wyróżniający kolor.",
-        "tip3": "Przeciągnij lub przypisz rozmowy do folderów z menu każdej rozmowy (opcja « Przenieś do folderu »).",
+        "tip3": "Przypisz rozmowy do folderów z menu każdej rozmowy (opcja « Przenieś do folderu »).",
         "tip4": "Udostępniaj foldery innym użytkownikom PRO. Możesz przypisać uprawnienia tylko do odczytu lub do odczytu i zapisu.",
         "tip5": "Gdy w udostępnionym folderze zostaną wprowadzone zmiany, otrzymasz powiadomienia."
       },
@@ -646,13 +646,6 @@
       "conectores": {
         "title": "Conectores",
         "intro": "Los conectores son integraciones exclusivas para usuarios PRO que permiten conectar la IA con servicios externos para ampliar sus capacidades."
-      },
-      "canva": {
-        "title": "Canva",
-        "desc": "Conecta tu cuenta de Canva para crear diseños visuales directamente desde las respuestas de la IA:",
-        "tip1": "Genera automáticamente presentaciones, carteles y publicaciones para redes sociales a partir del contenido creado.",
-        "tip2": "Elige entre plantillas prediseñadas adaptadas a la pastoral juvenil.",
-        "tip3": "Edita el diseño final en Canva con un solo clic."
       },
       "googleDrive": {
         "title": "Google Drive",

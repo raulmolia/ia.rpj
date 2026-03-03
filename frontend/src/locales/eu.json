@@ -635,7 +635,7 @@
         "desc": "Lan-karpetak PRO erabiltzaileentzat soilik den funtzionalitatea da, zure elkarrizketak gai-proiektuetan antolatzeko aukera ematen duena, fitxategi-esploratzaile bateko karpeten antzera.",
         "tip1": "Sortu karpetak alboko paneletik « + » botoia sakatuz « Lan-karpetak » izenburuaren ondoan.",
         "tip2": "Pertsonalizatu karpeta bakoitza izen, ikono eta kolore identifikatzaile batekin erraz bereizteko.",
-        "tip3": "Arrastatu edo esleitu elkarrizketak karpetetara elkarrizketa bakoitzaren menutik (« Karpetara mugitu » aukera).",
+        "tip3": "Esleitu elkarrizketak karpetetara elkarrizketa bakoitzaren menutik (« Karpetara mugitu » aukera).",
         "tip4": "Partekatu karpetak beste PRO erabiltzaileekin. Irakurtzeko soilik edo irakurtzeko eta idazteko baimenak esleitu ditzakezu.",
         "tip5": "Partekatutako karpeta batean aldaketak egiten direnean, jakinarazpenak jasoko dituzu eguneratuta egoteko."
       },
@@ -646,13 +646,6 @@
       "conectores": {
         "title": "Conectores",
         "intro": "Los conectores son integraciones exclusivas para usuarios PRO que permiten conectar la IA con servicios externos para ampliar sus capacidades."
-      },
-      "canva": {
-        "title": "Canva",
-        "desc": "Conecta tu cuenta de Canva para crear diseños visuales directamente desde las respuestas de la IA:",
-        "tip1": "Genera automáticamente presentaciones, carteles y publicaciones para redes sociales a partir del contenido creado.",
-        "tip2": "Elige entre plantillas prediseñadas adaptadas a la pastoral juvenil.",
-        "tip3": "Edita el diseño final en Canva con un solo clic."
       },
       "googleDrive": {
         "title": "Google Drive",
