@@ -6,60 +6,15 @@ import StarterKit from "@tiptap/starter-kit"
 import Placeholder from "@tiptap/extension-placeholder"
 import Highlight from "@tiptap/extension-highlight"
 import Underline from "@tiptap/extension-underline"
+import { TextStyle } from "@tiptap/extension-text-style"
+import Color from "@tiptap/extension-color"
 import { useTranslations } from "next-intl"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import SelectionPopover from "./SelectionPopover"
 import CanvasToolbar from "./CanvasToolbar"
 import { downloadAsPDF, downloadAsWord } from "@/lib/document-generator"
 
-/**
- * Simple word-level diff without external dependencies.
- * Uses the Hunt-McIlroy LCS on words to produce added/removed/equal spans.
- */
-function simpleWordDiff(oldText: string, newText: string): Array<{ value: string; added?: boolean; removed?: boolean }> {
-    const oldWords = oldText.split(/(\s+)/)
-    const newWords = newText.split(/(\s+)/)
-
-    // LCS (Longest Common Subsequence) via dynamic programming
-    const m = oldWords.length
-    const n = newWords.length
-    const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0))
-    for (let i = 1; i <= m; i++) {
-        for (let j = 1; j <= n; j++) {
-            dp[i][j] = oldWords[i - 1] === newWords[j - 1]
-                ? dp[i - 1][j - 1] + 1
-                : Math.max(dp[i - 1][j], dp[i][j - 1])
-        }
-    }
-
-    // Backtrack to build result
-    const result: Array<{ value: string; added?: boolean; removed?: boolean }> = []
-    let i = m, j = n
-    const stack: Array<{ value: string; added?: boolean; removed?: boolean }> = []
-    while (i > 0 || j > 0) {
-        if (i > 0 && j > 0 && oldWords[i - 1] === newWords[j - 1]) {
-            stack.push({ value: oldWords[i - 1] })
-            i--; j--
-        } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-            stack.push({ value: newWords[j - 1], added: true })
-            j--
-        } else {
-            stack.push({ value: oldWords[i - 1], removed: true })
-            i--
-        }
-    }
-    stack.reverse()
-
-    // Merge consecutive spans of same type
-    for (const item of stack) {
-        const last = result[result.length - 1]
-        if (last && last.added === item.added && last.removed === item.removed) {
-            last.value += item.value
-        } else {
-            result.push({ ...item })
-        }
-    }
-    return result
-}
 
 /**
  * Convert markdown text to HTML for TipTap editor.
@@ -119,6 +74,25 @@ function convertMarkdownToHtml(text: string): string {
             continue
         }
 
+            // Blockquote lines
+        if (trimmed.startsWith("> ")) {
+            closeList()
+            const bqLines = [processInline(trimmed.slice(2))]
+            while (i + 1 < lines.length && lines[i + 1].trim().startsWith("> ")) {
+                i++
+                bqLines.push(processInline(lines[i].trim().slice(2)))
+            }
+            html += `<blockquote><p>${bqLines.join("<br>")}</p></blockquote>`
+            continue
+        }
+
+        // Horizontal rule
+        if (/^(\*{3,}|-{3,}|_{3,})\s*$/.test(trimmed)) {
+            closeList()
+            html += "<hr>"
+            continue
+        }
+
         // Unordered list items
         if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
             if (inOl) { html += "</ol>"; inOl = false }
@@ -146,8 +120,10 @@ function convertMarkdownToHtml(text: string): string {
             if (
                 !nextTrimmed ||
                 nextTrimmed.startsWith("#") ||
+                nextTrimmed.startsWith("> ") ||
                 nextTrimmed.startsWith("- ") ||
                 nextTrimmed.startsWith("* ") ||
+                /^(\*{3,}|-{3,}|_{3,})\s*$/.test(nextTrimmed) ||
                 /^\d+\.\s/.test(nextTrimmed)
             ) {
                 break
@@ -261,6 +237,16 @@ export function convertHtmlToMarkdown(html: string): string {
                 return "---\n\n"
             case "mark":
                 return childContent // Ignore highlight marks
+            case "span": {
+                // Preserve color spans as inline HTML in markdown output
+                const style = el.getAttribute("style") || ""
+                const colorMatch = style.match(/color:\s*([^;]+)/)
+                if (colorMatch) {
+                    const color = colorMatch[1].trim()
+                    return `<span style="color:${color}">${childContent}</span>`
+                }
+                return childContent
+            }
             case "a": {
                 const href = el.getAttribute("href") || ""
                 return `[${childContent}](${href})`
@@ -291,6 +277,12 @@ interface CanvasEditorProps {
     onClose?: () => void
     /** When nonce changes, immediately add a new version with this content (used by mini-chat transforms) */
     externalVersion?: { content: string; label?: string; nonce: number }
+    /** Pre-loaded version history from localStorage (restored from previous session) */
+    initialVersions?: CanvasVersion[]
+    /** Index of the active version in initialVersions */
+    initialVersionIndex?: number
+    /** localStorage key for persisting version history */
+    storageKey?: string
 }
 
 export default function CanvasEditor({
@@ -300,16 +292,26 @@ export default function CanvasEditor({
     isTransforming,
     onClose,
     externalVersion,
+    initialVersions,
+    initialVersionIndex: initialVersionIndexProp,
+    storageKey,
 }: CanvasEditorProps) {
     const t = useTranslations("canvas")
-    const [versions, setVersions] = useState<CanvasVersion[]>([
-        { content: initialContent, timestamp: Date.now(), label: t("originalVersion") },
-    ])
-    const [currentVersionIndex, setCurrentVersionIndex] = useState(0)
+    const [versions, setVersions] = useState<CanvasVersion[]>(
+        initialVersions && initialVersions.length > 0
+            ? initialVersions
+            : [{ content: initialContent, timestamp: Date.now(), label: t("originalVersion") }]
+    )
+    const [currentVersionIndex, setCurrentVersionIndex] = useState(
+        initialVersionIndexProp != null && initialVersions && initialVersionIndexProp < initialVersions.length
+            ? initialVersionIndexProp
+            : 0
+    )
     const [showDiff, setShowDiff] = useState(false)
     const [isCopied, setIsCopied] = useState(false)
     const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(null)
     const [selectedText, setSelectedText] = useState("")
+    const [wordCount, setWordCount] = useState(0)
     const editorContainerRef = useRef<HTMLDivElement>(null)
 
     // Refs to track external content updates and prevent feedback loops
@@ -318,6 +320,22 @@ export default function CanvasEditor({
     const isUserEditRef = useRef(false)
     // Debounce timer for auto-versioning direct user edits
     const userEditDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    // Persist version history to localStorage whenever it changes
+    useEffect(() => {
+        if (!storageKey) return
+        try {
+            const latestContent = versions[versions.length - 1]?.content ?? initialContent
+            localStorage.setItem(storageKey, JSON.stringify({
+                versions: versions.slice(-30), // keep max 30 versions
+                currentVersionIndex,
+                latestContent,
+                savedAt: Date.now(),
+            }))
+        } catch {
+            // Ignore storage errors (e.g., private mode)
+        }
+    }, [versions, currentVersionIndex, storageKey, initialContent])
 
     const editor = useEditor({
         extensions: [
@@ -331,14 +349,25 @@ export default function CanvasEditor({
                 multicolor: true,
             }),
             Underline,
+            TextStyle,
+            Color,
         ],
-        content: convertMarkdownToHtml(initialContent), // FIX Bug 1: convert markdown to HTML
+        content: convertMarkdownToHtml(initialContent),
         editorProps: {
             attributes: {
-                class: "prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[300px] px-12 sm:px-24 lg:px-36 xl:px-48 py-10 text-sm leading-relaxed",
+                class: "prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[300px] px-12 sm:px-24 lg:px-40 xl:px-52 py-10 text-sm leading-7",
             },
         },
+        onCreate: ({ editor }) => {
+            // Update word count on initial load
+            const text = editor.state.doc.textContent
+            setWordCount(text.trim() ? text.trim().split(/\s+/).length : 0)
+        },
         onUpdate: ({ editor }) => {
+            // Update word count on every change
+            const text = editor.state.doc.textContent
+            setWordCount(text.trim() ? text.trim().split(/\s+/).length : 0)
+
             // Don't report back when content was set externally (prevents loop)
             if (isExternalUpdateRef.current) {
                 isExternalUpdateRef.current = false
@@ -443,9 +472,12 @@ export default function CanvasEditor({
 
                 const rect = range.getBoundingClientRect()
                 setSelectedText(text)
+                // Center the popover under the selection (popover minWidth = 500px)
+                const popoverWidth = Math.min(500, window.innerWidth - 32)
+                const centeredLeft = rect.left + rect.width / 2 - popoverWidth / 2
                 setPopoverPosition({
-                    top: rect.bottom + 8,
-                    left: Math.max(16, Math.min(rect.left, window.innerWidth - 340)),
+                    top: rect.bottom + 10,
+                    left: Math.max(16, Math.min(centeredLeft, window.innerWidth - popoverWidth - 16)),
                 })
             }, 10)
         }
@@ -572,34 +604,9 @@ export default function CanvasEditor({
         downloadAsWord(getEditorMarkdown(editor), `lienzo-${Date.now()}.docx`)
     }, [editor])
 
-    // Diff view rendering using inline word-diff (no external dependency)
-    const [diffHtml, setDiffHtml] = useState<string | null>(null)
-    useEffect(() => {
-        if (!showDiff || versions.length < 2 || currentVersionIndex === 0) {
-            setDiffHtml(null)
-            return
-        }
-        try {
-            const prev = versions[currentVersionIndex - 1].content
-            const curr = versions[currentVersionIndex].content
-            const changes = simpleWordDiff(prev, curr)
-            const html = changes
-                .map((part) => {
-                    if (part.added) {
-                        return `<span class="bg-green-200 dark:bg-green-900/50 text-green-900 dark:text-green-200">${part.value}</span>`
-                    }
-                    if (part.removed) {
-                        return `<span class="bg-red-200 dark:bg-red-900/50 text-red-900 dark:text-red-200 line-through">${part.value}</span>`
-                    }
-                    return part.value
-                })
-                .join("")
-            setDiffHtml(html)
-        } catch {
-            // Fallback if diff fails
-            setDiffHtml(`<p>${versions[currentVersionIndex].content}</p>`)
-        }
-    }, [showDiff, versions, currentVersionIndex])
+    // Diff view: previous and current version indices for side-by-side comparison
+    const diffPrevIndex = currentVersionIndex > 0 ? currentVersionIndex - 1 : 0
+    const diffCurrIndex = currentVersionIndex
 
     return (
         <div className="flex h-full flex-col">
@@ -618,6 +625,7 @@ export default function CanvasEditor({
                 onCopy={handleCopy}
                 onClose={() => onClose?.()}
                 isCopied={isCopied}
+                wordCount={wordCount}
             />
 
             <div
@@ -646,47 +654,57 @@ export default function CanvasEditor({
                     }
                     /* Headings */
                     .canvas-editor-container .ProseMirror h1 {
-                        font-size: 1.35rem;
+                        font-size: 1.6rem;
                         font-weight: 700;
-                        line-height: 1.3;
+                        line-height: 1.25;
                         margin-top: 1.5em;
                         margin-bottom: 0.5em;
-                        letter-spacing: -0.01em;
+                        letter-spacing: -0.02em;
                         border-bottom: 1px solid hsl(var(--border) / 0.5);
                         padding-bottom: 0.3em;
                     }
                     .canvas-editor-container .ProseMirror h2 {
-                        font-size: 1.15rem;
+                        font-size: 1.25rem;
                         font-weight: 650;
                         line-height: 1.3;
-                        margin-top: 1.3em;
+                        margin-top: 1.4em;
                         margin-bottom: 0.4em;
-                        color: hsl(var(--foreground) / 0.9);
+                        letter-spacing: -0.01em;
+                        color: hsl(var(--foreground) / 0.92);
                     }
                     .canvas-editor-container .ProseMirror h3 {
-                        font-size: 1rem;
-                        font-weight: 600;
+                        font-size: 1.05rem;
+                        font-weight: 620;
                         line-height: 1.35;
-                        margin-top: 1.2em;
+                        margin-top: 1.25em;
                         margin-bottom: 0.35em;
+                        color: hsl(var(--foreground) / 0.9);
                     }
                     .canvas-editor-container .ProseMirror h4 {
-                        font-size: 0.9rem;
-                        font-weight: 600;
+                        font-size: 0.95rem;
+                        font-weight: 610;
                         line-height: 1.4;
-                        margin-top: 1.1em;
+                        margin-top: 1.15em;
                         margin-bottom: 0.3em;
-                        color: hsl(var(--foreground) / 0.8);
+                        color: hsl(var(--foreground) / 0.85);
                     }
-                    .canvas-editor-container .ProseMirror h1:first-child {
+                    .canvas-editor-container .ProseMirror h1:first-child,
+                    .canvas-editor-container .ProseMirror h2:first-child,
+                    .canvas-editor-container .ProseMirror h3:first-child {
                         margin-top: 0;
                     }
                     /* Paragraphs */
                     .canvas-editor-container .ProseMirror p {
-                        margin-bottom: 0.75em;
-                        line-height: 1.7;
+                        margin-bottom: 0.85em;
+                        line-height: 1.75;
                         font-size: 0.875rem;
-                        color: hsl(var(--foreground) / 0.88);
+                        color: hsl(var(--foreground) / 0.85);
+                        letter-spacing: 0.01em;
+                    }
+                    /* Placeholder */
+                    .canvas-editor-container .ProseMirror p.is-editor-empty:first-child::before {
+                        color: hsl(var(--muted-foreground) / 0.5);
+                        font-style: italic;
                     }
                     /* Lists */
                     .canvas-editor-container .ProseMirror ul {
@@ -700,22 +718,23 @@ export default function CanvasEditor({
                         list-style-type: decimal;
                     }
                     .canvas-editor-container .ProseMirror li {
-                        margin-bottom: 0.25em;
-                        line-height: 1.7;
+                        margin-bottom: 0.3em;
+                        line-height: 1.75;
                         font-size: 0.875rem;
                         padding-left: 0.25em;
+                        letter-spacing: 0.01em;
                     }
                     .canvas-editor-container .ProseMirror li p {
                         margin-bottom: 0.2em;
                     }
                     /* Strong and emphasis */
                     .canvas-editor-container .ProseMirror strong {
-                        font-weight: 650;
+                        font-weight: 680;
                         color: hsl(var(--foreground));
                     }
                     .canvas-editor-container .ProseMirror em {
                         font-style: italic;
-                        color: hsl(var(--foreground) / 0.85);
+                        color: hsl(var(--foreground) / 0.88);
                     }
                     /* Blockquotes */
                     .canvas-editor-container .ProseMirror blockquote {
@@ -750,12 +769,107 @@ export default function CanvasEditor({
                         background: none;
                         padding: 0;
                     }
+                    /* Diff panel: apply canvas-like typography to ReactMarkdown rendered content */
+                    .canvas-diff-panel h1 {
+                        font-size: 1.6rem;
+                        font-weight: 700;
+                        line-height: 1.3;
+                        margin-top: 1.5em;
+                        margin-bottom: 0.5em;
+                        letter-spacing: -0.02em;
+                        border-bottom: 1px solid hsl(var(--border) / 0.5);
+                        padding-bottom: 0.3em;
+                    }
+                    .canvas-diff-panel h2 {
+                        font-size: 1.25rem;
+                        font-weight: 650;
+                        line-height: 1.3;
+                        margin-top: 1.3em;
+                        margin-bottom: 0.4em;
+                        letter-spacing: -0.01em;
+                    }
+                    .canvas-diff-panel h3 {
+                        font-size: 1.05rem;
+                        font-weight: 620;
+                        line-height: 1.35;
+                        margin-top: 1.2em;
+                        margin-bottom: 0.35em;
+                    }
+                    .canvas-diff-panel h4 {
+                        font-size: 0.95rem;
+                        font-weight: 600;
+                        line-height: 1.4;
+                        margin-top: 1.1em;
+                        margin-bottom: 0.3em;
+                    }
+                    .canvas-diff-panel p {
+                        margin-bottom: 0.75em;
+                        line-height: 1.75;
+                        font-size: 0.875rem;
+                        letter-spacing: 0.01em;
+                        color: hsl(var(--foreground) / 0.85);
+                    }
+                    .canvas-diff-panel ul, .canvas-diff-panel ol {
+                        margin-left: 1.25em;
+                        margin-bottom: 0.85em;
+                    }
+                    .canvas-diff-panel li {
+                        margin-bottom: 0.25em;
+                        line-height: 1.7;
+                        font-size: 0.875rem;
+                    }
+                    .canvas-diff-panel blockquote {
+                        border-left: 3px solid rgba(141, 198, 63, 0.5);
+                        padding-left: 1em;
+                        margin-left: 0;
+                        margin-bottom: 1em;
+                        color: hsl(var(--foreground) / 0.75);
+                        font-style: italic;
+                    }
+                    .canvas-diff-panel code {
+                        background: hsl(var(--muted));
+                        padding: 0.2em 0.4em;
+                        border-radius: 0.25em;
+                        font-size: 0.9em;
+                    }
                 `}</style>
-                {showDiff && diffHtml ? (
-                    <div
-                        className="prose prose-sm dark:prose-invert max-w-none px-6 py-4 whitespace-pre-wrap"
-                        dangerouslySetInnerHTML={{ __html: diffHtml }}
-                    />
+                {showDiff && versions.length > 1 ? (
+                    <div className="flex h-full divide-x overflow-auto">
+                        {/* Left panel: previous version */}
+                        <div className="flex-1 overflow-y-auto px-8 py-6 min-w-0">
+                            <div className="mb-4 flex items-center gap-2">
+                                <span className="inline-block h-2 w-2 rounded-full bg-red-400 shrink-0" />
+                                <span className="text-xs font-semibold text-red-600 dark:text-red-400">
+                                    {t("diffPreviousVersion")}
+                                </span>
+                                <span className="text-xs text-muted-foreground truncate">
+                                    — {versions[diffPrevIndex]?.label ?? t("versionN", { n: diffPrevIndex + 1 })}
+                                </span>
+                            </div>
+                            <div className="prose prose-sm dark:prose-invert max-w-none canvas-diff-panel">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                    {versions[diffPrevIndex]?.content || ""}
+                                </ReactMarkdown>
+                            </div>
+                        </div>
+                        {/* Right panel: current version */}
+                        <div className="flex-1 overflow-y-auto px-8 py-6 min-w-0">
+                            <div className="mb-4 flex items-center gap-2">
+                                <span className="inline-block h-2 w-2 rounded-full bg-green-500 shrink-0" />
+                                <span className="text-xs font-semibold text-green-700 dark:text-green-400">
+                                    {t("diffCurrentVersion")}
+                                </span>
+                                <span className="text-xs text-muted-foreground truncate">
+                                    — {versions[diffCurrIndex]?.label ?? t("versionN", { n: diffCurrIndex + 1 })}
+                                </span>
+                            </div>
+                            <div className="prose prose-sm dark:prose-invert max-w-none canvas-diff-panel">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                    {versions[diffCurrIndex]?.content || ""}
+                                </ReactMarkdown>
+                            </div>
+                        </div>
+                    </div>
                 ) : (
                     <EditorContent editor={editor} />
                 )}

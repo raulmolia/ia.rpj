@@ -1,0 +1,893 @@
+import express from 'express';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import multer from 'multer';
+import { v4 as uuidv4 } from 'uuid';
+import { writeFile, mkdir } from 'fs/promises';
+import { existsSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join, extname } from 'path';
+import prismaPackage from '@prisma/client';
+import { authenticate, authorize, getRolePriority } from '../middleware/auth.js';
+import { sendWelcomeEmail, sendPasswordResetEmail, generateRandomPassword } from '../services/emailService.js';
+import logService from '../services/logService.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const { PrismaClient } = prismaPackage;
+const PrismaEnums = prismaPackage.$Enums || {};
+const DEFAULT_ROLES = {
+    SUPERADMIN: 'SUPERADMIN',
+    ADMINISTRADOR: 'ADMINISTRADOR',
+    DOCUMENTADOR: 'DOCUMENTADOR',
+    USUARIO: 'USUARIO',
+};
+const Rol = PrismaEnums.Rol || DEFAULT_ROLES;
+
+const router = express.Router();
+const prisma = new PrismaClient();
+
+const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || 'change-me';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '12h';
+
+const DEFAULT_PASSWORD_ROUNDS = parseInt(process.env.AUTH_SALT_ROUNDS || '12', 10);
+const ALLOWED_ROLES = Object.values(Rol || DEFAULT_ROLES);
+
+function durationToMs(duration) {
+    if (!duration) {
+        return 12 * 60 * 60 * 1000;
+    }
+
+    if (typeof duration === 'number') {
+        return duration;
+    }
+
+    const match = /^([0-9]+)([smhd])$/i.exec(duration.trim());
+
+    if (!match) {
+        return 12 * 60 * 60 * 1000;
+    }
+
+    const value = parseInt(match[1], 10);
+    const unit = match[2].toLowerCase();
+
+    switch (unit) {
+        case 's':
+            return value * 1000;
+        case 'm':
+            return value * 60 * 1000;
+        case 'h':
+            return value * 60 * 60 * 1000;
+        case 'd':
+            return value * 24 * 60 * 60 * 1000;
+        default:
+            return 12 * 60 * 60 * 1000;
+    }
+}
+
+function sanitizeUser(user) {
+    const { passwordHash, ...safeUser } = user;
+    return safeUser;
+}
+
+function resolveRole(rawRole, currentUserRole) {
+    if (!rawRole) {
+        return Rol.USUARIO || DEFAULT_ROLES.USUARIO;
+    }
+
+    const normalized = String(rawRole).trim().toUpperCase();
+
+    if (!ALLOWED_ROLES.includes(normalized)) {
+        throw new Error('Rol inválido');
+    }
+
+    if (getRolePriority(currentUserRole) < getRolePriority(normalized)) {
+        throw new Error('No puedes asignar un rol superior al tuyo');
+    }
+
+    return Rol[normalized] || DEFAULT_ROLES[normalized];
+}
+
+router.post('/login', async (req, res) => {
+    const { email, password } = req.body || {};
+
+    if (!email || !password) {
+        return res.status(400).json({
+            error: 'Datos incompletos',
+            message: 'Debes proporcionar email y contraseña',
+        });
+    }
+
+    try {
+        const user = await prisma.usuario.findUnique({ where: { email } });
+
+        if (!user || !user.passwordHash) {
+            const ipFail = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null;
+            logService.logWarn('AUTH', 'Login fallido: usuario no encontrado', { ip: ipFail, detalles: { email } });
+            return res.status(401).json({
+                error: 'Credenciales inválidas',
+                message: 'Email o contraseña incorrectos',
+            });
+        }
+
+        if (!user.activo) {
+            const ipInact = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null;
+            logService.logWarn('AUTH', 'Login bloqueado: usuario inactivo', { usuarioId: user.id, ip: ipInact, detalles: { email } });
+            return res.status(403).json({
+                error: 'Usuario inactivo',
+                message: 'Contacta con un administrador',
+            });
+        }
+
+        const validPassword = await bcrypt.compare(password, user.passwordHash);
+
+        if (!validPassword) {
+            const ipWrong = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null;
+            logService.logWarn('AUTH', 'Login fallido: contraseña incorrecta', { usuarioId: user.id, ip: ipWrong, detalles: { email } });
+            return res.status(401).json({
+                error: 'Credenciales inválidas',
+                message: 'Email o contraseña incorrectos',
+            });
+        }
+
+        const sessionToken = uuidv4();
+        const expirationMs = durationToMs(JWT_EXPIRES_IN);
+        const expirationDate = new Date(Date.now() + expirationMs);
+        const ipHeader = req.headers['x-forwarded-for'];
+
+        await prisma.sesion.create({
+            data: {
+                usuarioId: user.id,
+                token: sessionToken,
+                tipoDispositivo: req.headers['user-agent']?.slice(0, 190) || null,
+                navegador: req.headers['user-agent']?.slice(0, 190) || null,
+                ip: Array.isArray(ipHeader) ? ipHeader[0] : (ipHeader || req.socket.remoteAddress || null),
+                activa: true,
+                fechaExpiracion: expirationDate,
+            },
+        });
+
+        const jwtToken = jwt.sign(
+            {
+                sub: user.id,
+                role: user.rol,
+                sessionId: sessionToken,
+            },
+            JWT_SECRET,
+            { expiresIn: JWT_EXPIRES_IN },
+        );
+
+        const ipLogin = Array.isArray(ipHeader) ? ipHeader[0] : (ipHeader || req.socket?.remoteAddress || null);
+        logService.logInfo('AUTH', 'Login correcto', { usuarioId: user.id, ip: ipLogin, detalles: { email, rol: user.rol } });
+
+        return res.json({
+            token: jwtToken,
+            expiresIn: JWT_EXPIRES_IN,
+            user: sanitizeUser(user),
+            debeCambiarPassword: user.debeCambiarPassword || false,
+        });
+    } catch (error) {
+        console.error('Error en login:', error);
+        logService.logError('AUTH', `Error interno en login: ${error.message}`, { detalles: { stack: error.stack?.slice(0, 500) } });
+        return res.status(500).json({
+            error: 'Error interno',
+            message: error.message,
+        });
+    }
+});
+
+// ──────────────────────────────────────────────────
+// POST /api/auth/register — Registro público (USUARIO / FREE)
+// ──────────────────────────────────────────────────
+router.post('/register', async (req, res) => {
+    const { email, nombre, apellidos, telefono, organizacion, cargo } = req.body || {};
+
+    if (!email || !nombre || !apellidos) {
+        return res.status(400).json({
+            error: 'Datos incompletos',
+            message: 'Email, nombre y apellidos son obligatorios',
+        });
+    }
+
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        return res.status(400).json({
+            error: 'Email inválido',
+            message: 'El formato del email no es válido',
+        });
+    }
+
+    try {
+        // Verificar que el email no existe ya
+        const existing = await prisma.usuario.findUnique({ where: { email } });
+        if (existing) {
+            return res.status(409).json({
+                error: 'Email duplicado',
+                message: 'Ya existe una cuenta con ese correo electrónico',
+            });
+        }
+
+        const generatedPassword = generateRandomPassword(12);
+        const hashedPassword = await bcrypt.hash(generatedPassword, DEFAULT_PASSWORD_ROUNDS);
+
+        const newUser = await prisma.usuario.create({
+            data: {
+                email,
+                passwordHash: hashedPassword,
+                nombre,
+                apellidos: apellidos || null,
+                nombreUsuario: email.split('@')[0],
+                telefono: telefono || null,
+                organizacion: organizacion || null,
+                cargo: cargo || null,
+                rol: Rol.USUARIO || DEFAULT_ROLES.USUARIO,
+                tipoSuscripcion: 'FREE',
+                debeCambiarPassword: true,
+                activo: true,
+            },
+        });
+
+        // Enviar email de bienvenida
+        try {
+            await sendWelcomeEmail({
+                nombre: newUser.nombre,
+                email: newUser.email,
+                nombreUsuario: newUser.email,
+                password: generatedPassword,
+                loginUrl: process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/auth/login` : 'https://ia.rpj.es/auth/login',
+            });
+
+            return res.status(201).json({
+                message: 'Cuenta creada correctamente. Revisa tu correo electrónico para obtener tu contraseña.',
+                emailSent: true,
+            });
+        } catch (emailError) {
+            console.error('Error enviando email de bienvenida (registro público):', emailError);
+            // Usuario creado pero email falló — eliminamos el usuario para no dejarlo sin acceso
+            await prisma.usuario.delete({ where: { id: newUser.id } });
+            return res.status(500).json({
+                error: 'Error enviando email',
+                message: 'No se pudo enviar el correo con las credenciales. Inténtalo de nuevo más tarde.',
+            });
+        }
+    } catch (error) {
+        if (error.code === 'P2002') {
+            return res.status(409).json({
+                error: 'Email duplicado',
+                message: 'Ya existe una cuenta con ese correo electrónico',
+            });
+        }
+
+        console.error('Error en registro público:', error);
+        return res.status(500).json({
+            error: 'Error interno',
+            message: 'Error al crear la cuenta. Inténtalo de nuevo más tarde.',
+        });
+    }
+});
+
+// ──────────────────────────────────────────────────
+// POST /api/auth/forgot-password — Recuperación de contraseña
+// ──────────────────────────────────────────────────
+router.post('/forgot-password', async (req, res) => {
+    const { email } = req.body || {};
+
+    if (!email) {
+        return res.status(400).json({
+            error: 'Datos incompletos',
+            message: 'Debes proporcionar tu correo electrónico',
+        });
+    }
+
+    try {
+        const user = await prisma.usuario.findUnique({ where: { email } });
+
+        // Siempre responder con éxito para evitar enumeración de usuarios
+        if (!user || !user.activo) {
+            return res.json({
+                message: 'Si el correo está registrado, recibirás un email con tu nueva contraseña.',
+            });
+        }
+
+        const newPassword = generateRandomPassword(12);
+        const hashedPassword = await bcrypt.hash(newPassword, DEFAULT_PASSWORD_ROUNDS);
+
+        await prisma.usuario.update({
+            where: { id: user.id },
+            data: {
+                passwordHash: hashedPassword,
+                debeCambiarPassword: true,
+            },
+        });
+
+        try {
+            await sendPasswordResetEmail({
+                nombre: user.nombre,
+                email: user.email,
+                password: newPassword,
+                loginUrl: process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/auth/login` : 'https://ia.rpj.es/auth/login',
+            });
+        } catch (emailError) {
+            console.error('Error enviando email de recuperación:', emailError);
+            // Aún así respondemos éxito para no revelar información
+        }
+
+        return res.json({
+            message: 'Si el correo está registrado, recibirás un email con tu nueva contraseña.',
+        });
+    } catch (error) {
+        console.error('Error en forgot-password:', error);
+        return res.status(500).json({
+            error: 'Error interno',
+            message: 'Error al procesar la solicitud. Inténtalo de nuevo más tarde.',
+        });
+    }
+});
+
+router.post('/logout', authenticate, async (req, res) => {
+    try {
+        await prisma.sesion.updateMany({
+            where: {
+                token: req.user.sessionId,
+                usuarioId: req.user.id,
+                activa: true,
+            },
+            data: {
+                activa: false,
+                fechaExpiracion: new Date(),
+            },
+        });
+
+        return res.json({
+            message: 'Sesión cerrada correctamente',
+        });
+    } catch (error) {
+        return res.status(500).json({
+            error: 'Error cerrando sesión',
+            message: error.message,
+        });
+    }
+});
+
+router.get('/me', authenticate, async (req, res) => {
+    try {
+        const user = await prisma.usuario.findUnique({ where: { id: req.user.id } });
+
+        if (!user) {
+            return res.status(404).json({
+                error: 'Usuario no encontrado',
+            });
+        }
+
+        return res.json({ user: sanitizeUser(user) });
+    } catch (error) {
+        return res.status(500).json({
+            error: 'Error obteniendo el perfil',
+            message: error.message,
+        });
+    }
+});
+
+router.patch('/me', authenticate, async (req, res) => {
+    const ALLOWED_FIELDS = new Set([
+        'nombre',
+        'apellidos',
+        'telefono',
+        'organizacion',
+        'cargo',
+        'experiencia',
+        'avatarUrl',
+        'idioma',
+        'fuenteChat',
+    ]);
+
+    // Valid language codes
+    const VALID_LANGUAGES = ['es', 'en', 'fr', 'it', 'pt', 'hu', 'pl', 'ca', 'gl', 'eu'];
+    const VALID_FONTS = ['inter', 'dm-sans', 'lora', 'lexend'];
+
+    try {
+        const updates = Object.entries(req.body || {}).reduce((acc, [key, value]) => {
+            if (ALLOWED_FIELDS.has(key)) {
+                if (key === 'experiencia') {
+                    const parsed = parseInt(value, 10);
+                    if (!Number.isNaN(parsed) && parsed >= 0) {
+                        acc[key] = parsed;
+                    }
+                } else if (key === 'idioma') {
+                    // Validate language code
+                    if (VALID_LANGUAGES.includes(value)) {
+                        acc[key] = value;
+                    }
+                } else if (key === 'fuenteChat') {
+                    if (VALID_FONTS.includes(value)) {
+                        acc[key] = value;
+                    }
+                } else if (typeof value === 'string' || value === null) {
+                    acc[key] = value;
+                }
+            }
+            return acc;
+        }, {});
+
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({
+                error: 'Datos inválidos',
+                message: 'No se proporcionaron campos válidos para actualizar',
+            });
+        }
+
+        const updatedUser = await prisma.usuario.update({
+            where: { id: req.user.id },
+            data: updates,
+        });
+
+        return res.json({
+            message: 'Perfil actualizado correctamente',
+            user: sanitizeUser(updatedUser),
+        });
+    } catch (error) {
+        console.error('Error actualizando perfil:', error);
+        return res.status(500).json({
+            error: 'Error actualizando perfil',
+            message: error.message,
+        });
+    }
+});
+
+router.get('/users', authenticate, authorize(['ADMINISTRADOR']), async (req, res) => {
+    try {
+        const users = await prisma.usuario.findMany({
+            orderBy: { fechaCreacion: 'desc' },
+            include: {
+                _count: {
+                    select: {
+                        sesiones: true,
+                    },
+                },
+                conversaciones: {
+                    select: {
+                        _count: {
+                            select: {
+                                mensajes: { where: { rol: 'USUARIO' } },
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+        return res.json({
+            users: users.map((u) => {
+                const { passwordHash, conversaciones, _count, ...safeUser } = u;
+                const totalMensajes = conversaciones.reduce((sum, c) => sum + c._count.mensajes, 0);
+                return {
+                    ...safeUser,
+                    totalMensajes,
+                    totalSesiones: _count.sesiones,
+                };
+            }),
+        });
+    } catch (error) {
+        return res.status(500).json({
+            error: 'Error listando usuarios',
+            message: error.message,
+        });
+    }
+});
+
+router.post('/users', authenticate, authorize(['ADMINISTRADOR']), async (req, res) => {
+    const {
+        email,
+        password,
+        nombre,
+        apellidos,
+        nombreUsuario,
+        organizacion,
+        cargo,
+        experiencia,
+        rol,
+        telefono,
+        tipoSuscripcion,
+        enviarEmail,
+    } = req.body || {};
+
+    if (!email || !nombre) {
+        return res.status(400).json({
+            error: 'Datos incompletos',
+            message: 'Email y nombre son obligatorios',
+        });
+    }
+
+    try {
+        const assignedRole = resolveRole(rol, req.user.rol);
+
+        // Validar tipo de suscripción
+        const validSubscription = ['FREE', 'PRO'].includes(tipoSuscripcion) ? tipoSuscripcion : 'FREE';
+
+        // Si no se proporciona contraseña, generar una aleatoria
+        const generatedPassword = password || generateRandomPassword(12);
+        const hashedPassword = await bcrypt.hash(generatedPassword, DEFAULT_PASSWORD_ROUNDS);
+
+        // Si se genera contraseña automáticamente, el usuario debe cambiarla
+        const mustChangePassword = !password;
+
+        const newUser = await prisma.usuario.create({
+            data: {
+                email,
+                passwordHash: hashedPassword,
+                nombre,
+                apellidos,
+                nombreUsuario: nombreUsuario || email.split('@')[0],
+                organizacion,
+                cargo,
+                experiencia,
+                telefono,
+                rol: assignedRole,
+                tipoSuscripcion: validSubscription,
+                debeCambiarPassword: mustChangePassword,
+            },
+        });
+
+        // Enviar email de bienvenida si se solicita o si se generó contraseña automática
+        if (enviarEmail !== false && mustChangePassword) {
+            try {
+                await sendWelcomeEmail({
+                    nombre: newUser.nombre,
+                    email: newUser.email,
+                    nombreUsuario: newUser.nombreUsuario || newUser.email,
+                    password: generatedPassword,
+                    loginUrl: process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/auth/login` : 'https://ia.rpj.es/auth/login',
+                });
+
+                logService.logInfo('AUTH', 'Usuario creado (con email)', { usuarioId: req.user?.id, detalles: { nuevoUsuario: newUser.email, rol: newUser.rol } });
+                return res.status(201).json({
+                    message: 'Usuario creado correctamente. Se ha enviado un email con las credenciales.',
+                    user: sanitizeUser(newUser),
+                    emailSent: true,
+                });
+            } catch (emailError) {
+                console.error('Error enviando email de bienvenida:', emailError);
+                logService.logWarn('AUTH', 'Usuario creado pero fallo de email', { usuarioId: req.user?.id, detalles: { nuevoUsuario: newUser.email, error: emailError.message } });
+
+                // Usuario creado pero email falló - devolver contraseña en respuesta
+                return res.status(201).json({
+                    message: 'Usuario creado correctamente, pero no se pudo enviar el email.',
+                    user: sanitizeUser(newUser),
+                    emailSent: false,
+                    temporaryPassword: generatedPassword,
+                    warning: 'Guarda esta contraseña temporal, no se volverá a mostrar.',
+                });
+            }
+        }
+
+        logService.logInfo('AUTH', 'Usuario creado', { usuarioId: req.user?.id, detalles: { nuevoUsuario: newUser.email, rol: newUser.rol } });
+        return res.status(201).json({
+            message: 'Usuario creado correctamente',
+            user: sanitizeUser(newUser),
+            emailSent: false,
+        });
+    } catch (error) {
+        if (error.code === 'P2002') {
+            return res.status(409).json({
+                error: 'Duplicado',
+                message: 'El email o nombre de usuario ya existe',
+            });
+        }
+
+        if (error.message === 'Rol inválido') {
+            return res.status(400).json({
+                error: 'Rol inválido',
+                message: 'Debes proporcionar un rol válido',
+            });
+        }
+
+        if (error.message === 'No puedes asignar un rol superior al tuyo') {
+            return res.status(403).json({
+                error: 'Rol no permitido',
+                message: 'No puedes asignar un rol superior al tuyo',
+            });
+        }
+
+        const message = error.message || 'Error creando usuario';
+
+        return res.status(500).json({
+            error: 'Error creando usuario',
+            message,
+        });
+    }
+});
+
+router.patch('/users/:id/role', authenticate, authorize(['ADMINISTRADOR']), async (req, res) => {
+    const { id } = req.params;
+    const { rol } = req.body || {};
+
+    if (!rol) {
+        return res.status(400).json({
+            error: 'Datos incompletos',
+            message: 'Debes indicar un rol destino',
+        });
+    }
+
+    try {
+        const targetRole = resolveRole(rol, req.user.rol);
+
+        const updated = await prisma.usuario.update({
+            where: { id },
+            data: { rol: targetRole },
+        });
+
+        return res.json({
+            message: 'Rol actualizado correctamente',
+            user: sanitizeUser(updated),
+        });
+    } catch (error) {
+        if (error.code === 'P2025') {
+            return res.status(404).json({
+                error: 'Usuario no encontrado',
+            });
+        }
+
+        if (error.message === 'Rol inválido') {
+            return res.status(400).json({
+                error: 'Rol inválido',
+                message: 'Debes proporcionar un rol válido',
+            });
+        }
+
+        if (error.message === 'No puedes asignar un rol superior al tuyo') {
+            return res.status(403).json({
+                error: 'Rol no permitido',
+                message: 'No puedes asignar un rol superior al tuyo',
+            });
+        }
+
+        return res.status(500).json({
+            error: 'Error actualizando rol',
+            message: error.message,
+        });
+    }
+});
+
+// Actualizar usuario completo
+router.put('/users/:id', authenticate, authorize(['ADMINISTRADOR']), async (req, res) => {
+    const { id } = req.params;
+    const {
+        nombre,
+        apellidos,
+        email,
+        rol,
+        tipoSuscripcion,
+        activo,
+        telefono,
+        organizacion,
+        cargo,
+        experiencia,
+    } = req.body || {};
+
+    if (!nombre || !email) {
+        return res.status(400).json({
+            error: 'Datos incompletos',
+            message: 'Nombre y email son obligatorios',
+        });
+    }
+
+    try {
+        // Verificar que el usuario a editar existe y obtener su rol actual
+        const targetUser = await prisma.usuario.findUnique({ where: { id } });
+
+        if (!targetUser) {
+            return res.status(404).json({
+                error: 'Usuario no encontrado',
+            });
+        }
+
+        // Verificar permisos: no puede editar usuarios con rol igual o superior
+        if (getRolePriority(req.user.rol) <= getRolePriority(targetUser.rol) && req.user.id !== id) {
+            return res.status(403).json({
+                error: 'No permitido',
+                message: 'No puedes editar usuarios con un rol igual o superior al tuyo',
+            });
+        }
+
+        // Si cambia el rol, verificar que puede asignarlo
+        let assignedRole = targetUser.rol;
+        if (rol && rol !== targetUser.rol) {
+            assignedRole = resolveRole(rol, req.user.rol);
+        }
+
+        // Validar tipo de suscripción
+        const validSubscription = ['FREE', 'PRO'].includes(tipoSuscripcion) ? tipoSuscripcion : targetUser.tipoSuscripcion;
+
+        const updated = await prisma.usuario.update({
+            where: { id },
+            data: {
+                nombre,
+                apellidos: apellidos || null,
+                email,
+                rol: assignedRole,
+                tipoSuscripcion: validSubscription,
+                activo: typeof activo === 'boolean' ? activo : targetUser.activo,
+                telefono: telefono || null,
+                organizacion: organizacion || null,
+                cargo: cargo || null,
+                experiencia: experiencia !== null && experiencia !== undefined ? experiencia : null,
+            },
+        });
+
+        return res.json({
+            message: 'Usuario actualizado correctamente',
+            user: sanitizeUser(updated),
+        });
+    } catch (error) {
+        if (error.code === 'P2002') {
+            return res.status(409).json({
+                error: 'Duplicado',
+                message: 'El email ya existe en otro usuario',
+            });
+        }
+
+        if (error.message === 'Rol inválido' || error.message === 'No puedes asignar un rol superior al tuyo') {
+            return res.status(403).json({
+                error: 'Rol no permitido',
+                message: error.message,
+            });
+        }
+
+        return res.status(500).json({
+            error: 'Error actualizando usuario',
+            message: error.message,
+        });
+    }
+});
+
+router.patch('/users/:id/status', authenticate, authorize(['ADMINISTRADOR']), async (req, res) => {
+    const { id } = req.params;
+    const { activo } = req.body || {};
+
+    if (typeof activo !== 'boolean') {
+        return res.status(400).json({
+            error: 'Datos inválidos',
+            message: 'Debes indicar el estado activo como booleano',
+        });
+    }
+
+    try {
+        const updated = await prisma.usuario.update({
+            where: { id },
+            data: { activo },
+        });
+
+        return res.json({
+            message: 'Estado actualizado correctamente',
+            user: sanitizeUser(updated),
+        });
+    } catch (error) {
+        if (error.code === 'P2025') {
+            return res.status(404).json({
+                error: 'Usuario no encontrado',
+            });
+        }
+
+        return res.status(500).json({
+            error: 'Error actualizando estado',
+            message: error.message,
+        });
+    }
+});
+
+router.delete('/users/:id', authenticate, authorize(['ADMINISTRADOR']), async (req, res) => {
+    const { id } = req.params;
+
+    if (req.user.id === id) {
+        return res.status(400).json({
+            error: 'Operación no permitida',
+            message: 'No puedes eliminar tu propio usuario',
+        });
+    }
+
+    try {
+        const targetUser = await prisma.usuario.findUnique({ where: { id } });
+
+        if (!targetUser) {
+            return res.status(404).json({
+                error: 'Usuario no encontrado',
+            });
+        }
+
+        const currentPriority = getRolePriority(req.user.rol);
+        const targetPriority = getRolePriority(targetUser.rol);
+
+        if (currentPriority <= targetPriority) {
+            return res.status(403).json({
+                error: 'Rol no permitido',
+                message: 'No puedes eliminar un usuario con un rol igual o superior al tuyo',
+            });
+        }
+
+        await prisma.usuario.delete({ where: { id } });
+
+        logService.logWarn('AUTH', 'Usuario eliminado', { usuarioId: req.user?.id, detalles: { eliminadoId: id, eliminadoEmail: targetUser.email, rol: targetUser.rol } });
+
+        return res.json({
+            message: 'Usuario eliminado correctamente',
+        });
+    } catch (error) {
+        logService.logError('AUTH', `Error eliminando usuario: ${error.message}`, { usuarioId: req.user?.id, detalles: { eliminadoId: id } });
+        return res.status(500).json({
+            error: 'Error eliminando usuario',
+            message: error.message,
+        });
+    }
+});
+
+// Configurar multer para subida de avatar
+const avatarStorage = multer.memoryStorage();
+const avatarUpload = multer({
+    storage: avatarStorage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+    fileFilter: (req, file, cb) => {
+        const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (allowed.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error(`Tipo de archivo no permitido: ${file.mimetype}. Solo se permiten imágenes (JPG, PNG, WebP).`));
+        }
+    },
+});
+
+/**
+ * POST /api/auth/avatar
+ * Sube una imagen de avatar para el usuario autenticado
+ */
+router.post('/avatar', authenticate, avatarUpload.single('avatar'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: 'No se recibió ninguna imagen',
+            });
+        }
+
+        const userId = req.user.id;
+        const ext = extname(req.file.originalname).toLowerCase() || '.jpg';
+        const filename = `${userId}${ext}`;
+        const avatarsDir = join(__dirname, '..', '..', 'storage', 'avatars');
+
+        // Asegurar que existe el directorio
+        if (!existsSync(avatarsDir)) {
+            await mkdir(avatarsDir, { recursive: true });
+        }
+
+        // Guardar archivo
+        const filePath = join(avatarsDir, filename);
+        await writeFile(filePath, req.file.buffer);
+
+        // Construir URL pública del avatar (relativa, se resuelve desde el frontend)
+        const avatarUrl = `/api/avatars/${filename}?t=${Date.now()}`;
+
+        // Actualizar avatarUrl en la base de datos
+        await prisma.usuario.update({
+            where: { id: userId },
+            data: { avatarUrl },
+        });
+
+        console.log(`✅ Avatar subido para usuario ${userId}: ${filename}`);
+
+        return res.json({
+            success: true,
+            avatarUrl,
+            message: 'Avatar actualizado correctamente',
+        });
+    } catch (error) {
+        console.error('❌ Error subiendo avatar:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error al subir el avatar',
+            error: error.message,
+        });
+    }
+});
+
+export default router;
